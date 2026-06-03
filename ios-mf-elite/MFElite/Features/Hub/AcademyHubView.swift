@@ -43,7 +43,13 @@ struct AcademyHubView: View {
             .scrollIndicators(.hidden)
             .navigationBarHidden(true)
             .navigationDestination(for: Discipline.self) { discipline in
-                Text("Discipline detail coming in 2B")
+                DisciplineView(discipline: discipline)
+            }
+            .navigationDestination(for: CategoryRoute.self) { route in
+                CategoryView(category: route.category, discipline: route.discipline)
+            }
+            .navigationDestination(for: MasteryLevel.self) { level in
+                Text("Level detail coming in 2C")
                     .style(.body)
                     .foregroundStyle(DS.Colors.Ink.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
