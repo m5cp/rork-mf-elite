@@ -11,6 +11,29 @@ import SwiftData
 private struct CoachRosterRoute: Hashable {}
 private struct CoachBuildRoute: Hashable {}
 
+/// Sheets the workspace can present for content management.
+private enum WorkspaceSheet: Identifiable {
+    case addDrill(levelID: String, sortIndex: Int)
+    case editDrill(Drill, levelID: String)
+    case quotes
+    case announcements
+    case parentReport
+    case progressionRules
+    case changePIN
+
+    var id: String {
+        switch self {
+        case .addDrill(let levelID, _): return "add-\(levelID)"
+        case .editDrill(let drill, _): return "edit-\(drill.id)"
+        case .quotes: return "quotes"
+        case .announcements: return "announcements"
+        case .parentReport: return "parentReport"
+        case .progressionRules: return "rules"
+        case .changePIN: return "pin"
+        }
+    }
+}
+
 struct CoachWorkspaceView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -18,7 +41,8 @@ struct CoachWorkspaceView: View {
 
     @State private var awardCerts = true
     @State private var isPublishing = false
-    @State private var showChangePIN = false
+    @State private var activeSheet: WorkspaceSheet?
+    @State private var toast: String?
 
     private var viewModel: CoachWorkspaceViewModel {
         CoachWorkspaceViewModel(disciplines: disciplines)
@@ -45,15 +69,74 @@ struct CoachWorkspaceView: View {
             }
             .background(DS.Colors.Bg.base)
             .navigationBarHidden(true)
+            .overlay(alignment: .bottom) { toastView }
             .navigationDestination(for: CoachRosterRoute.self) { _ in
                 CoachRosterView()
             }
             .navigationDestination(for: CoachBuildRoute.self) { _ in
                 CoachBuildSessionView()
             }
-            .sheet(isPresented: $showChangePIN) {
-                SetCoachPINView(onDone: { showChangePIN = false })
+            .sheet(item: $activeSheet) { sheet in
+                sheetContent(sheet)
             }
+        }
+    }
+
+    @ViewBuilder
+    private func sheetContent(_ sheet: WorkspaceSheet) -> some View {
+        switch sheet {
+        case .addDrill(let levelID, let sortIndex):
+            CoachDrillEditorView(levelID: levelID, existing: nil, defaultSortIndex: sortIndex) {
+                showToast("Drill added")
+                resync()
+            }
+        case .editDrill(let drill, let levelID):
+            CoachDrillEditorView(levelID: levelID, existing: drill) {
+                showToast("Drill updated")
+                resync()
+            }
+        case .quotes:
+            CoachQuotesView()
+        case .announcements:
+            CoachAnnouncementsView()
+        case .parentReport:
+            CoachParentReportView()
+        case .progressionRules:
+            CoachProgressionRulesView()
+        case .changePIN:
+            SetCoachPINView(onDone: { activeSheet = nil })
+        }
+    }
+
+    // MARK: - Toast
+
+    @ViewBuilder
+    private var toastView: some View {
+        if let toast {
+            Text(toast)
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ground.primary)
+                .padding(.vertical, DS.Spacing.s12)
+                .padding(.horizontal, DS.Spacing.s20)
+                .background(Color.white)
+                .clipShape(Capsule())
+                .pillLightElevation()
+                .padding(.bottom, DS.Spacing.s32)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    private func showToast(_ message: String) {
+        withAnimation(DS.Motion.standardSpring) { toast = message }
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            withAnimation(DS.Motion.standardSpring) { toast = nil }
+        }
+    }
+
+    private func resync() {
+        Task {
+            await CurriculumSyncService.shared.syncCurriculum(context: modelContext, force: true)
         }
     }
 
@@ -133,7 +216,16 @@ struct CoachWorkspaceView: View {
 
             VStack(spacing: 0) {
                 ForEach(vm.disciplines, id: \.id) { discipline in
-                    DisciplineTreeRow(discipline: discipline, vm: vm)
+                    DisciplineTreeRow(
+                        discipline: discipline,
+                        vm: vm,
+                        onAddDrill: { levelID, sortIndex in
+                            activeSheet = .addDrill(levelID: levelID, sortIndex: sortIndex)
+                        },
+                        onEditDrill: { drill, levelID in
+                            activeSheet = .editDrill(drill, levelID: levelID)
+                        }
+                    )
                 }
             }
             .background(DS.Colors.Bg.elevated)
@@ -143,9 +235,7 @@ struct CoachWorkspaceView: View {
                     .stroke(DS.Colors.Line.hairline, lineWidth: 1)
             )
 
-            SecondaryButton(label: "Add category", size: .medium) {}
-
-            Eyebrow(text: "Stored in Supabase · RLS-secured", color: DS.Colors.Ink.quaternary)
+            Eyebrow(text: "Tap a level to add a drill · tap a drill to edit", color: DS.Colors.Ink.quaternary)
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32)
@@ -161,25 +251,25 @@ struct CoachWorkspaceView: View {
                 Hairline()
                 navRow(icon: "square.and.pencil", label: "Build session", route: CoachBuildRoute())
                 Hairline()
-                changePINRow
+                buttonRow(icon: "doc.text", label: "Parent report") { activeSheet = .parentReport }
+                Hairline()
+                buttonRow(icon: "lock.rotation", label: "Change PIN") { activeSheet = .changePIN }
             }
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32)
     }
 
-    private var changePINRow: some View {
-        Button {
-            showChangePIN = true
-        } label: {
+    private func buttonRow(icon: String, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
             HStack(spacing: DS.Spacing.s16) {
-                Image(systemName: "lock.rotation")
+                Image(systemName: icon)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(DS.Colors.Ink.primary)
                     .frame(width: 36, height: 36)
                     .background(DS.Colors.Bg.raised)
                     .clipShape(Circle())
-                Text("Change PIN")
+                Text(label)
                     .style(.title3)
                     .foregroundStyle(DS.Colors.Ink.primary)
                 Spacer(minLength: 0)
@@ -220,7 +310,18 @@ struct CoachWorkspaceView: View {
 
     private var progressionRules: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-            Eyebrow(text: "Progression Rules")
+            HStack {
+                Eyebrow(text: "Progression Rules")
+                Spacer()
+                Button {
+                    activeSheet = .progressionRules
+                } label: {
+                    Text("Edit")
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
             VStack(spacing: DS.Spacing.s8) {
                 ruleField("XP per drill", ProgressionRules.xpPerDrill)
                 ruleField("Level bonus", ProgressionRules.xpLevelBonus)
@@ -274,30 +375,30 @@ struct CoachWorkspaceView: View {
         VStack(alignment: .leading, spacing: DS.Spacing.s12) {
             Eyebrow(text: "Dashboard Content")
             VStack(spacing: 0) {
-                contentRow(label: "Daily motivation quotes", trailing: "31 In Queue")
+                contentRow(label: "Daily motivation quotes") { activeSheet = .quotes }
                 Hairline()
-                contentRow(label: "Announcements", trailing: "0 Active")
+                contentRow(label: "Announcements") { activeSheet = .announcements }
             }
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32)
     }
 
-    private func contentRow(label: String, trailing: String) -> some View {
-        HStack(spacing: DS.Spacing.s12) {
-            Text(label)
-                .style(.callout)
-                .foregroundStyle(DS.Colors.Ink.primary)
-            Spacer(minLength: 0)
-            Text(trailing)
-                .style(.micro)
-                .foregroundStyle(DS.Colors.Ink.tertiary)
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(DS.Colors.Ink.quaternary)
+    private func contentRow(label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: DS.Spacing.s12) {
+                Text(label)
+                    .style(.callout)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(.vertical, DS.Spacing.s12 + 2)
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, DS.Spacing.s12 + 2)
-        .contentShape(Rectangle())
+        .buttonStyle(PressableButtonStyle())
     }
 
     // MARK: - Bottom CTAs
@@ -313,7 +414,9 @@ struct CoachWorkspaceView: View {
                 Task {
                     await CoachContentService.shared.publishChanges()
                     await CurriculumSyncService.shared.syncCurriculum(context: modelContext, force: true)
+                    await CurriculumSyncService.shared.syncProgressionRules()
                     isPublishing = false
+                    showToast("Changes published")
                 }
             }
             Text("Stored in Supabase · RLS-secured · No App Store update needed")
@@ -332,6 +435,8 @@ struct CoachWorkspaceView: View {
 private struct DisciplineTreeRow: View {
     let discipline: Discipline
     let vm: CoachWorkspaceViewModel
+    let onAddDrill: (_ levelID: String, _ sortIndex: Int) -> Void
+    let onEditDrill: (_ drill: Drill, _ levelID: String) -> Void
 
     @State private var expanded = false
 
@@ -363,36 +468,118 @@ private struct DisciplineTreeRow: View {
             if expanded {
                 VStack(spacing: 0) {
                     ForEach(vm.sortedCategories(for: discipline), id: \.id) { category in
-                        categoryRow(category)
+                        CategoryTreeRow(category: category, vm: vm, onAddDrill: onAddDrill, onEditDrill: onEditDrill)
                     }
                 }
                 .padding(.bottom, DS.Spacing.s8)
             }
         }
     }
+}
 
-    private func categoryRow(_ category: Category) -> some View {
-        HStack(spacing: DS.Spacing.s12) {
-            Text(category.letter)
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
-                .foregroundStyle(DS.Colors.Ink.tertiary)
-                .frame(width: 18)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(category.name)
-                    .style(.foot)
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                Text("\(vm.levelCount(for: category)) Levels · \(vm.drillCount(for: category)) Drills")
-                    .style(.microSm)
-                    .foregroundStyle(DS.Colors.Ink.quaternary)
+// MARK: - Category Tree Row
+
+private struct CategoryTreeRow: View {
+    let category: Category
+    let vm: CoachWorkspaceViewModel
+    let onAddDrill: (_ levelID: String, _ sortIndex: Int) -> Void
+    let onEditDrill: (_ drill: Drill, _ levelID: String) -> Void
+
+    @State private var expanded = false
+
+    private var sortedLevels: [MasteryLevel] {
+        category.levels.sorted { $0.number < $1.number }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Button {
+                withAnimation(DS.Motion.standardSpring) { expanded.toggle() }
+            } label: {
+                HStack(spacing: DS.Spacing.s12) {
+                    Text(category.letter)
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .frame(width: 18)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(category.name)
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("\(vm.levelCount(for: category)) Levels · \(vm.drillCount(for: category)) Drills")
+                            .style(.microSm)
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                        .rotationEffect(.degrees(expanded ? 0 : -90))
+                }
+                .padding(.vertical, DS.Spacing.s8)
+                .padding(.leading, DS.Spacing.s32)
+                .padding(.trailing, DS.Spacing.s16)
+                .contentShape(Rectangle())
             }
-            Spacer(minLength: 0)
-            Text("Add drill")
-                .style(.micro)
-                .foregroundStyle(DS.Colors.Ink.tertiary)
+            .buttonStyle(PressableButtonStyle())
+
+            if expanded {
+                ForEach(sortedLevels, id: \.id) { level in
+                    levelBlock(level)
+                }
+            }
         }
-        .padding(.vertical, DS.Spacing.s8)
-        .padding(.leading, DS.Spacing.s32)
-        .padding(.trailing, DS.Spacing.s16)
+    }
+
+    private func levelBlock(_ level: MasteryLevel) -> some View {
+        let drills = level.drills.sorted { $0.sortIndex < $1.sortIndex }
+        return VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Level \(level.number) · \(level.name)")
+                    .style(.microSm)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                Spacer(minLength: 0)
+                Button {
+                    onAddDrill(level.id, drills.count)
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 9, weight: .bold))
+                        Text("Add drill")
+                            .style(.microSm)
+                    }
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+            .padding(.vertical, DS.Spacing.s8)
+            .padding(.leading, DS.Spacing.s48)
+            .padding(.trailing, DS.Spacing.s16)
+
+            ForEach(drills, id: \.id) { drill in
+                Button {
+                    onEditDrill(drill, level.id)
+                } label: {
+                    HStack(spacing: DS.Spacing.s8) {
+                        Circle()
+                            .fill(DS.Colors.Ink.disabled)
+                            .frame(width: 4, height: 4)
+                        Text(drill.title)
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.secondary)
+                            .lineLimit(1)
+                        Spacer(minLength: 0)
+                        Image(systemName: "pencil")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                    }
+                    .padding(.vertical, DS.Spacing.s8)
+                    .padding(.leading, DS.Spacing.s48 + DS.Spacing.s8)
+                    .padding(.trailing, DS.Spacing.s16)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+        }
     }
 }
 

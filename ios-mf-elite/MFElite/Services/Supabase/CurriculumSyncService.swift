@@ -205,7 +205,10 @@ final class CurriculumSyncService {
 
     // MARK: - Progression rules / quotes
 
-    /// Fetch the single progression_rules row. Returns nil if unavailable.
+    /// Fetch the single progression_rules row and cache it into the local
+    /// `ProgressionRules` store so XP rewards and free/paid gating follow the
+    /// coach's published values. Returns the row (or nil if unavailable).
+    @discardableResult
     func syncProgressionRules() async -> SupabaseProgressionRules? {
         guard SupabaseService.shared.isConfigured, AuthService.shared.isAuthenticated else { return nil }
         do {
@@ -215,10 +218,37 @@ final class CurriculumSyncService {
                 .limit(1)
                 .execute()
                 .value
+            if let rules = rows.first {
+                ProgressionRules.apply(
+                    xpPerDrill: rules.xpPerDrill,
+                    xpLevelBonus: rules.xpLevelBonus,
+                    xpCategoryCert: rules.xpCategoryCert,
+                    xpDisciplineDiploma: rules.xpDisciplineDiploma,
+                    freeLevels: rules.freeLevels,
+                    masteryPasses: rules.masteryPasses
+                )
+            }
             return rows.first
         } catch {
             print("[CurriculumSync] rules failed: \(error)")
             return nil
+        }
+    }
+
+    /// Fetch active announcements (newest first) for the player Today screen.
+    func syncAnnouncements() async -> [SupabaseAnnouncement] {
+        guard SupabaseService.shared.isConfigured, AuthService.shared.isAuthenticated else { return [] }
+        do {
+            return try await SupabaseService.shared.client
+                .from("announcements")
+                .select()
+                .eq("active", value: true)
+                .order("created_at", ascending: false)
+                .execute()
+                .value
+        } catch {
+            print("[CurriculumSync] announcements failed: \(error)")
+            return []
         }
     }
 

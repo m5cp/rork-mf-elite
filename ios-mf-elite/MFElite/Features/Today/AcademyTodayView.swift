@@ -14,6 +14,7 @@ struct AcademyTodayView: View {
     @Query private var progress: [DrillProgress]
     @Environment(SubscriptionService.self) private var subscription
     @State private var profile = PlayerProfileStore.shared
+    @State private var announcements = AnnouncementStore.shared
 
     private var viewModel: AcademyTodayViewModel {
         AcademyTodayViewModel(
@@ -34,6 +35,7 @@ struct AcademyTodayView: View {
                         completeProfileBanner
                     }
                     salutation(vm)
+                    announcementCards
                     dailyStandard(vm)
                     goalsCard(vm)
                     continuePathway(vm)
@@ -44,6 +46,7 @@ struct AcademyTodayView: View {
             .background(DS.Colors.Bg.base)
             .scrollIndicators(.hidden)
             .navigationBarHidden(true)
+            .task { await announcements.refresh() }
             .navigationDestination(for: LevelRoute.self) { route in
                 LevelView(level: route.level, category: route.category, discipline: route.discipline)
             }
@@ -99,6 +102,58 @@ struct AcademyTodayView: View {
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s16)
+    }
+
+    // MARK: - Coach announcements
+
+    @ViewBuilder
+    private var announcementCards: some View {
+        if !announcements.visible.isEmpty {
+            VStack(spacing: DS.Spacing.s12) {
+                ForEach(announcements.visible) { item in
+                    announcementCard(item)
+                }
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s16)
+        }
+    }
+
+    private func announcementCard(_ item: SupabaseAnnouncement) -> some View {
+        Card(padding: DS.Spacing.s16) {
+            VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                HStack(alignment: .top) {
+                    Eyebrow(text: "Coach Announcement")
+                    Spacer(minLength: DS.Spacing.s8)
+                    Button {
+                        withAnimation(DS.Motion.standardSpring) {
+                            announcements.dismiss(item.id)
+                        }
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                            .frame(width: 24, height: 24)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .accessibilityLabel("Dismiss announcement")
+                }
+                Text(item.title)
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .padding(.top, DS.Spacing.s4)
+                if let body = item.body, !body.isEmpty {
+                    Text(body)
+                        .style(.body)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .padding(.top, DS.Spacing.s4)
+                }
+            }
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 22)
+                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+        )
     }
 
     // MARK: - 1. Top Bar

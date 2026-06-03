@@ -211,6 +211,26 @@ CREATE POLICY "announcements_coach_write" ON announcements
   WITH CHECK (user_id() IN (SELECT user_id FROM coaches));
 
 
+-- -----------------------------------------------------------------------------
+-- coach_notes — monthly coach note surfaced on the parent report. One row per
+-- calendar month ("2026-06"); coach edits update the same row.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS coach_notes (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  month       text NOT NULL UNIQUE,        -- "YYYY-MM"
+  body        text NOT NULL DEFAULT '',
+  updated_at  timestamptz DEFAULT now()
+);
+
+ALTER TABLE coach_notes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "coach_notes_select_auth" ON coach_notes
+  FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
+CREATE POLICY "coach_notes_coach_write" ON coach_notes
+  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches))
+  WITH CHECK (user_id() IN (SELECT user_id FROM coaches));
+
+
 -- =============================================================================
 -- PLAYER TABLES (player-owned)
 -- =============================================================================

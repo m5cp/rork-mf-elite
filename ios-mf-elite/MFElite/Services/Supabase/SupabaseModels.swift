@@ -359,6 +359,10 @@ nonisolated struct SupabaseQuoteInsert: Encodable, Sendable {
     }
 }
 
+nonisolated struct SupabaseQuoteUpdate: Encodable, Sendable {
+    let quote: String
+}
+
 nonisolated struct SupabaseAnnouncement: Codable, Sendable, Identifiable {
     let id: String
     let title: String
@@ -368,6 +372,37 @@ nonisolated struct SupabaseAnnouncement: Codable, Sendable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id, title, body, active
     }
+}
+
+nonisolated struct SupabaseAnnouncementInsert: Encodable, Sendable {
+    let title: String
+    let body: String?
+    let active: Bool
+}
+
+nonisolated struct SupabaseAnnouncementActiveUpdate: Encodable, Sendable {
+    let active: Bool
+}
+
+// MARK: - Coach note (monthly parent report)
+
+/// A coach-authored note shown on the parent report. Keyed by the calendar month
+/// it covers ("2026-06") so the coach edits one note per month.
+nonisolated struct SupabaseCoachNote: Codable, Sendable, Identifiable {
+    let id: String
+    let month: String
+    let body: String
+    let updatedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case id, month, body
+        case updatedAt = "updated_at"
+    }
+}
+
+nonisolated struct SupabaseCoachNoteUpsert: Encodable, Sendable {
+    let month: String
+    let body: String
 }
 
 // MARK: - Player state / progress / certs
