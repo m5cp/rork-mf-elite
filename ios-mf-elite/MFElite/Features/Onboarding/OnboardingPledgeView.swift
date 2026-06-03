@@ -28,7 +28,7 @@ struct OnboardingPledgeView: View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-                    Eyebrow(text: "Step 5 of 7")
+                    Eyebrow(text: "Step 4 of 6")
                     Text("The Pledge")
                         .style(.hero)
                         .foregroundStyle(DS.Colors.Ink.primary)

@@ -26,8 +26,6 @@ struct OnboardingView: View {
                 switch state.step {
                 case .splash:
                     OnboardingSplashView(state: state)
-                case .code:
-                    OnboardingCodeView(state: state)
                 case .identify:
                     OnboardingIdentifyView(state: state)
                 case .username:
@@ -60,6 +58,7 @@ struct OnboardingView: View {
         // 1. Persist locally — instant, offline-first source of truth.
         PlayerProfileStore.shared.complete(
             name: state.playerName.isEmpty ? "Player One" : state.playerName,
+            username: state.username,
             kit: state.kitNumber,
             position: state.position
         )
@@ -79,35 +78,17 @@ struct OnboardingView: View {
         }
     }
 
-    private func ensurePlayerState() {
-        let existing = try? modelContext.fetch(FetchDescriptor<PlayerState>()).first
-        if existing == nil {
-            let playerID = AuthService.shared.user?.id ?? UUID().uuidString
-            modelContext.insert(PlayerState(playerID: playerID, xp: 0, streak: 0, freezesRemaining: 0))
-            try? modelContext.save()
-        }
-    }
-
     private func createRemoteProfile() async {
         guard SupabaseService.shared.isConfigured,
               let userID = AuthService.shared.user?.id else { return }
         do {
-            // If the player arrived with a coach invite code, redeem it so the
-            // coach's pre-filled details merge in; otherwise create their own.
-            if state.hasInvite {
-                _ = try await ProfileService.shared.claimInvite(
-                    code: state.inviteCode,
-                    username: state.username
-                )
-            } else {
-                try await ProfileService.shared.upsertOwnProfile(
-                    userID: userID,
-                    username: state.username,
-                    name: state.playerName,
-                    kit: state.kitNumber,
-                    position: state.position
-                )
-            }
+            try await ProfileService.shared.upsertOwnProfile(
+                userID: userID,
+                username: state.username,
+                name: state.playerName,
+                kit: state.kitNumber,
+                position: state.position
+            )
             try await SupabaseService.shared.client
                 .from("player_state")
                 .upsert(PlayerStateUpsert(
@@ -123,4 +104,14 @@ struct OnboardingView: View {
             print("[Onboarding] remote profile creation failed: \(error)")
         }
     }
+
+    private func ensurePlayerState() {
+        let existing = try? modelContext.fetch(FetchDescriptor<PlayerState>()).first
+        if existing == nil {
+            let playerID = AuthService.shared.user?.id ?? UUID().uuidString
+            modelContext.insert(PlayerState(playerID: playerID, xp: 0, streak: 0, freezesRemaining: 0))
+            try? modelContext.save()
+        }
+    }
+
 }

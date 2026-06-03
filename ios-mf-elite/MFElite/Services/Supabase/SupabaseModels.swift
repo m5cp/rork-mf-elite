@@ -166,6 +166,16 @@ nonisolated struct UsernameAvailableParams: Encodable, Sendable {
     let candidate: String
 }
 
+/// Post-onboarding redemption — merges a coach invite into the existing profile,
+/// keeping the player's own username.
+nonisolated struct RedeemInviteParams: Encodable, Sendable {
+    let inviteCode: String
+
+    enum CodingKeys: String, CodingKey {
+        case inviteCode = "invite_code"
+    }
+}
+
 // MARK: - Curriculum (read)
 
 nonisolated struct SupabaseDiscipline: Codable, Sendable, Identifiable {

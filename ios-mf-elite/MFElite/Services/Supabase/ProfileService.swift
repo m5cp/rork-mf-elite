@@ -111,6 +111,28 @@ final class ProfileService {
         }
     }
 
+    /// Redeem a coach invite code AFTER onboarding. Merges the coach's pre-filled
+    /// name/kit/position into the player's existing profile and keeps their own
+    /// username. Returns the merged row.
+    func redeemInvite(code: String) async throws -> PlayerProfileRow {
+        guard isConfigured else { throw ClaimError.notConfigured }
+        let params = RedeemInviteParams(
+            inviteCode: ProfileValidation.normalizedInviteCode(code)
+        )
+        do {
+            let row: PlayerProfileRow = try await client
+                .rpc("redeem_roster_invite", params: params)
+                .execute()
+                .value
+            return row
+        } catch {
+            let message = "\(error)"
+            if message.contains("invalid_or_used_code") { throw ClaimError.invalidCode }
+            if message.contains("not_authenticated") { throw ClaimError.notConfigured }
+            throw ClaimError.unknown(error.localizedDescription)
+        }
+    }
+
     // MARK: - Coach roster
 
     /// All real players visible to the coach (example placeholders excluded).

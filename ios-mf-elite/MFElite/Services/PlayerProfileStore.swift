@@ -19,6 +19,7 @@ final class PlayerProfileStore {
     private enum Keys {
         static let completed = "MF_ONBOARDING_COMPLETE"
         static let name = "MF_PLAYER_NAME"
+        static let username = "MF_PLAYER_USERNAME"
         static let kit = "MF_PLAYER_KIT"
         static let position = "MF_PLAYER_POSITION"
     }
@@ -31,6 +32,9 @@ final class PlayerProfileStore {
     var displayName: String {
         didSet { defaults.set(displayName, forKey: Keys.name) }
     }
+    var username: String {
+        didSet { defaults.set(username, forKey: Keys.username) }
+    }
     var kitNumber: String {
         didSet { defaults.set(kitNumber, forKey: Keys.kit) }
     }
@@ -41,6 +45,7 @@ final class PlayerProfileStore {
     private init() {
         hasCompletedOnboarding = defaults.bool(forKey: Keys.completed)
         displayName = defaults.string(forKey: Keys.name) ?? "Player One"
+        username = defaults.string(forKey: Keys.username) ?? ""
         kitNumber = defaults.string(forKey: Keys.kit) ?? "09"
         position = defaults.string(forKey: Keys.position) ?? ""
     }
@@ -59,17 +64,26 @@ final class PlayerProfileStore {
     }
 
     /// Persist the onboarding result and mark the flow complete.
-    func complete(name: String, kit: String, position: String) {
+    func complete(name: String, username: String = "", kit: String, position: String) {
         displayName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !username.isEmpty { self.username = username }
         kitNumber = kit
         self.position = position
         hasCompletedOnboarding = true
+    }
+
+    /// Merge shareable fields returned after redeeming a coach invite code.
+    func applyRosterMerge(name: String?, kit: String?, position: String?) {
+        if let name, !name.isEmpty { displayName = name }
+        if let kit, !kit.isEmpty { kitNumber = kit }
+        if let position, !position.isEmpty { self.position = position }
     }
 
     /// Reset for testing / sign-out.
     func reset() {
         hasCompletedOnboarding = false
         displayName = "Player One"
+        username = ""
         kitNumber = "09"
         position = ""
     }

@@ -30,7 +30,7 @@ struct OnboardingUsernameView: View {
         VStack(alignment: .leading, spacing: 0) {
             ScrollView {
                 VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-                    Eyebrow(text: "Step 3 of 7")
+                    Eyebrow(text: "Step 2 of 6")
                     Text("Your Handle")
                         .style(.hero)
                         .foregroundStyle(DS.Colors.Ink.primary)

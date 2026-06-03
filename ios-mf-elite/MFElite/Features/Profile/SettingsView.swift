@@ -12,6 +12,7 @@ struct SettingsRoute: Hashable {}
 
 struct SettingsView: View {
     @State private var showCoachLogin = false
+    @State private var showRedeemCode = false
 
     var body: some View {
         ScrollView {
@@ -26,6 +27,15 @@ struct SettingsView: View {
                 .padding(.top, DS.Spacing.s24)
 
                 VStack(spacing: 0) {
+                    Button {
+                        showRedeemCode = true
+                    } label: {
+                        settingsRow(icon: "ticket", label: "Redeem a code")
+                    }
+                    .buttonStyle(PressableButtonStyle())
+
+                    Hairline()
+
                     Button {
                         showCoachLogin = true
                     } label: {
@@ -44,6 +54,9 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(isPresented: $showCoachLogin) {
             CoachLoginView()
+        }
+        .sheet(isPresented: $showRedeemCode) {
+            RedeemCodeView()
         }
     }
 

@@ -11,7 +11,6 @@ import Observation
 
 enum OnboardingStep: Int, CaseIterable {
     case splash
-    case code
     case identify
     case username
     case position

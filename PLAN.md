@@ -7,7 +7,7 @@ Make sure a player's profile can be created either by the player or by a coach, 
 ## How profiles get created
 
 - **Player self-signup**: during onboarding the player picks a **unique username**. If it's already taken, the app says so and makes them choose another before continuing. Their name, kit number, and position are saved.
-- **Coach pre-creates**: from the admin area a coach can add a player with name, kit number, position and an **invite code**. The player enters that code on first sign-in and the coach's details merge into their profile automatically. the coach has to have a method to create that invite code. it can be a one time code that he creates when he sets up the coach profile. it has to fit the format of the app currently. it is only for players who have subscribed or on a free trial. when the trial goes away, the coach maintain access to the file in case the user resubscibes. the user loses access to the progress and other paid services once the trial ends or they do not resubscribe at the appropriate time.
+- **Coach pre-creates**: from the admin area a coach can add a player with name, kit number, position and an **invite code**. Entering a code is **optional and never blocks sign-up** — onboarding flows straight through without one. A player who has a code can redeem it any time from **Settings → Redeem a code**, and the coach's details merge into their existing profile automatically (their own username is preserved). the coach has to have a method to create that invite code. it can be a one time code that he creates when he sets up the coach profile. it has to fit the format of the app currently. it is only for players who have subscribed or on a free trial. when the trial goes away, the coach maintain access to the file in case the user resubscibes. the user loses access to the progress and other paid services once the trial ends or they do not resubscribe at the appropriate time.
 - **Coach edits later**: a coach can update a joined player's name, kit number, or position at any time.
 - **Coach reset**: if a player's info breaks, the coach can reset it from the admin and the player re-enters details on next launch.
 
@@ -37,7 +37,7 @@ Make sure a player's profile can be created either by the player or by a coach, 
 - **Onboarding** gets a username step with live "this name is taken" feedback.
 - **Coach admin → Squad roster**: shows real players from the server (no longer mock data), with **one example placeholder entry that is clearly marked and never appears in the player-facing app**, plus an "Add player" form (name, kit, position, generated invite code).
 - **Coach player detail**: edit roster fields, see training progress, and a "Reset player info" action.
-- **Invite claim**: player enters the coach's invite code and their profile is pre-filled.
+- **Redeem a code** (optional): a standard "Redeem a code" screen in Settings where a player can enter a coach invite code at any time; the coach's details merge into their existing profile (username preserved). It is never part of the onboarding gate.
 
 ## Behind the scenes
 

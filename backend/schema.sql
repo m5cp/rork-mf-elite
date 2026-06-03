@@ -489,6 +489,56 @@ $;
 
 
 -- -----------------------------------------------------------------------------
+-- redeem_roster_invite(invite_code) — optional, post-onboarding redemption.
+-- Unlike claim_roster_invite (used at first sign-up to pick a username), this
+-- merges the coach's pre-filled fields into the caller's EXISTING profile and
+-- preserves the player's own username. Safe to call any time after onboarding,
+-- mirroring a typical "Redeem code" option. SECURITY DEFINER so the player
+-- never reads the coach's invite table.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION redeem_roster_invite(invite_code text)
+RETURNS player_profiles
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $
+DECLARE
+  uid     text := user_id();
+  inv     roster_invites;
+  result  player_profiles;
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+
+  SELECT * INTO inv FROM roster_invites
+    WHERE lower(code) = lower(trim(invite_code)) AND status = 'pending'
+    FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'invalid_or_used_code';
+  END IF;
+
+  -- Merge the coach's shareable fields into the caller's existing profile,
+  -- keeping their chosen username. If they somehow have no profile yet, create
+  -- one with a temporary handle derived from their uid.
+  INSERT INTO player_profiles (id, account_id, username, display_name, kit_number, position)
+    VALUES (uid, uid, 'player_' || substr(uid, 1, 8), inv.display_name, inv.kit_number, inv.position)
+  ON CONFLICT (id) DO UPDATE
+    SET display_name = COALESCE(EXCLUDED.display_name, player_profiles.display_name),
+        kit_number   = COALESCE(EXCLUDED.kit_number, player_profiles.kit_number),
+        position     = COALESCE(EXCLUDED.position, player_profiles.position)
+  RETURNING * INTO result;
+
+  UPDATE roster_invites
+    SET status = 'claimed', claimed_by = uid, player_id = uid, claimed_at = now()
+    WHERE id = inv.id;
+
+  RETURN result;
+END;
+$;
+
+
+-- -----------------------------------------------------------------------------
 -- Protect the username: a coach may edit roster fields (name/kit/position) and
 -- reset, but must NOT change a player's chosen username. Owners may change
 -- their own.
