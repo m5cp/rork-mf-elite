@@ -145,6 +145,36 @@ final class AuthService {
         isCoach = false
     }
 
+    // MARK: - Account deletion
+
+    /// Permanently removes the player's remote records, then signs out.
+    /// Local SwiftData + the onboarding flag are cleared by the caller.
+    func deleteAccount() async {
+        if SupabaseService.shared.isConfigured, let userID = user?.id {
+            do {
+                try await SupabaseService.shared.client
+                    .from("player_progress")
+                    .delete()
+                    .eq("player_id", value: userID)
+                    .execute()
+                try await SupabaseService.shared.client
+                    .from("player_state")
+                    .delete()
+                    .eq("player_id", value: userID)
+                    .execute()
+                try await SupabaseService.shared.client
+                    .from("player_profiles")
+                    .delete()
+                    .eq("id", value: userID)
+                    .execute()
+            } catch {
+                // Non-fatal — RLS or offline. The sign-out still proceeds.
+                print("[AuthService] account deletion failed: \(error)")
+            }
+        }
+        await signOut()
+    }
+
     // MARK: - Coach role
 
     /// Query the `coaches` table to learn if the current user has write access.

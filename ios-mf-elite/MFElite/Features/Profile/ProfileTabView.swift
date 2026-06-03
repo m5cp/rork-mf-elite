@@ -43,6 +43,12 @@ struct ProfileTabView: View {
             .navigationDestination(for: CertificationsRoute.self) { _ in
                 CertificationsView()
             }
+            .navigationDestination(for: RankDetailRoute.self) { _ in
+                RankDetailView()
+            }
+            .navigationDestination(for: BadgesRoute.self) { _ in
+                BadgesLockerView()
+            }
             .navigationDestination(for: StreakRoute.self) { _ in
                 StreakDetailView()
             }
@@ -89,6 +95,12 @@ struct ProfileTabView: View {
             Hairline()
             menuRow(icon: "rosette", label: "Certifications",
                     route: CertificationsRoute())
+            Hairline()
+            menuRow(icon: "medal", label: "Rank & XP",
+                    route: RankDetailRoute())
+            Hairline()
+            menuRow(icon: "shield.lefthalf.filled", label: "Badges",
+                    route: BadgesRoute())
             Hairline()
             menuRow(icon: "flame", label: "Streak",
                     route: StreakRoute())
