@@ -45,6 +45,9 @@ struct AcademyTodayView: View {
             .navigationDestination(for: DrillRoute.self) { route in
                 DrillDetailView(drill: route.drill, level: route.level, category: route.category, discipline: route.discipline)
             }
+            .navigationDestination(for: StreakRoute.self) { _ in
+                StreakDetailView()
+            }
         }
     }
 
@@ -63,22 +66,25 @@ struct AcademyTodayView: View {
 
             Spacer()
 
-            HStack(spacing: DS.Spacing.s4 + 2) {
-                Image(systemName: "chart.bar.fill")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                Text("\(vm.streak)")
-                    .font(DS.Typography.num(size: 14))
-                    .foregroundStyle(DS.Colors.Ink.primary)
+            NavigationLink(value: StreakRoute()) {
+                HStack(spacing: DS.Spacing.s4 + 2) {
+                    Image(systemName: "chart.bar.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text("\(vm.streak)")
+                        .font(DS.Typography.num(size: 14))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                }
+                .padding(.vertical, 6)
+                .padding(.horizontal, DS.Spacing.s12)
+                .background(DS.Colors.Bg.raised)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Radius.pill)
+                        .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+                )
             }
-            .padding(.vertical, 6)
-            .padding(.horizontal, DS.Spacing.s12)
-            .background(DS.Colors.Bg.raised)
-            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
-            .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.pill)
-                    .stroke(DS.Colors.Line.hairline, lineWidth: 1)
-            )
+            .buttonStyle(PressableButtonStyle())
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s12)

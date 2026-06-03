@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 import SwiftData
+import UserNotifications
 
 /// The phase of a live drill session.
 enum PlayerPhase: Equatable {
@@ -185,6 +186,13 @@ final class DrillPlayerViewModel {
             }
             player.lastTrainedDate = Date()
             newStreak = player.streak
+
+            // Logged today — cancel tonight's streak-risk warning.
+            NotificationService.shared.cancelStreakRisk()
+            // Fire a milestone notification if this run hit a milestone.
+            if let name = Self.milestoneName(for: player.streak) {
+                NotificationService.shared.scheduleMilestone(days: player.streak, name: name)
+            }
         }
 
         // Bonus XP for level / category completion.
@@ -199,6 +207,18 @@ final class DrillPlayerViewModel {
 
         try? context.save()
         isComplete = true
+    }
+
+    /// Returns the milestone name if `streak` exactly matches a milestone threshold.
+    private static func milestoneName(for streak: Int) -> String? {
+        switch streak {
+        case 7: return "Week One"
+        case 14: return "Fortnight"
+        case 30: return "The Month"
+        case 50: return "Fifty"
+        case 100: return "Century"
+        default: return nil
+        }
     }
 
     // MARK: - Completion checks
