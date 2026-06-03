@@ -47,6 +47,9 @@ struct ProfileTabView: View {
             .navigationDestination(for: ParentReportRoute.self) { _ in
                 ParentReportView()
             }
+            .navigationDestination(for: SettingsRoute.self) { _ in
+                SettingsView()
+            }
             .navigationDestination(for: ProfilePlaceholderRoute.self) { route in
                 ProfilePlaceholder(title: route.title, note: route.note)
             }
@@ -86,8 +89,7 @@ struct ProfileTabView: View {
                     route: StreakRoute())
             Hairline()
             menuRow(icon: "gearshape", label: "Settings",
-                    route: ProfilePlaceholderRoute(title: "Settings",
-                                                   note: "Preferences and account controls. Coming in Phase 7."))
+                    route: SettingsRoute())
             Hairline()
             menuRow(icon: "doc.text", label: "Parent Report",
                     route: ParentReportRoute())
