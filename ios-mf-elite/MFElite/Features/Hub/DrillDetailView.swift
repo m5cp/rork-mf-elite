@@ -9,11 +9,13 @@ import SwiftUI
 import SwiftData
 
 /// Navigation route carrying a drill plus its parents for breadcrumb context.
-struct DrillRoute: Hashable {
+struct DrillRoute: Hashable, Identifiable {
     let discipline: Discipline
     let category: Category
     let level: MasteryLevel
     let drill: Drill
+
+    var id: String { drill.id }
 }
 
 struct DrillDetailView: View {
@@ -24,6 +26,7 @@ struct DrillDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Query private var progress: [DrillProgress]
+    @State private var activePlayerRoute: DrillRoute?
 
     private var drillProgress: DrillProgress? {
         progress.first { $0.drillID == drill.id }
@@ -59,6 +62,15 @@ struct DrillDetailView: View {
         .scrollIndicators(.hidden)
         .navigationBarHidden(true)
         .ignoresSafeArea(edges: .top)
+        .fullScreenCover(item: $activePlayerRoute) { route in
+            DrillPlayerView(
+                drill: route.drill,
+                level: route.level,
+                category: route.category,
+                discipline: route.discipline,
+                onNextDrill: { next in activePlayerRoute = next }
+            )
+        }
     }
 
     // MARK: - 1. Hero Demo Film
@@ -307,7 +319,14 @@ struct DrillDetailView: View {
     private func bottomCTA(_ vm: DrillDetailViewModel) -> some View {
         HStack(spacing: DS.Spacing.s12) {
             IconButton(systemName: "bookmark", size: 56) {}
-            PrimaryButton(label: "Start drill", hint: vm.drill.durationSec.minutesHint) {}
+            PrimaryButton(label: "Start drill", hint: vm.drill.durationSec.minutesHint) {
+                activePlayerRoute = DrillRoute(
+                    discipline: discipline,
+                    category: category,
+                    level: level,
+                    drill: drill
+                )
+            }
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32)
