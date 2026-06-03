@@ -115,7 +115,7 @@ final class OnboardingState {
         return month >= 7 ? year + 4 : year + 3
     }
 
-    var positionName: String { selectedPosition?.name ?? "Anywhere" }
+    var positionName: String { selectedPosition?.name ?? skippedPositionName ?? "Anywhere" }
     var positionCode: String { selectedPosition?.code.replacingOccurrences(of: "2", with: "") ?? "—" }
 
     /// Derived initials for the monogram / passport.
@@ -144,4 +144,23 @@ final class OnboardingState {
         guard let next = OnboardingStep(rawValue: step.rawValue + 1) else { return }
         withAnimation(DS.Motion.standardSpring) { step = next }
     }
+
+    /// Fill any details the player hasn't supplied with sensible defaults so a
+    /// skipped onboarding still produces a complete, editable profile.
+    func applySkipDefaults() {
+        if playerName.trimmingCharacters(in: .whitespaces).isEmpty {
+            playerName = "Player"
+        }
+        if selectedPosition == nil {
+            skippedPositionName = "Midfielder"
+        }
+        if kitNumber.isEmpty {
+            kitNumber = "00"
+        }
+        // pledgeTier defaults to .standard and foot defaults to "Right".
+    }
+
+    /// Position name override used only when onboarding is skipped without a
+    /// pitch selection.
+    private var skippedPositionName: String? = nil
 }

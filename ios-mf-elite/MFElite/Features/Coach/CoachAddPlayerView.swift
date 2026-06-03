@@ -115,6 +115,9 @@ struct CoachRosterFields: View {
     @Binding var kit: String
     @Binding var position: String
 
+    @FocusState private var focusedField: Field?
+    private enum Field { case name, kit }
+
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s16) {
             field(title: "Player name") {
@@ -124,6 +127,8 @@ struct CoachRosterFields: View {
                     .autocorrectionDisabled()
                     .foregroundStyle(DS.Colors.Ink.primary)
                     .tint(.white)
+                    .focused($focusedField, equals: .name)
+                    .submitLabel(.done)
             }
 
             field(title: "Kit number") {
@@ -132,6 +137,7 @@ struct CoachRosterFields: View {
                     .keyboardType(.numberPad)
                     .foregroundStyle(DS.Colors.Ink.primary)
                     .tint(.white)
+                    .focused($focusedField, equals: .kit)
                     .onChange(of: kit) { _, newValue in
                         kit = String(newValue.filter(\.isNumber).prefix(2))
                     }
@@ -151,6 +157,7 @@ struct CoachRosterFields: View {
                 .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
             }
         }
+        .keyboardDoneButton { focusedField = nil }
     }
 
     private func field<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {

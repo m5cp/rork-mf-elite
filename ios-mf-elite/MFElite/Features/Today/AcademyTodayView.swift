@@ -13,6 +13,7 @@ struct AcademyTodayView: View {
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
     @Environment(SubscriptionService.self) private var subscription
+    @State private var profile = PlayerProfileStore.shared
 
     private var viewModel: AcademyTodayViewModel {
         AcademyTodayViewModel(
@@ -29,6 +30,9 @@ struct AcademyTodayView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     topBar(vm)
+                    if profile.shouldPromptProfileCompletion {
+                        completeProfileBanner
+                    }
                     salutation(vm)
                     dailyStandard(vm)
                     goalsCard(vm)
@@ -49,7 +53,52 @@ struct AcademyTodayView: View {
             .navigationDestination(for: StreakRoute.self) { _ in
                 StreakDetailView()
             }
+            .navigationDestination(for: SettingsRoute.self) { _ in
+                SettingsView()
+            }
         }
+    }
+
+    // MARK: - Complete-profile banner (skipped onboarding)
+
+    private var completeProfileBanner: some View {
+        Card(padding: DS.Spacing.s16) {
+            HStack(spacing: DS.Spacing.s12) {
+                VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                    Text("Complete your profile")
+                        .style(.callout)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text("Add your name, position and kit number.")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
+                Spacer(minLength: DS.Spacing.s8)
+                NavigationLink(value: SettingsRoute()) {
+                    Text("Set up")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(DS.Colors.Ground.primary)
+                        .padding(.vertical, DS.Spacing.s8)
+                        .padding(.horizontal, DS.Spacing.s16)
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(PressableButtonStyle())
+                Button {
+                    withAnimation(DS.Motion.standardSpring) {
+                        profile.profilePromptDismissed = true
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(PressableButtonStyle())
+                .accessibilityLabel("Dismiss")
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s16)
     }
 
     // MARK: - 1. Top Bar

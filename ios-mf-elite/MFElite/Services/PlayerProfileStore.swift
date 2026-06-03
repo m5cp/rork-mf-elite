@@ -22,6 +22,9 @@ final class PlayerProfileStore {
         static let username = "MF_PLAYER_USERNAME"
         static let kit = "MF_PLAYER_KIT"
         static let position = "MF_PLAYER_POSITION"
+        static let skipped = "MF_ONBOARDING_SKIPPED"
+        static let promptDismissed = "MF_PROFILE_PROMPT_DISMISSED"
+        static let sessionCount = "MF_SESSION_COUNT"
     }
 
     private let defaults = UserDefaults.standard
@@ -41,6 +44,18 @@ final class PlayerProfileStore {
     var position: String {
         didSet { defaults.set(position, forKey: Keys.position) }
     }
+    /// True when the player bypassed onboarding and is running on defaults.
+    var onboardingSkipped: Bool {
+        didSet { defaults.set(onboardingSkipped, forKey: Keys.skipped) }
+    }
+    /// True once the player permanently dismisses the "complete your profile" prompt.
+    var profilePromptDismissed: Bool {
+        didSet { defaults.set(profilePromptDismissed, forKey: Keys.promptDismissed) }
+    }
+    /// Number of app launches, used to limit the re-engagement banner.
+    var sessionCount: Int {
+        didSet { defaults.set(sessionCount, forKey: Keys.sessionCount) }
+    }
 
     private init() {
         hasCompletedOnboarding = defaults.bool(forKey: Keys.completed)
@@ -48,7 +63,18 @@ final class PlayerProfileStore {
         username = defaults.string(forKey: Keys.username) ?? ""
         kitNumber = defaults.string(forKey: Keys.kit) ?? "09"
         position = defaults.string(forKey: Keys.position) ?? ""
+        onboardingSkipped = defaults.bool(forKey: Keys.skipped)
+        profilePromptDismissed = defaults.bool(forKey: Keys.promptDismissed)
+        sessionCount = defaults.integer(forKey: Keys.sessionCount)
     }
+
+    /// Show the Today "complete your profile" banner only to skippers, for the
+    /// first three sessions, until they explicitly dismiss it.
+    var shouldPromptProfileCompletion: Bool {
+        onboardingSkipped && !profilePromptDismissed && sessionCount <= 3
+    }
+
+    func incrementSession() { sessionCount += 1 }
 
     /// Initials derived from the display name (max two letters, uppercased).
     var initials: String {
@@ -64,11 +90,12 @@ final class PlayerProfileStore {
     }
 
     /// Persist the onboarding result and mark the flow complete.
-    func complete(name: String, username: String = "", kit: String, position: String) {
+    func complete(name: String, username: String = "", kit: String, position: String, skipped: Bool = false) {
         displayName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if !username.isEmpty { self.username = username }
         kitNumber = kit
         self.position = position
+        onboardingSkipped = skipped
         hasCompletedOnboarding = true
     }
 
@@ -86,5 +113,7 @@ final class PlayerProfileStore {
         username = ""
         kitNumber = "09"
         position = ""
+        onboardingSkipped = false
+        profilePromptDismissed = false
     }
 }

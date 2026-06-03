@@ -15,6 +15,7 @@ struct OnboardingView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var state = OnboardingState()
     @State private var isFinishing = false
+    @State private var showSkipConfirm = false
 
     let onComplete: () -> Void
 
@@ -47,20 +48,55 @@ struct OnboardingView: View {
                 removal: .move(edge: .leading).combined(with: .opacity)
             ))
             .id(state.step)
+
+            if state.step != .splash && !isFinishing {
+                skipButton
+            }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showSkipConfirm) {
+            SkipConfirmSheet(
+                onContinue: { showSkipConfirm = false },
+                onSkip: {
+                    showSkipConfirm = false
+                    finish(skipped: true)
+                }
+            )
+            .preferredColorScheme(.dark)
+        }
     }
 
-    private func finish() {
+    private var skipButton: some View {
+        VStack {
+            HStack {
+                Spacer()
+                Button { showSkipConfirm = true } label: {
+                    Text("Skip")
+                        .font(.system(size: 13, weight: .semibold))
+                        .tracking(0.5)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+            Spacer()
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s12)
+    }
+
+    private func finish(skipped: Bool = false) {
         guard !isFinishing else { return }
         isFinishing = true
+
+        if skipped { state.applySkipDefaults() }
 
         // 1. Persist locally — instant, offline-first source of truth.
         PlayerProfileStore.shared.complete(
             name: state.playerName.isEmpty ? "Player One" : state.playerName,
             username: state.generatedUsername,
             kit: state.kitNumber.isEmpty ? "10" : state.kitNumber,
-            position: state.positionName
+            position: state.positionName,
+            skipped: skipped
         )
 
         // 2. Ensure a local PlayerState exists at zero.
@@ -106,6 +142,38 @@ struct OnboardingView: View {
                 .execute()
         } catch {
             print("[Onboarding] remote profile creation failed: \(error)")
+        }
+    }
+
+    // MARK: - Skip confirmation
+
+    private struct SkipConfirmSheet: View {
+        let onContinue: () -> Void
+        let onSkip: () -> Void
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+                Text("Skip setup?")
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .padding(.top, DS.Spacing.s24)
+
+                Text("You can complete your profile later in Settings.")
+                    .style(.body)
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+
+                PrimaryButton(label: "Continue setup", action: onContinue)
+                    .padding(.top, DS.Spacing.s8)
+
+                GhostButton(label: "Skip for now", action: onSkip)
+                    .frame(maxWidth: .infinity)
+
+                Spacer()
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DS.Colors.Bg.base)
+            .presentationDetents([.height(280)])
         }
     }
 

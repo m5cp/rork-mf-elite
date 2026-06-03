@@ -12,11 +12,11 @@ struct OnboardingIdentifyView: View {
     let state: OnboardingState
 
     @State private var name: String = ""
-    @State private var classYear: String = ""
+    @State private var classYear: Int = OnboardingState.defaultClassYear
     @FocusState private var nameFocused: Bool
 
     private var canContinue: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty && classYear.count == 4
+        !name.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
     var body: some View {
@@ -36,6 +36,7 @@ struct OnboardingIdentifyView: View {
 
                         UnderlineField(placeholder: "Your name", text: $name, fontSize: 32, maxLength: 28)
                             .focused($nameFocused)
+                            .submitLabel(.done)
                             .padding(.top, DS.Spacing.s20)
 
                         HStack {
@@ -54,7 +55,7 @@ struct OnboardingIdentifyView: View {
                         Eyebrow(text: "Class Year")
                             .padding(.top, DS.Spacing.s24)
 
-                        UnderlineField(placeholder: "\(OnboardingState.defaultClassYear)", text: $classYear, fontSize: 22, keyboard: .numberPad, maxLength: 4)
+                        YearPickerField(year: $classYear)
                             .padding(.top, DS.Spacing.s8)
 
                         Text("The year you graduate (or graduated) high school.")
@@ -66,13 +67,14 @@ struct OnboardingIdentifyView: View {
                     .padding(.bottom, DS.Spacing.s24)
                 }
                 .scrollIndicators(.hidden)
+                .keyboardDoneButton { nameFocused = false }
 
                 footer
             }
         }
         .onAppear {
             name = state.playerName
-            classYear = String(state.classYear)
+            classYear = state.classYear
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { nameFocused = true }
         }
     }
@@ -105,7 +107,7 @@ struct OnboardingIdentifyView: View {
         VStack(spacing: DS.Spacing.s16) {
             PrimaryButton(label: "Continue") {
                 state.playerName = name.trimmingCharacters(in: .whitespacesAndNewlines)
-                state.classYear = Int(classYear) ?? OnboardingState.defaultClassYear
+                state.classYear = classYear
                 state.advance()
             }
             .opacity(canContinue ? 1 : 0.4)

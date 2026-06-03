@@ -54,6 +54,7 @@ struct MFEliteApp: App {
                     // pre-permission sheet is shown after the first logged drill.
                     // If already authorized, keep the daily reminder scheduled.
                     NotificationService.shared.scheduleDailyReminderIfAuthorized()
+                    profileStore.incrementSession()
                     Task { await bootstrapBackend() }
                 }
         }

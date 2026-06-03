@@ -135,6 +135,56 @@ struct UnderlineField: View {
     }
 }
 
+// MARK: - Year picker
+
+/// A scroll-wheel year selector styled to match the editorial underline input.
+/// No keyboard — pure selection. Tapping the field reveals a native wheel.
+struct YearPickerField: View {
+    @Binding var year: Int
+    var range: ClosedRange<Int> = 1980...2050
+
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(spacing: DS.Spacing.s8) {
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                withAnimation(DS.Motion.standardSpring) { expanded.toggle() }
+            } label: {
+                HStack {
+                    Text(String(year))
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Spacer()
+                    Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
+            }
+            .buttonStyle(PressableButtonStyle())
+            .accessibilityLabel("Class year")
+            .accessibilityValue(String(year))
+
+            Rectangle()
+                .fill(Color.white)
+                .frame(height: 1.5)
+
+            if expanded {
+                Picker("Class year", selection: $year) {
+                    ForEach(Array(range), id: \.self) { value in
+                        Text(String(value))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                            .tag(value)
+                    }
+                }
+                .pickerStyle(.wheel)
+                .frame(height: 140)
+                .tint(.white)
+            }
+        }
+    }
+}
+
 // MARK: - Pitch diagram
 
 /// A top-down pitch with tappable position dots.

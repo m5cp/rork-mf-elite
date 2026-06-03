@@ -113,6 +113,7 @@ private struct CoachPasscodeGate: View {
                 .opacity(0.001)
                 .frame(width: 1, height: 1)
                 .onChange(of: entry) { _, newValue in handleChange(newValue) }
+                .keyboardDoneButton { focused = false }
         }
         .contentShape(Rectangle())
         .onTapGesture { focused = true }

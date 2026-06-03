@@ -53,6 +53,7 @@ struct AddAthleteSheet: View {
             .scrollIndicators(.hidden)
             .navigationTitle("Add Athlete")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneButton { focusedField = nil }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
@@ -179,6 +180,7 @@ struct AddAthleteSheet: View {
             TextField("", text: $kit,
                       prompt: Text("1–99").foregroundColor(DS.Colors.Ink.quaternary))
                 .focused($focusedField, equals: .kit)
+                .submitLabel(.done)
                 .keyboardType(.numberPad)
                 .font(DS.Typography.title3)
                 .foregroundStyle(DS.Colors.Ink.primary)

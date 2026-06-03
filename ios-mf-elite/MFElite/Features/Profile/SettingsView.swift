@@ -94,6 +94,12 @@ struct SettingsView: View {
 
     private var accountSection: some View {
         section("Account", topPadding: DS.Spacing.s24) {
+            if profile.onboardingSkipped {
+                Text("Some details use defaults — tap any field to update.")
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                    .padding(.bottom, DS.Spacing.s8)
+            }
             valueRow(label: "Player name", value: profile.displayName) { editingField = .name }
             Hairline()
             valueRow(label: "Kit number", value: "#\(profile.kitNumber)") { editingField = .kit }
@@ -354,6 +360,7 @@ private struct AccountEditSheet: View {
 
     @State private var text: String = ""
     @State private var selectedPosition: String = ""
+    @FocusState private var inputFocused: Bool
 
     private let positions = ["Goalkeeper", "Defender", "Midfielder", "Forward", "Winger", "No preference"]
 
@@ -365,12 +372,15 @@ private struct AccountEditSheet: View {
                     field(title: "Player name") {
                         TextField("Your name", text: $text)
                             .textInputAutocapitalization(.words)
+                            .focused($inputFocused)
+                            .submitLabel(.done)
                             .styledInput()
                     }
                 case .kit:
                     field(title: "Kit number") {
                         TextField("Number", text: $text)
                             .keyboardType(.numberPad)
+                            .focused($inputFocused)
                             .styledInput()
                     }
                 case .position:
@@ -389,6 +399,7 @@ private struct AccountEditSheet: View {
             .background(DS.Colors.Bg.base)
             .navigationTitle("")
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDoneButton { inputFocused = false }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
