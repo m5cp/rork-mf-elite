@@ -62,26 +62,24 @@ struct OnboardingPledgeView: View {
                         .foregroundStyle(active ? DS.Colors.Ground.secondary : DS.Colors.Ink.tertiary)
                 }
                 Text(tier.quote)
-                    .font(.system(size: 15, weight: .medium).italic())
-                    .foregroundStyle(active ? DS.Colors.Ground.secondary : DS.Colors.Ink.tertiary)
+                    .font(.system(size: 16, weight: .regular).italic())
+                    .foregroundStyle(active ? DS.Colors.Ground.secondary : DS.Colors.Ink.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.leading, DS.Spacing.s12)
+                    .overlay(alignment: .leading) {
+                        Rectangle()
+                            .fill(active ? Color.black : Color.white.opacity(0.18))
+                            .frame(width: 2)
+                    }
             }
             .padding(DS.Spacing.s20)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(active ? Color.white : Color.clear)
-            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+            .clipShape(RoundedRectangle(cornerRadius: 4))
             .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.lg)
-                    .stroke(active ? Color.clear : DS.Colors.Line.subtle, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(active ? Color.white : DS.Colors.Line.subtle, lineWidth: 1)
             )
-            .overlay(alignment: .leading) {
-                if !active {
-                    Rectangle()
-                        .fill(Color.white.opacity(0.3))
-                        .frame(width: 2)
-                        .clipShape(RoundedRectangle(cornerRadius: 1))
-                        .padding(.vertical, DS.Spacing.s16)
-                }
-            }
         }
         .buttonStyle(PressableButtonStyle())
     }

@@ -75,16 +75,16 @@ struct PitchPosition: Identifiable, Equatable {
     let y: CGFloat
 
     static let all: [PitchPosition] = [
-        PitchPosition(code: "ST", name: "Striker", x: 0.50, y: 0.12),
-        PitchPosition(code: "LW", name: "Left Wing", x: 0.20, y: 0.24),
-        PitchPosition(code: "RW", name: "Right Wing", x: 0.80, y: 0.24),
-        PitchPosition(code: "CAM", name: "Attacking Mid", x: 0.50, y: 0.36),
-        PitchPosition(code: "CM", name: "Central Mid", x: 0.36, y: 0.52),
-        PitchPosition(code: "CM2", name: "Central Mid", x: 0.64, y: 0.52),
-        PitchPosition(code: "LB", name: "Left Back", x: 0.18, y: 0.68),
-        PitchPosition(code: "CB", name: "Centre Back", x: 0.50, y: 0.72),
-        PitchPosition(code: "RB", name: "Right Back", x: 0.82, y: 0.68),
-        PitchPosition(code: "GK", name: "Goalkeeper", x: 0.50, y: 0.90)
+        PitchPosition(code: "ST", name: "Striker", x: 0.50, y: 0.14),
+        PitchPosition(code: "LW", name: "Left Winger", x: 0.32, y: 0.28),
+        PitchPosition(code: "RW", name: "Right Winger", x: 0.68, y: 0.28),
+        PitchPosition(code: "CAM", name: "Attacking Mid", x: 0.50, y: 0.44),
+        PitchPosition(code: "CM", name: "Centre Mid", x: 0.32, y: 0.56),
+        PitchPosition(code: "CM2", name: "Centre Mid", x: 0.68, y: 0.56),
+        PitchPosition(code: "LB", name: "Left Back", x: 0.22, y: 0.74),
+        PitchPosition(code: "CB", name: "Centre Back", x: 0.50, y: 0.74),
+        PitchPosition(code: "RB", name: "Right Back", x: 0.78, y: 0.74),
+        PitchPosition(code: "GK", name: "Goalkeeper", x: 0.50, y: 0.92)
     ]
 }
 

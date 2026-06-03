@@ -211,27 +211,29 @@ struct PitchDiagram: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             withAnimation(DS.Motion.standardSpring) { selected = position }
         } label: {
-            ZStack {
-                if isSelected {
+            VStack(spacing: 6) {
+                ZStack {
+                    if isSelected {
+                        Circle()
+                            .fill(Color.white.opacity(0.45))
+                            .frame(width: 56, height: 56)
+                            .blur(radius: 14)
+                    }
                     Circle()
-                        .fill(Color.white.opacity(0.45))
-                        .frame(width: 56, height: 56)
-                        .blur(radius: 14)
-                }
-                Circle()
-                    .fill(isSelected ? Color.white : Color.white.opacity(0.12))
-                    .frame(width: isSelected ? 32 : 20, height: isSelected ? 32 : 20)
-                    .overlay(
-                        Circle().stroke(
-                            isSelected ? Color.white.opacity(0.10) : Color.white.opacity(0.55),
-                            lineWidth: isSelected ? 6 : 1.5
+                        .fill(isSelected ? Color.white : Color.white.opacity(0.12))
+                        .frame(width: isSelected ? 32 : 20, height: isSelected ? 32 : 20)
+                        .overlay(
+                            Circle().stroke(
+                                isSelected ? Color.white.opacity(0.10) : Color.white.opacity(0.55),
+                                lineWidth: isSelected ? 6 : 1.5
+                            )
                         )
-                    )
+                }
+                .frame(width: 32, height: 32)
                 Text(position.code.replacingOccurrences(of: "2", with: ""))
                     .font(.system(size: 12, weight: .bold))
                     .tracking(1.6)
-                    .foregroundStyle(isSelected ? DS.Colors.Ground.primary : DS.Colors.Ink.secondary)
-                    .offset(y: isSelected ? 0 : 22)
+                    .foregroundStyle(isSelected ? Color.white : Color.white.opacity(0.78))
             }
         }
         .buttonStyle(PressableButtonStyle())

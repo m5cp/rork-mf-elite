@@ -35,7 +35,7 @@ struct OnboardingSplashView: View {
                         .fill(Color.white.opacity(0.40))
                         .frame(width: 80 * barFill, height: 1.5)
                 }
-                .padding(.bottom, DS.Spacing.s48)
+                .padding(.bottom, DS.Spacing.s80)
             }
         }
         .contentShape(Rectangle())

@@ -52,8 +52,9 @@ struct OnboardingNumberView: View {
             Monogram(size: 168, initials: state.initials, kit: nil)
                 .overlay {
                     Text(displayNumber)
-                        .font(.system(size: 96, weight: .heavy))
-                        .tracking(-2)
+                        .font(.system(size: 110, weight: .heavy))
+                        .monospacedDigit()
+                        .tracking(-4)
                         .foregroundStyle(.white)
                 }
                 .overlay(alignment: .topTrailing) {

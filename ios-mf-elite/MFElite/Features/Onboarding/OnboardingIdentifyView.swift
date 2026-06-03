@@ -80,11 +80,16 @@ struct OnboardingIdentifyView: View {
     }
 
     private var photoHeader: some View {
-        PhotoPlaceholder(height: 280, label: "ACADEMY INTAKE")
+        PhotoPlaceholder(height: 300, label: "ATHLETE · ROOM TONE")
             .clipShape(Rectangle())
             .overlay(
                 LinearGradient(
-                    colors: [.clear, .clear, .black],
+                    stops: [
+                        .init(color: .black.opacity(0.5), location: 0),
+                        .init(color: .clear, location: 0.28),
+                        .init(color: .clear, location: 0.6),
+                        .init(color: .black, location: 1)
+                    ],
                     startPoint: .top, endPoint: .bottom
                 )
             )
