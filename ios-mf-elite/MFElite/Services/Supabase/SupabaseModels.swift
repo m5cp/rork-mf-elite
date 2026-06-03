@@ -24,13 +24,20 @@ nonisolated struct PlayerProfileUpsert: Encodable, Sendable {
     let initials: String
     let kitNumber: String
     let position: String
+    let pledgeTier: String?
+    let foot: String?
+    let memberNumber: Int?
+    let classYear: Int?
 
     enum CodingKeys: String, CodingKey {
-        case id, username, position
+        case id, username, position, foot
         case accountId = "account_id"
         case displayName = "display_name"
         case initials
         case kitNumber = "kit_number"
+        case pledgeTier = "pledge_tier"
+        case memberNumber = "member_number"
+        case classYear = "class_year"
     }
 }
 

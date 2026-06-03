@@ -2,31 +2,47 @@
 //  CoachLoginView.swift
 //  MFElite
 //
-//  Admin gate for the coach workspace. A simple 4-digit passcode — not real auth.
+//  Admin gate for the coach workspace. Accepts the default PIN (1234) only until
+//  the coach sets a custom PIN, which is stored as a SHA256 hash in the Keychain.
 //
 
 import SwiftUI
 import SwiftData
 
-/// Hardcoded MVP passcode for the coach workspace.
-private let coachPasscode = "1234"
-
-/// Presents the passcode gate, then swaps to the workspace once unlocked.
+/// Coordinates the passcode gate, the first-login PIN setup, and the workspace.
 struct CoachLoginView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var unlocked = false
+
+    private enum Phase {
+        case gate
+        case setPIN
+        case workspace
+    }
+
+    @State private var phase: Phase = .gate
 
     var body: some View {
-        if unlocked {
-            CoachWorkspaceView()
-        } else {
+        switch phase {
+        case .gate:
             CoachPasscodeGate(
-                onUnlock: { unlocked = true },
+                onUnlock: {
+                    // First login (no custom PIN yet) routes through PIN setup.
+                    phase = CoachPINStore.hasCustomPIN ? .workspace : .setPIN
+                },
                 onCancel: { dismiss() }
             )
+        case .setPIN:
+            SetCoachPINView(
+                onDone: { phase = .workspace },
+                onSkip: { phase = .workspace }
+            )
+        case .workspace:
+            CoachWorkspaceView()
         }
     }
 }
+
+// MARK: - Passcode Gate
 
 private struct CoachPasscodeGate: View {
     let onUnlock: () -> Void
@@ -34,6 +50,7 @@ private struct CoachPasscodeGate: View {
 
     @State private var entry: String = ""
     @State private var shake: CGFloat = 0
+    @State private var showForgot = false
     @FocusState private var focused: Bool
 
     private let maxDigits = 4
@@ -45,10 +62,11 @@ private struct CoachPasscodeGate: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                Text("MF")
-                    .font(.system(size: 28, weight: .heavy))
-                    .tracking(1)
-                    .foregroundStyle(DS.Colors.Ink.primary)
+                Image("mf-logo-white")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 28)
+                    .accessibilityLabel("MF Elite")
 
                 Eyebrow(text: "Admin · Coach Access")
                     .padding(.top, DS.Spacing.s12)
@@ -58,7 +76,9 @@ private struct CoachPasscodeGate: View {
                     .foregroundStyle(DS.Colors.Ink.primary)
                     .padding(.top, DS.Spacing.s12)
 
-                Text("Enter your coach passcode to access the admin workspace.")
+                Text(CoachPINStore.hasCustomPIN
+                     ? "Enter your coach PIN to access the admin workspace."
+                     : "Enter the default coach passcode to access the admin workspace.")
                     .style(.body)
                     .foregroundStyle(DS.Colors.Ink.secondary)
                     .multilineTextAlignment(.center)
@@ -69,6 +89,16 @@ private struct CoachPasscodeGate: View {
                     .padding(.top, DS.Spacing.s40)
                     .offset(x: shake)
 
+                Button {
+                    showForgot = true
+                } label: {
+                    Text("Forgot PIN?")
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
+                .buttonStyle(PressableButtonStyle())
+                .padding(.top, DS.Spacing.s24)
+
                 Spacer()
 
                 GhostButton(label: "Cancel", action: onCancel)
@@ -76,20 +106,22 @@ private struct CoachPasscodeGate: View {
             }
             .padding(.horizontal, DS.Spacing.s20)
 
-            // Hidden numeric field that drives the passcode.
             TextField("", text: $entry)
                 .keyboardType(.numberPad)
                 .textContentType(.oneTimeCode)
                 .focused($focused)
                 .opacity(0.001)
                 .frame(width: 1, height: 1)
-                .onChange(of: entry) { _, newValue in
-                    handleChange(newValue)
-                }
+                .onChange(of: entry) { _, newValue in handleChange(newValue) }
         }
         .contentShape(Rectangle())
         .onTapGesture { focused = true }
         .onAppear { focused = true }
+        .alert("Forgot PIN?", isPresented: $showForgot) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Contact your academy administrator to reset the coach workspace PIN.")
+        }
     }
 
     private var pinIndicators: some View {
@@ -109,7 +141,6 @@ private struct CoachPasscodeGate: View {
     }
 
     private func handleChange(_ newValue: String) {
-        // Keep digits only, capped at maxDigits.
         let digits = String(newValue.filter(\.isNumber).prefix(maxDigits))
         if digits != newValue {
             entry = digits
@@ -117,7 +148,7 @@ private struct CoachPasscodeGate: View {
         }
         guard digits.count == maxDigits else { return }
 
-        if digits == coachPasscode {
+        if CoachPINStore.validate(digits) {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             focused = false
             onUnlock()
@@ -129,13 +160,9 @@ private struct CoachPasscodeGate: View {
     }
 
     private func triggerShake() {
-        withAnimation(.spring(response: 0.18, dampingFraction: 0.25)) {
-            shake = 10
-        }
+        withAnimation(.spring(response: 0.18, dampingFraction: 0.25)) { shake = 10 }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
-            withAnimation(.spring(response: 0.2, dampingFraction: 0.35)) {
-                shake = 0
-            }
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.35)) { shake = 0 }
         }
     }
 }

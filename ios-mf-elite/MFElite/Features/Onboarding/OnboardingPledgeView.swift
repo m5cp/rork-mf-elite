@@ -2,72 +2,103 @@
 //  OnboardingPledgeView.swift
 //  MFElite
 //
+//  Step 4 — The Pledge: pick the commitment tier (Recovery / Standard / Elite).
+//
 
 import SwiftUI
 
 struct OnboardingPledgeView: View {
     let state: OnboardingState
 
-    private struct Pledge: Identifiable {
-        let id = UUID()
-        let eyebrow: String
-        let title: String
-        let body: String
-    }
-
-    private let pledges = [
-        Pledge(eyebrow: "Recovery", title: "I will recover properly",
-               body: "Sleep, nutrition, and rest are part of training."),
-        Pledge(eyebrow: "Standard", title: "I will hold the standard",
-               body: "Every session, every drill, full effort — no shortcuts."),
-        Pledge(eyebrow: "Elite", title: "I will train like the elite",
-               body: "Discipline, accountability, and growth — every single day.")
-    ]
+    @State private var selected: PledgeTier = .standard
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-                    Eyebrow(text: "Step 4 of 6")
-                    Text("The Pledge")
-                        .style(.hero)
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                    Text("This is your commitment to the academy.")
-                        .style(.body)
-                        .foregroundStyle(DS.Colors.Ink.secondary)
+        ZStack {
+            Color.black.ignoresSafeArea()
 
+            VStack(alignment: .leading, spacing: 0) {
+                ChapterEyebrow(number: 3, label: "The Pledge")
+                    .padding(.top, DS.Spacing.s12)
+
+                Text("How much will you give?")
+                    .font(.system(size: 40, weight: .heavy))
+                    .tracking(-1.4)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .padding(.top, DS.Spacing.s12)
+
+                ScrollView {
                     VStack(spacing: DS.Spacing.s12) {
-                        ForEach(pledges) { pledge in
-                            Card {
-                                VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-                                    Eyebrow(text: pledge.eyebrow)
-                                    Text(pledge.title)
-                                        .style(.title3)
-                                        .foregroundStyle(DS.Colors.Ink.primary)
-                                    Text(pledge.body)
-                                        .style(.foot)
-                                        .foregroundStyle(DS.Colors.Ink.tertiary)
-                                }
-                            }
+                        ForEach(PledgeTier.allCases) { tier in
+                            tierCard(tier)
                         }
                     }
                     .padding(.top, DS.Spacing.s24)
+                    .padding(.bottom, DS.Spacing.s24)
                 }
-                .padding(.horizontal, DS.Spacing.s20)
-                .padding(.top, DS.Spacing.s48)
-            }
+                .scrollIndicators(.hidden)
 
-            PrimaryButton(label: "I pledge") {
+                footer
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+        }
+        .onAppear { selected = state.pledgeTier }
+    }
+
+    private func tierCard(_ tier: PledgeTier) -> some View {
+        let active = selected == tier
+        return Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            withAnimation(DS.Motion.standardSpring) { selected = tier }
+        } label: {
+            VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(tier.title)
+                        .style(.title2)
+                        .foregroundStyle(active ? DS.Colors.Ground.primary : DS.Colors.Ink.primary)
+                    Spacer()
+                    Text(tier.meta)
+                        .font(.system(size: 10, weight: .medium, design: .monospaced))
+                        .tracking(1.2)
+                        .foregroundStyle(active ? DS.Colors.Ground.secondary : DS.Colors.Ink.tertiary)
+                }
+                Text(tier.quote)
+                    .font(.system(size: 15, weight: .medium).italic())
+                    .foregroundStyle(active ? DS.Colors.Ground.secondary : DS.Colors.Ink.tertiary)
+            }
+            .padding(DS.Spacing.s20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(active ? Color.white : Color.clear)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.lg)
+                    .stroke(active ? Color.clear : DS.Colors.Line.subtle, lineWidth: 1)
+            )
+            .overlay(alignment: .leading) {
+                if !active {
+                    Rectangle()
+                        .fill(Color.white.opacity(0.3))
+                        .frame(width: 2)
+                        .clipShape(RoundedRectangle(cornerRadius: 1))
+                        .padding(.vertical, DS.Spacing.s16)
+                }
+            }
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+
+    private var footer: some View {
+        VStack(spacing: DS.Spacing.s16) {
+            PrimaryButton(label: "Sign the pledge") {
+                state.pledgeTier = selected
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 state.advance()
             }
-            .padding(.horizontal, DS.Spacing.s20)
-            .padding(.bottom, DS.Spacing.s24)
+            StepBar(filled: 4)
         }
+        .padding(.bottom, DS.Spacing.s24)
     }
 }
 
 #Preview {
     OnboardingPledgeView(state: OnboardingState())
-        .background(DS.Colors.Bg.base)
 }

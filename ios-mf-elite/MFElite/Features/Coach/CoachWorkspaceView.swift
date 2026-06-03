@@ -18,6 +18,7 @@ struct CoachWorkspaceView: View {
 
     @State private var awardCerts = true
     @State private var isPublishing = false
+    @State private var showChangePIN = false
 
     private var viewModel: CoachWorkspaceViewModel {
         CoachWorkspaceViewModel(disciplines: disciplines)
@@ -49,6 +50,9 @@ struct CoachWorkspaceView: View {
             }
             .navigationDestination(for: CoachBuildRoute.self) { _ in
                 CoachBuildSessionView()
+            }
+            .sheet(isPresented: $showChangePIN) {
+                SetCoachPINView(onDone: { showChangePIN = false })
             }
         }
     }
@@ -156,10 +160,37 @@ struct CoachWorkspaceView: View {
                 navRow(icon: "person.3", label: "Squad roster", route: CoachRosterRoute())
                 Hairline()
                 navRow(icon: "square.and.pencil", label: "Build session", route: CoachBuildRoute())
+                Hairline()
+                changePINRow
             }
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32)
+    }
+
+    private var changePINRow: some View {
+        Button {
+            showChangePIN = true
+        } label: {
+            HStack(spacing: DS.Spacing.s16) {
+                Image(systemName: "lock.rotation")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .frame(width: 36, height: 36)
+                    .background(DS.Colors.Bg.raised)
+                    .clipShape(Circle())
+                Text("Change PIN")
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(.vertical, DS.Spacing.s12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 
     private func navRow<R: Hashable>(icon: String, label: String, route: R) -> some View {

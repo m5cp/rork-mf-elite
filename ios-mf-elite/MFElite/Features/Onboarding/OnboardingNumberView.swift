@@ -2,100 +2,91 @@
 //  OnboardingNumberView.swift
 //  MFElite
 //
+//  Step 5 — Your Number: a live monogram preview that updates as the player
+//  taps a custom numeric keypad to claim a kit number.
+//
 
 import SwiftUI
 
 struct OnboardingNumberView: View {
     let state: OnboardingState
-    @State private var number: Int = 10
 
-    private let popular = [7, 9, 10, 11, 14, 23]
+    @State private var number: String = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-                    Eyebrow(text: "Step 5 of 6")
-                    Text("Your Number")
-                        .style(.hero)
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                    Text("Choose your academy kit number.")
-                        .style(.body)
-                        .foregroundStyle(DS.Colors.Ink.secondary)
+        ZStack {
+            Color.black.ignoresSafeArea()
 
-                    // Large number display
-                    Text(String(format: "%02d", number))
-                        .font(DS.Typography.num(size: 80))
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, DS.Spacing.s24)
+            VStack(alignment: .leading, spacing: 0) {
+                ChapterEyebrow(number: 4, label: "Your Number")
+                    .padding(.top, DS.Spacing.s12)
 
-                    // Popular numbers
-                    Eyebrow(text: "Popular")
-                    LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: DS.Spacing.s12), count: 3),
-                              spacing: DS.Spacing.s12) {
-                        ForEach(popular, id: \.self) { value in
-                            numberPill(value)
-                        }
-                    }
-                    .padding(.top, DS.Spacing.s4)
+                Text("Pick your number.")
+                    .font(.system(size: 44, weight: .heavy))
+                    .tracking(-1.6)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .padding(.top, DS.Spacing.s12)
 
-                    // Stepper for any number 1–99
-                    HStack {
-                        Eyebrow(text: "Any number")
-                        Spacer()
-                        Stepper(value: $number, in: 1...99) {
-                            Text("\(number)")
-                                .style(.num(size: 18))
-                                .foregroundStyle(DS.Colors.Ink.primary)
-                        }
-                        .labelsHidden()
-                        .fixedSize()
-                    }
-                    .padding(.vertical, DS.Spacing.s12)
-                    .padding(.horizontal, DS.Spacing.s16)
-                    .background(DS.Colors.Bg.elevated)
-                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
-                    .padding(.top, DS.Spacing.s20)
-                }
-                .padding(.horizontal, DS.Spacing.s20)
-                .padding(.top, DS.Spacing.s48)
-            }
+                Spacer(minLength: DS.Spacing.s16)
 
-            PrimaryButton(label: "Claim number") {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                state.kitNumber = String(number)
-                state.advance()
+                monogramPreview
+                    .frame(maxWidth: .infinity)
+
+                Spacer(minLength: DS.Spacing.s16)
+
+                NumberKeypad(value: $number, maxDigits: 2)
+
+                Spacer(minLength: DS.Spacing.s16)
+
+                footer
             }
             .padding(.horizontal, DS.Spacing.s20)
-            .padding(.bottom, DS.Spacing.s24)
         }
-        .onAppear { number = Int(state.kitNumber) ?? 10 }
+        .onAppear { number = state.kitNumber }
     }
 
-    private func numberPill(_ value: Int) -> some View {
-        let isSelected = number == value
-        return Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            withAnimation(DS.Motion.standardSpring) { number = value }
-        } label: {
-            Text("\(value)")
-                .style(.num(size: 20))
-                .foregroundStyle(isSelected ? DS.Colors.Ground.primary : DS.Colors.Ink.primary)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(isSelected ? Color.white : DS.Colors.Bg.card)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
-                .overlay(
-                    RoundedRectangle(cornerRadius: DS.Radius.md)
-                        .stroke(isSelected ? Color.clear : DS.Colors.Line.hairline, lineWidth: 1)
-                )
+    private var displayNumber: String { number.isEmpty ? "0" : number }
+
+    private var monogramPreview: some View {
+        VStack(spacing: DS.Spacing.s12) {
+            Monogram(size: 168, initials: state.initials, kit: nil)
+                .overlay {
+                    Text(displayNumber)
+                        .font(.system(size: 96, weight: .heavy))
+                        .tracking(-2)
+                        .foregroundStyle(.white)
+                }
+                .overlay(alignment: .topTrailing) {
+                    Text("MF · \(state.positionCode)")
+                        .style(.microSm)
+                        .foregroundStyle(Color.white.opacity(0.78))
+                        .padding(10)
+                }
+                .overlay(alignment: .bottomLeading) {
+                    Text(state.initials)
+                        .style(.microSm)
+                        .foregroundStyle(Color.white.opacity(0.78))
+                        .padding(10)
+                }
+
+            Eyebrow(text: "\(state.positionName) · \(state.playerName.isEmpty ? "Athlete" : state.playerName)")
         }
-        .buttonStyle(PressableButtonStyle())
+    }
+
+    private var footer: some View {
+        VStack(spacing: DS.Spacing.s16) {
+            PrimaryButton(label: "Take the number") {
+                state.kitNumber = number.isEmpty ? "10" : number
+                state.advance()
+            }
+            .opacity(number.isEmpty ? 0.4 : 1)
+            .disabled(number.isEmpty)
+            StepBar(filled: 5)
+        }
+        .padding(.bottom, DS.Spacing.s24)
     }
 }
 
 #Preview {
     OnboardingNumberView(state: OnboardingState())
-        .background(DS.Colors.Bg.base)
 }

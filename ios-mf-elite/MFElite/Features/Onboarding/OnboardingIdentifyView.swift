@@ -2,68 +2,121 @@
 //  OnboardingIdentifyView.swift
 //  MFElite
 //
+//  Step 2 — Identify: photo header, editorial underline name input, and the
+//  graduation class year.
+//
 
 import SwiftUI
 
 struct OnboardingIdentifyView: View {
     let state: OnboardingState
-    @FocusState private var focused: Bool
+
     @State private var name: String = ""
+    @State private var classYear: String = ""
+    @FocusState private var nameFocused: Bool
 
     private var canContinue: Bool {
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && classYear.count == 4
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-                    Eyebrow(text: "Step 1 of 6")
-                    Text("Identify")
-                        .style(.hero)
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                    Text("What should we call you?")
-                        .style(.body)
-                        .foregroundStyle(DS.Colors.Ink.secondary)
+        ZStack {
+            Color.black.ignoresSafeArea()
 
-                    TextField("", text: $name, prompt: Text("Your name").foregroundColor(DS.Colors.Ink.quaternary))
-                        .focused($focused)
-                        .font(DS.Typography.title2)
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                        .tint(.white)
-                        .textInputAutocapitalization(.words)
-                        .autocorrectionDisabled()
-                        .frame(height: 56)
-                        .padding(.horizontal, DS.Spacing.s20)
-                        .background(DS.Colors.Bg.elevated)
-                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DS.Radius.md)
-                                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
-                        )
-                        .padding(.top, DS.Spacing.s32)
+            VStack(spacing: 0) {
+                photoHeader
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text("Enter your name.")
+                            .font(.system(size: 44, weight: .heavy))
+                            .tracking(-1.6)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                            .padding(.top, DS.Spacing.s24)
+
+                        UnderlineField(placeholder: "Your name", text: $name, fontSize: 32, maxLength: 28)
+                            .focused($nameFocused)
+                            .padding(.top, DS.Spacing.s20)
+
+                        HStack {
+                            Spacer()
+                            Text("\(name.count)/28")
+                                .style(.microSm)
+                                .foregroundStyle(DS.Colors.Ink.quaternary)
+                        }
+                        .padding(.top, DS.Spacing.s8)
+
+                        Text("This name appears on your dossier and on every report your coach writes.")
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                            .padding(.top, DS.Spacing.s8)
+
+                        Eyebrow(text: "Class Year")
+                            .padding(.top, DS.Spacing.s24)
+
+                        UnderlineField(placeholder: "\(OnboardingState.defaultClassYear)", text: $classYear, fontSize: 22, keyboard: .numberPad, maxLength: 4)
+                            .padding(.top, DS.Spacing.s8)
+
+                        Text("The year you graduate (or graduated) high school.")
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                            .padding(.top, DS.Spacing.s8)
+                    }
+                    .padding(.horizontal, DS.Spacing.s20)
+                    .padding(.bottom, DS.Spacing.s24)
+                }
+                .scrollIndicators(.hidden)
+
+                footer
+            }
+        }
+        .onAppear {
+            name = state.playerName
+            classYear = String(state.classYear)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { nameFocused = true }
+        }
+    }
+
+    private var photoHeader: some View {
+        PhotoPlaceholder(height: 280, label: "ACADEMY INTAKE")
+            .clipShape(Rectangle())
+            .overlay(
+                LinearGradient(
+                    colors: [.clear, .clear, .black],
+                    startPoint: .top, endPoint: .bottom
+                )
+            )
+            .overlay(alignment: .topLeading) {
+                VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                    Image("mf-logo-white")
+                        .resizable()
+                        .scaledToFit()
+                        .frame(height: 20)
+                        .accessibilityLabel("MF Elite")
+                    ChapterEyebrow(number: 1, label: "Identify")
                 }
                 .padding(.horizontal, DS.Spacing.s20)
-                .padding(.top, DS.Spacing.s48)
+                .padding(.top, 56)
             }
+            .ignoresSafeArea(edges: .top)
+    }
 
+    private var footer: some View {
+        VStack(spacing: DS.Spacing.s16) {
             PrimaryButton(label: "Continue") {
                 state.playerName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+                state.classYear = Int(classYear) ?? OnboardingState.defaultClassYear
                 state.advance()
             }
             .opacity(canContinue ? 1 : 0.4)
             .disabled(!canContinue)
-            .padding(.horizontal, DS.Spacing.s20)
-            .padding(.bottom, DS.Spacing.s24)
+            StepBar(filled: 2)
         }
-        .onAppear {
-            name = state.playerName
-            focused = true
-        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.bottom, DS.Spacing.s24)
     }
 }
 
 #Preview {
     OnboardingIdentifyView(state: OnboardingState())
-        .background(DS.Colors.Bg.base)
 }

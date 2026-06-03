@@ -60,10 +60,11 @@ struct AcademyTodayView: View {
 
             Spacer()
 
-            Text("MF")
-                .font(.system(size: 20, weight: .black))
-                .tracking(1)
-                .foregroundStyle(DS.Colors.Ink.primary)
+            Image("mf-logo-white")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 20)
+                .accessibilityLabel("MF Elite")
 
             Spacer()
 

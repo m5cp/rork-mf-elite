@@ -134,9 +134,11 @@ struct ReportCardContent: View {
     private var letterhead: some View {
         VStack(spacing: 0) {
             HStack(alignment: .firstTextBaseline) {
-                Text("MF ELITE")
-                    .font(.system(size: 14, weight: .heavy))
-                    .foregroundStyle(Color.black)
+                Image("mf-logo-black")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(height: 14)
+                    .accessibilityLabel("MF Elite")
                 Spacer()
                 Text("ACADEMY REPORT CARD")
                     .font(.system(size: 10, weight: .medium, design: .monospaced))

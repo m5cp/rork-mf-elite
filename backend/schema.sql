@@ -240,6 +240,17 @@ ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS account_id  text REFERENCES
 ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS managed     boolean NOT NULL DEFAULT false;
 ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS is_example  boolean NOT NULL DEFAULT false;
 
+-- Onboarding identity captured during the cinematic admission flow. All
+-- shareable (coach-visible) — none of it is private/billing data.
+-- pledge_tier   : 'recovery' | 'standard' | 'elite' commitment tier.
+-- foot          : 'Right' | 'Left' dominant foot.
+-- member_number : auto-generated member id shown on the passport (not unique).
+-- class_year    : high-school graduation year.
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS pledge_tier   text;
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS foot          text;
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS member_number integer;
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS class_year    integer;
+
 -- Backfill account_id for existing self-managed rows (id == account).
 UPDATE player_profiles SET account_id = id WHERE account_id IS NULL;
 

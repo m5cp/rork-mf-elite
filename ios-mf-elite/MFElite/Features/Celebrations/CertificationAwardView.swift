@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import StoreKit
 
 struct CertificationAwardView: View {
     let category: Category
@@ -16,6 +17,7 @@ struct CertificationAwardView: View {
     var onClose: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.requestReview) private var requestReview
 
     @State private var profile = PlayerProfileStore.shared
     @State private var revealSeal = false
@@ -90,6 +92,12 @@ struct CertificationAwardView: View {
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            }
+            // First certification is a genuine high point — ask for a review.
+            if EngagementTracker.shared.shouldRequestReview(for: .firstCertification) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                    requestReview()
+                }
             }
         }
     }

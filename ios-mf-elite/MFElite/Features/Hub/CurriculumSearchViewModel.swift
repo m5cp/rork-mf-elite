@@ -56,7 +56,7 @@ final class CurriculumSearchViewModel {
         !searchText.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    /// Searches the flattened curriculum, honouring the active discipline filter.
+    /// Searches the flattened curriculum, honoring the active discipline filter.
     func searchDrills() -> [SearchResult] {
         let query = searchText.trimmingCharacters(in: .whitespaces).lowercased()
         let scoped = selectedDiscipline.map { [$0] } ?? disciplines

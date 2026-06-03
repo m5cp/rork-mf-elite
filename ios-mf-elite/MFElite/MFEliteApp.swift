@@ -50,11 +50,10 @@ struct MFEliteApp: App {
                     .modelContainer(container)
                 }
                 .onAppear {
-                    NotificationService.shared.requestPermission { granted in
-                        if granted {
-                            NotificationService.shared.scheduleDailyReminder()
-                        }
-                    }
+                    // No notification permission request on launch — the soft
+                    // pre-permission sheet is shown after the first logged drill.
+                    // If already authorized, keep the daily reminder scheduled.
+                    NotificationService.shared.scheduleDailyReminderIfAuthorized()
                     Task { await bootstrapBackend() }
                 }
         }

@@ -27,6 +27,7 @@ struct DrillDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Query private var progress: [DrillProgress]
     @State private var activePlayerRoute: DrillRoute?
+    @State private var showFilmToast = false
 
     private var drillProgress: DrillProgress? {
         progress.first { $0.drillID == drill.id }
@@ -71,6 +72,30 @@ struct DrillDetailView: View {
                 onNextDrill: { next in activePlayerRoute = next }
             )
         }
+        .overlay(alignment: .bottom) {
+            if showFilmToast {
+                Text("Coach film coming soon")
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .padding(.vertical, DS.Spacing.s12)
+                    .padding(.horizontal, DS.Spacing.s20)
+                    .background(DS.Colors.Bg.raised)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+                    .padding(.bottom, 100)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+    }
+
+    // MARK: - Future: Video/Film
+    // The hero "play" control and demo placeholder are where coach demo films
+    // plug in later. For now tapping surfaces a "coming soon" toast — no dead UI.
+    private func showComingSoonFilm() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        withAnimation(DS.Motion.standardSpring) { showFilmToast = true }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            withAnimation(DS.Motion.standardSpring) { showFilmToast = false }
+        }
     }
 
     // MARK: - 1. Hero Demo Film
@@ -97,16 +122,22 @@ struct DrillDetailView: View {
                     .padding(.top, 56)
             }
             .overlay {
-                Circle()
-                    .fill(Color.white)
-                    .frame(width: 64, height: 64)
-                    .overlay(
-                        Image(systemName: "play.fill")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundStyle(DS.Colors.Ground.primary)
-                            .offset(x: 2)
-                    )
-                    .floatingElevation()
+                Button {
+                    showComingSoonFilm()
+                } label: {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 64, height: 64)
+                        .overlay(
+                            Image(systemName: "play.fill")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundStyle(DS.Colors.Ground.primary)
+                                .offset(x: 2)
+                        )
+                        .floatingElevation()
+                }
+                .buttonStyle(PressableButtonStyle())
+                .accessibilityLabel("Coach film coming soon")
             }
     }
 
@@ -277,7 +308,7 @@ struct DrillDetailView: View {
             }
             .padding(.top, DS.Spacing.s12 + 2)
 
-            honourCode
+            honorCode
                 .padding(.top, DS.Spacing.s16)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -296,14 +327,14 @@ struct DrillDetailView: View {
         }
     }
 
-    private var honourCode: some View {
+    private var honorCode: some View {
         HStack(spacing: DS.Spacing.s12) {
             Image(systemName: "checkmark.shield")
                 .font(.system(size: 22, weight: .medium))
                 .foregroundStyle(DS.Colors.Ink.primary)
 
             VStack(alignment: .leading, spacing: DS.Spacing.s4) {
-                Text("The honour code")
+                Text("The honor code")
                     .style(.callout)
                     .fontWeight(.semibold)
                     .foregroundStyle(DS.Colors.Ink.primary)

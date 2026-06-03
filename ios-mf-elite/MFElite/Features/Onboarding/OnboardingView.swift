@@ -20,16 +20,16 @@ struct OnboardingView: View {
 
     var body: some View {
         ZStack {
-            DS.Colors.Bg.base.ignoresSafeArea()
+            Color.black.ignoresSafeArea()
 
             Group {
                 switch state.step {
                 case .splash:
                     OnboardingSplashView(state: state)
+                case .code:
+                    OnboardingCodeView(state: state)
                 case .identify:
                     OnboardingIdentifyView(state: state)
-                case .username:
-                    OnboardingUsernameView(state: state)
                 case .position:
                     OnboardingPositionView(state: state)
                 case .pledge:
@@ -58,9 +58,9 @@ struct OnboardingView: View {
         // 1. Persist locally — instant, offline-first source of truth.
         PlayerProfileStore.shared.complete(
             name: state.playerName.isEmpty ? "Player One" : state.playerName,
-            username: state.username,
-            kit: state.kitNumber,
-            position: state.position
+            username: state.generatedUsername,
+            kit: state.kitNumber.isEmpty ? "10" : state.kitNumber,
+            position: state.positionName
         )
 
         // 2. Ensure a local PlayerState exists at zero.
@@ -84,10 +84,14 @@ struct OnboardingView: View {
         do {
             try await ProfileService.shared.upsertOwnProfile(
                 userID: userID,
-                username: state.username,
+                username: state.generatedUsername,
                 name: state.playerName,
-                kit: state.kitNumber,
-                position: state.position
+                kit: state.kitNumber.isEmpty ? "10" : state.kitNumber,
+                position: state.positionName,
+                pledgeTier: state.pledgeTier.rawValue,
+                foot: state.foot,
+                memberNumber: state.memberNumber,
+                classYear: state.classYear
             )
             try await SupabaseService.shared.client
                 .from("player_state")
@@ -113,5 +117,4 @@ struct OnboardingView: View {
             try? modelContext.save()
         }
     }
-
 }

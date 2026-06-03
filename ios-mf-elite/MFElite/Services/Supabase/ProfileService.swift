@@ -59,7 +59,11 @@ final class ProfileService {
         username: String,
         name: String,
         kit: String,
-        position: String
+        position: String,
+        pledgeTier: String? = nil,
+        foot: String? = nil,
+        memberNumber: Int? = nil,
+        classYear: Int? = nil
     ) async throws {
         guard isConfigured else { return }
         let profile = PlayerProfileUpsert(
@@ -69,7 +73,11 @@ final class ProfileService {
             displayName: ProfileValidation.normalizedName(name),
             initials: ProfileValidation.initials(from: name),
             kitNumber: ProfileValidation.normalizedKitNumber(kit),
-            position: ProfileValidation.isPositionValid(position) ? position : "No preference"
+            position: ProfileValidation.isPositionValid(position) ? position : "No preference",
+            pledgeTier: pledgeTier,
+            foot: foot,
+            memberNumber: memberNumber,
+            classYear: classYear
         )
         try await client.from("player_profiles").upsert(profile).execute()
     }

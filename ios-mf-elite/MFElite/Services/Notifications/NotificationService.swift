@@ -36,7 +36,26 @@ final class NotificationService {
     /// Requests alert/badge/sound authorization. Calls back with the granted flag.
     func requestPermission(completion: ((Bool) -> Void)? = nil) {
         center.requestAuthorization(options: [.alert, .badge, .sound]) { granted, _ in
-            DispatchQueue.main.async { completion?(granted) }
+            DispatchQueue.main.async {
+                if granted { self.scheduleDailyReminder() }
+                completion?(granted)
+            }
+        }
+    }
+
+    /// Returns the current authorization status (off the main actor).
+    func authorizationStatus(completion: @escaping (UNAuthorizationStatus) -> Void) {
+        center.getNotificationSettings { settings in
+            DispatchQueue.main.async { completion(settings.authorizationStatus) }
+        }
+    }
+
+    /// Schedules the daily reminder only if the user has already authorized
+    /// notifications — never triggers the system permission prompt.
+    func scheduleDailyReminderIfAuthorized() {
+        center.getNotificationSettings { settings in
+            guard settings.authorizationStatus == .authorized else { return }
+            DispatchQueue.main.async { self.scheduleDailyReminder() }
         }
     }
 

@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import StoreKit
 
 struct DrillPlayerView: View {
     let drill: Drill
@@ -19,12 +20,14 @@ struct DrillPlayerView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.requestReview) private var requestReview
 
     @State private var viewModel: DrillPlayerViewModel
     @State private var showStopConfirm = false
     @State private var celebrate = false
     @State private var activeCelebration: CelebrationKind?
     @State private var chainToCert = false
+    @State private var showNotificationPrompt = false
 
     init(
         drill: Drill,
@@ -75,6 +78,10 @@ struct DrillPlayerView: View {
             }
         } message: {
             Text("Your progress for this drill won't be logged.")
+        }
+        .sheet(isPresented: $showNotificationPrompt) {
+            NotificationPromptSheet()
+                .presentationDetents([.medium, .large])
         }
         .fullScreenCover(item: $activeCelebration, onDismiss: handleCelebrationDismiss) { kind in
             switch kind {
@@ -341,6 +348,7 @@ struct DrillPlayerView: View {
             withAnimation(DS.Motion.celebrationSpring) {
                 celebrate = true
             }
+            handleDrillLogged()
             if viewModel.levelJustMastered {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     activeCelebration = .level
@@ -398,6 +406,44 @@ struct DrillPlayerView: View {
                 }
             }
         }
+    }
+
+    /// Runs once when the logged screen appears: counts the completion, gates the
+    /// soft notification prompt (first drill) and any positive-moment review ask.
+    private func handleDrillLogged() {
+        EngagementTracker.shared.recordDrillCompleted()
+
+        // Soft notification prompt after the first (and, if deferred, third) drill.
+        EngagementTracker.shared.evaluateNotificationPrompt { show in
+            guard show else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                showNotificationPrompt = true
+            }
+        }
+
+        // App review on positive moments — never mid-level celebration.
+        if !viewModel.levelJustMastered {
+            if viewModel.newStreak == 7,
+               EngagementTracker.shared.shouldRequestReview(for: .sevenDayStreak) {
+                requestReviewSoon()
+            } else if masteredCount() == 10,
+                      EngagementTracker.shared.shouldRequestReview(for: .tenthDrillMastered) {
+                requestReviewSoon()
+            }
+        }
+    }
+
+    private func requestReviewSoon() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            requestReview()
+        }
+    }
+
+    private func masteredCount() -> Int {
+        let mastered = (try? modelContext.fetch(
+            FetchDescriptor<DrillProgress>(predicate: #Predicate { $0.isMastered })
+        )) ?? []
+        return mastered.count
     }
 
     private func goToNextDrill() {

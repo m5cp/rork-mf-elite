@@ -11,12 +11,81 @@ import Observation
 
 enum OnboardingStep: Int, CaseIterable {
     case splash
+    case code
     case identify
-    case username
     case position
     case pledge
     case number
     case passport
+
+    /// 1-of-6 progress index for the StepBar (splash excluded).
+    var stepIndex: Int {
+        switch self {
+        case .splash:   return 0
+        case .code:     return 1
+        case .identify: return 2
+        case .position: return 3
+        case .pledge:   return 4
+        case .number:   return 5
+        case .passport: return 6
+        }
+    }
+}
+
+/// The academy pledge tiers, in ascending intensity.
+enum PledgeTier: String, CaseIterable, Identifiable {
+    case recovery
+    case standard
+    case elite
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .recovery: return "Recovery"
+        case .standard: return "Standard"
+        case .elite:    return "Elite"
+        }
+    }
+
+    var meta: String {
+        switch self {
+        case .recovery: return "2 / week · 25 min"
+        case .standard: return "4 / week · 35 min"
+        case .elite:    return "6 / week · 45 min"
+        }
+    }
+
+    var quote: String {
+        switch self {
+        case .recovery: return "I will keep moving. I will come back stronger than I left."
+        case .standard: return "I will train. I will compete. I will close the gap."
+        case .elite:    return "I will outwork the room. Every session. No exceptions."
+        }
+    }
+}
+
+/// A pitch position with its code and on-pitch coordinates (0–1 space).
+struct PitchPosition: Identifiable, Equatable {
+    let id = UUID()
+    let code: String
+    let name: String
+    /// Normalized x/y on the pitch (0,0 top-left → 1,1 bottom-right).
+    let x: CGFloat
+    let y: CGFloat
+
+    static let all: [PitchPosition] = [
+        PitchPosition(code: "ST", name: "Striker", x: 0.50, y: 0.12),
+        PitchPosition(code: "LW", name: "Left Wing", x: 0.20, y: 0.24),
+        PitchPosition(code: "RW", name: "Right Wing", x: 0.80, y: 0.24),
+        PitchPosition(code: "CAM", name: "Attacking Mid", x: 0.50, y: 0.36),
+        PitchPosition(code: "CM", name: "Central Mid", x: 0.36, y: 0.52),
+        PitchPosition(code: "CM2", name: "Central Mid", x: 0.64, y: 0.52),
+        PitchPosition(code: "LB", name: "Left Back", x: 0.18, y: 0.68),
+        PitchPosition(code: "CB", name: "Centre Back", x: 0.50, y: 0.72),
+        PitchPosition(code: "RB", name: "Right Back", x: 0.82, y: 0.68),
+        PitchPosition(code: "GK", name: "Goalkeeper", x: 0.50, y: 0.90)
+    ]
 }
 
 @Observable
@@ -24,16 +93,32 @@ enum OnboardingStep: Int, CaseIterable {
 final class OnboardingState {
     var step: OnboardingStep = .splash
 
-    var inviteCode: String = ""
     var playerName: String = ""
-    var username: String = ""
-    var position: String = ""
-    var kitNumber: String = "10"
+    var classYear: Int = OnboardingState.defaultClassYear
+    var selectedPosition: PitchPosition? = nil
+    var foot: String = "Right"
+    var pledgeTier: PledgeTier = .standard
+    var kitNumber: String = ""
 
-    /// True when the player arrived via a coach invite code (vs. open self-signup).
-    var hasInvite: Bool { ProfileValidation.isInviteCodeValid(inviteCode) }
+    /// Member number issued on the passport — a stable random 4-digit ID.
+    let memberNumber: Int = Int.random(in: 1000...9999)
 
-    /// Derived initials for the passport monogram.
+    /// Coach is fixed for the academy.
+    static let coachName = "Coach Matteo Finazzi"
+
+    /// Defaults to the upcoming graduation year (next year after July).
+    static var defaultClassYear: Int {
+        let calendar = Calendar.current
+        let now = Date()
+        let year = calendar.component(.year, from: now)
+        let month = calendar.component(.month, from: now)
+        return month >= 7 ? year + 4 : year + 3
+    }
+
+    var positionName: String { selectedPosition?.name ?? "Anywhere" }
+    var positionCode: String { selectedPosition?.code.replacingOccurrences(of: "2", with: "") ?? "—" }
+
+    /// Derived initials for the monogram / passport.
     var initials: String {
         let parts = playerName
             .split(separator: " ")
@@ -44,6 +129,15 @@ final class OnboardingState {
             return "\(first)\(second)".uppercased()
         }
         return String(first).uppercased()
+    }
+
+    /// Auto-generated unique-ish handle (the design flow has no username step).
+    var generatedUsername: String {
+        let base = playerName
+            .lowercased()
+            .filter { $0.isLetter || $0.isNumber }
+        let trimmed = base.isEmpty ? "player" : String(base.prefix(12))
+        return "\(trimmed)\(memberNumber)"
     }
 
     func advance() {

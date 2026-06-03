@@ -11,6 +11,10 @@ import SwiftData
 /// Navigation route to the routines list.
 struct RoutinesRoute: Hashable {}
 
+// MARK: - Future: Video/Film
+// A "Film Study" routine (tactical demo films) plugs in here once coach video is
+// shipped. Add a video-backed Routine entry and a player surface for it then.
+
 /// A curated routine spec: metadata plus the drill IDs it chains.
 private struct Routine: Identifiable {
     let id: String
@@ -62,13 +66,6 @@ struct RoutinesView: View {
             duration: "MIXED · 25 MIN",
             blurb: "Sharpen technique, fire the legs, and lock in the mind.",
             drillIDs: ["tech-a-1-1", "tech-c-1-2", "phys-a-1-1", "psy-a-1-1"]
-        ),
-        Routine(
-            id: "film-study",
-            title: "Film Study",
-            duration: "TACTICAL · 15 MIN",
-            blurb: "Read the game — positioning and decision-making on film.",
-            drillIDs: ["tact-a-1-1", "tact-a-1-2", "tact-b-1-1"]
         )
     ]
 
