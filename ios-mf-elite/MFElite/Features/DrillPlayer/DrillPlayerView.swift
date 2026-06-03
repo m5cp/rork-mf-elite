@@ -23,6 +23,8 @@ struct DrillPlayerView: View {
     @State private var viewModel: DrillPlayerViewModel
     @State private var showStopConfirm = false
     @State private var celebrate = false
+    @State private var activeCelebration: CelebrationKind?
+    @State private var chainToCert = false
 
     init(
         drill: Drill,
@@ -73,6 +75,41 @@ struct DrillPlayerView: View {
             }
         } message: {
             Text("Your progress for this drill won't be logged.")
+        }
+        .fullScreenCover(item: $activeCelebration, onDismiss: handleCelebrationDismiss) { kind in
+            switch kind {
+            case .level:
+                LevelMasteredView(
+                    level: level,
+                    category: category,
+                    discipline: discipline,
+                    onClose: { chainToCert = viewModel.categoryJustCertified }
+                )
+            case .cert:
+                CertificationAwardView(
+                    category: category,
+                    discipline: discipline,
+                    onClose: {}
+                )
+            }
+        }
+    }
+
+    /// A celebration to present over the logged screen.
+    enum CelebrationKind: String, Identifiable {
+        case level
+        case cert
+        var id: String { rawValue }
+    }
+
+    /// After a celebration cover closes, chain to the cert award if needed,
+    /// otherwise dismiss the whole player back to the level.
+    private func handleCelebrationDismiss() {
+        if chainToCert {
+            chainToCert = false
+            activeCelebration = .cert
+        } else {
+            dismiss()
         }
     }
 
@@ -303,6 +340,11 @@ struct DrillPlayerView: View {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             withAnimation(DS.Motion.celebrationSpring) {
                 celebrate = true
+            }
+            if viewModel.levelJustMastered {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    activeCelebration = .level
+                }
             }
         }
     }
