@@ -1,0 +1,345 @@
+//
+//  AcademyProgressionView.swift
+//  MFElite
+//
+//  The rank timeline, next-rank progress, skill mastery, and development milestones.
+//
+
+import SwiftUI
+import SwiftData
+
+/// Navigation route to the academy progression screen.
+struct ProgressionRoute: Hashable {}
+
+struct AcademyProgressionView: View {
+    @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
+    @Query private var players: [PlayerState]
+    @Query private var progress: [DrillProgress]
+
+    private var viewModel: AcademyProgressionViewModel {
+        AcademyProgressionViewModel(
+            disciplines: disciplines,
+            xp: players.first?.xp ?? 0,
+            streak: players.first?.streak ?? 0,
+            masteredDrillIDs: Set(progress.filter { $0.isMastered }.map { $0.drillID }),
+            loggedDrillIDs: Set(progress.filter { $0.passesLogged > 0 }.map { $0.drillID })
+        )
+    }
+
+    var body: some View {
+        let vm = viewModel
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                header(vm)
+                nextRankCard(vm)
+                timelineSection(vm)
+                skillMasterySection(vm)
+                milestonesSection(vm)
+            }
+            .padding(.bottom, 120)
+        }
+        .background(DS.Colors.Bg.base)
+        .scrollIndicators(.hidden)
+        .navigationTitle("")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    // MARK: - 1. Header
+
+    private func header(_ vm: AcademyProgressionViewModel) -> some View {
+        let rank = vm.currentRank
+        return VStack(spacing: 0) {
+            Monogram(size: 72, initials: rank.numeral, kit: "09")
+
+            Text(rank.title)
+                .style(.hero)
+                .foregroundStyle(DS.Colors.Ink.primary)
+                .padding(.top, DS.Spacing.s16)
+
+            HStack(alignment: .firstTextBaseline, spacing: DS.Spacing.s4) {
+                Text(vm.xp.formatted())
+                    .font(DS.Typography.num(size: 36))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Text("XP")
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+            .padding(.top, DS.Spacing.s8)
+
+            Eyebrow(text: "Academy Rank · \(rank.numeral)")
+                .padding(.top, DS.Spacing.s8)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s16)
+    }
+
+    // MARK: - 2. Next Rank Card
+
+    private func nextRankCard(_ vm: AcademyProgressionViewModel) -> some View {
+        Card {
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(text: "Next Rank")
+
+                if let next = vm.nextRank {
+                    Text(next.title)
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .padding(.top, DS.Spacing.s4 + 2)
+
+                    ProgressBar(value: vm.progressToNext)
+                        .padding(.top, DS.Spacing.s12)
+
+                    Text("\((vm.xpToNext ?? 0).formatted()) XP to go")
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .padding(.top, DS.Spacing.s8)
+                } else {
+                    Text("Highest rank achieved")
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .padding(.top, DS.Spacing.s4 + 2)
+                }
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s24)
+    }
+
+    // MARK: - 3. Rank Timeline
+
+    private func timelineSection(_ vm: AcademyProgressionViewModel) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "The Pathway")
+
+            VStack(spacing: 0) {
+                ForEach(Array(AcademyRank.allCases.enumerated()), id: \.element) { index, rank in
+                    RankNode(
+                        rank: rank,
+                        state: state(for: rank, current: vm.currentRank, next: vm.nextRank),
+                        isLast: false
+                    )
+                }
+                ElevenNode()
+            }
+            .padding(.top, DS.Spacing.s16)
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s32)
+    }
+
+    private func state(for rank: AcademyRank, current: AcademyRank, next: AcademyRank?) -> RankNodeState {
+        if rank == current { return .current }
+        if rank.rawValue < current.rawValue { return .achieved }
+        if let next, rank == next { return .next }
+        return .locked
+    }
+
+    // MARK: - 4. Skill Mastery
+
+    private func skillMasterySection(_ vm: AcademyProgressionViewModel) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "Skill Mastery")
+
+            VStack(spacing: DS.Spacing.s12 - 2) {
+                ForEach(vm.disciplines) { discipline in
+                    let pct = vm.disciplineMasteryPercent(for: discipline)
+                    VStack(spacing: DS.Spacing.s4 + 2) {
+                        HStack(spacing: DS.Spacing.s8) {
+                            DisciplineMark(kind: discipline.mark, size: 16)
+                            Text(discipline.name)
+                                .style(.foot)
+                                .fontWeight(.semibold)
+                                .foregroundStyle(DS.Colors.Ink.primary)
+                            Spacer()
+                            Text("\(Int((pct * 100).rounded()))%")
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Ink.tertiary)
+                        }
+                        ProgressBar(value: pct)
+                    }
+                }
+            }
+            .padding(.top, DS.Spacing.s12 + 2)
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s32)
+    }
+
+    // MARK: - 5. Development Milestones
+
+    private func milestonesSection(_ vm: AcademyProgressionViewModel) -> some View {
+        let rows: [(String, String)] = [
+            ("Streak personal best", "\(vm.streak) days"),
+            ("Certifications earned", "\(vm.certCount) of 19"),
+            ("Drills logged", "\(vm.totalDrillsLogged)"),
+            ("Weekly consistency", "\(vm.weeklyConsistencyPercent)%")
+        ]
+        return VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "Development Milestones")
+
+            VStack(spacing: 0) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                    VStack(spacing: 0) {
+                        HStack {
+                            Text(row.0)
+                                .style(.callout)
+                                .foregroundStyle(DS.Colors.Ink.secondary)
+                            Spacer()
+                            Text(row.1)
+                                .font(DS.Typography.num(size: 18))
+                                .foregroundStyle(DS.Colors.Ink.primary)
+                        }
+                        .padding(.vertical, DS.Spacing.s12 + 2)
+
+                        if index < rows.count - 1 {
+                            Hairline()
+                        }
+                    }
+                }
+            }
+            .padding(.top, DS.Spacing.s12 + 2)
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s32)
+    }
+}
+
+// MARK: - Rank Node
+
+enum RankNodeState {
+    case achieved
+    case current
+    case next
+    case locked
+}
+
+private struct RankNode: View {
+    let rank: AcademyRank
+    let state: RankNodeState
+    let isLast: Bool
+
+    var body: some View {
+        HStack(alignment: .top, spacing: DS.Spacing.s16) {
+            // Node + connecting line
+            VStack(spacing: 0) {
+                nodeCircle
+                Rectangle()
+                    .fill(DS.Colors.Line.hairline)
+                    .frame(width: 1)
+                    .frame(maxHeight: .infinity)
+            }
+            .frame(width: 44)
+
+            VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                HStack(spacing: DS.Spacing.s8) {
+                    Eyebrow(text: "Rank \(rank.numeral)")
+                    if state == .current {
+                        youAreHereChip
+                    }
+                }
+                Text(rank.title)
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Text("\(rank.rawValue.formatted()) XP")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                if state == .achieved {
+                    Text("Achieved")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+            }
+            .padding(.bottom, DS.Spacing.s20)
+
+            Spacer(minLength: 0)
+        }
+        .opacity(state == .locked ? 0.7 : 1)
+    }
+
+    @ViewBuilder
+    private var nodeCircle: some View {
+        switch state {
+        case .achieved, .current:
+            Circle()
+                .fill(Color.white)
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Text(rank.numeral)
+                        .font(.system(size: 16, weight: .heavy))
+                        .foregroundStyle(DS.Colors.Ground.primary)
+                )
+        case .next:
+            Circle()
+                .stroke(Color.white, lineWidth: 1.5)
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Text(rank.numeral)
+                        .font(.system(size: 16, weight: .heavy))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                )
+        case .locked:
+            Circle()
+                .stroke(DS.Colors.Line.subtle, lineWidth: 1)
+                .frame(width: 44, height: 44)
+                .overlay(
+                    Text(rank.numeral)
+                        .font(.system(size: 16, weight: .heavy))
+                        .foregroundStyle(DS.Colors.Ink.disabled)
+                )
+        }
+    }
+
+    private var youAreHereChip: some View {
+        Text("You Are Here")
+            .style(.micro)
+            .foregroundStyle(DS.Colors.Ground.primary)
+            .padding(.vertical, 4)
+            .padding(.horizontal, DS.Spacing.s8 + 2)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+    }
+}
+
+/// The invite-only top tier of the timeline.
+private struct ElevenNode: View {
+    var body: some View {
+        HStack(alignment: .top, spacing: DS.Spacing.s16) {
+            VStack(spacing: 0) {
+                Circle()
+                    .stroke(DS.Colors.Line.subtle, lineWidth: 1)
+                    .frame(width: 44, height: 44)
+                    .overlay(
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ink.disabled)
+                    )
+            }
+            .frame(width: 44)
+
+            VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                Eyebrow(text: "The Eleven")
+                Text("The Eleven")
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Text("Invite only · Coach-selected")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .opacity(0.7)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        AcademyProgressionView()
+            .preferredColorScheme(.dark)
+            .modelContainer(for: [
+                Discipline.self, Category.self, MasteryLevel.self,
+                Drill.self, DrillProgress.self, PlayerState.self
+            ])
+    }
+}
