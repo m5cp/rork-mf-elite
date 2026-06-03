@@ -7,12 +7,17 @@
 
 import SwiftUI
 import RevenueCat
+import MessageUI
 
 struct PaywallView: View {
     @Environment(SubscriptionService.self) private var subscription
     @Environment(\.dismiss) private var dismiss
 
     @State private var selectedPackageID: String?
+    @State private var mailRequest: MailRequest?
+    @State private var showMailUnavailable = false
+
+    private let supportEmail = "joe@m5cairio.com"
 
     private let features: [(label: String, free: Bool, elite: Bool)] = [
         ("Level 1 drills", true, true),
@@ -61,6 +66,27 @@ struct PaywallView: View {
             Button("OK") { subscription.error = nil }
         } message: {
             Text(subscription.error ?? "")
+        }
+        .sheet(item: $mailRequest) { request in
+            MailComposeView(request: request).ignoresSafeArea()
+        }
+        .alert("Email not set up", isPresented: $showMailUnavailable) {
+            Button("Copy address") { UIPasteboard.general.string = supportEmail }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Reach us at \(supportEmail)")
+        }
+    }
+
+    private func contactSupport() {
+        if MFMailComposeViewController.canSendMail() {
+            mailRequest = MailRequest(
+                recipient: supportEmail,
+                subject: "MF Elite Support — Billing",
+                body: MailRequest.supportBody()
+            )
+        } else {
+            showMailUnavailable = true
         }
     }
 
@@ -213,6 +239,10 @@ struct PaywallView: View {
                 GhostButton(label: "Redeem Code") {
                     Purchases.shared.presentCodeRedemptionSheet()
                 }
+            }
+
+            GhostButton(label: "Having trouble? Contact support") {
+                contactSupport()
             }
         }
         .frame(maxWidth: .infinity)

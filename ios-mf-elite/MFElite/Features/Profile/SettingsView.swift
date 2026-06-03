@@ -9,6 +9,7 @@
 import SwiftUI
 import SwiftData
 import RevenueCat
+import MessageUI
 
 struct SettingsRoute: Hashable {}
 
@@ -31,10 +32,15 @@ struct SettingsView: View {
     @State private var showCoachLogin = false
     @State private var showDeleteConfirm = false
     @State private var showSignOutConfirm = false
+    @State private var safariURL: IdentifiableURL?
+    @State private var mailRequest: MailRequest?
+    @State private var showDisclaimer = false
+    @State private var showMailUnavailable = false
+    @State private var pendingSupportSubject = ""
 
-    private let termsURL = URL(string: "https://mfelite.app/terms")!
-    private let privacyURL = URL(string: "https://mfelite.app/privacy")!
-    private let contactURL = URL(string: "mailto:support@mfelite.app")!
+    private let supportEmail = "joe@m5cairio.com"
+    private let termsURL = URL(string: "https://m5cairio.com/mfelite/terms")!
+    private let privacyURL = URL(string: "https://m5cairio.com/mfelite/privacy")!
     private let manageSubscriptionURL = URL(string: "https://apps.apple.com/account/subscriptions")!
 
     var body: some View {
@@ -73,6 +79,22 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("You can sign back in any time to restore your progress.")
+        }
+        .sheet(item: $safariURL) { item in
+            SafariView(url: item.url).ignoresSafeArea()
+        }
+        .sheet(item: $mailRequest) { request in
+            MailComposeView(request: request).ignoresSafeArea()
+        }
+        .sheet(isPresented: $showDisclaimer) {
+            DisclaimerSheet()
+                .preferredColorScheme(.dark)
+        }
+        .alert("Email not set up", isPresented: $showMailUnavailable) {
+            Button("Copy address") { UIPasteboard.general.string = supportEmail }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Reach us at \(supportEmail)")
         }
     }
 
@@ -178,13 +200,34 @@ struct SettingsView: View {
 
     private var supportSection: some View {
         section("Support") {
-            actionRow(label: "Terms of Service") { UIApplication.shared.open(termsURL) }
+            actionRow(label: "Terms of Service") { safariURL = IdentifiableURL(url: termsURL) }
             Hairline()
-            actionRow(label: "Privacy Policy") { UIApplication.shared.open(privacyURL) }
+            actionRow(label: "Privacy Policy") { safariURL = IdentifiableURL(url: privacyURL) }
             Hairline()
-            actionRow(label: "Contact us") { UIApplication.shared.open(contactURL) }
+            actionRow(label: "Disclaimer") { showDisclaimer = true }
+            Hairline()
+            iconRow(icon: "envelope", label: "Contact Support") {
+                composeSupport(subject: "MF Elite Support — \(profile.displayName)")
+            }
+            Hairline()
+            iconRow(icon: "exclamationmark.bubble", label: "Report a Problem") {
+                composeSupport(subject: "MF Elite — Report a Problem")
+            }
             Hairline()
             actionRow(label: "Redeem a code") { Purchases.shared.presentCodeRedemptionSheet() }
+        }
+    }
+
+    private func composeSupport(subject: String) {
+        if MFMailComposeViewController.canSendMail() {
+            mailRequest = MailRequest(
+                recipient: supportEmail,
+                subject: subject,
+                body: MailRequest.supportBody()
+            )
+        } else {
+            pendingSupportSubject = subject
+            showMailUnavailable = true
         }
     }
 
@@ -509,6 +552,37 @@ private struct AccountEditSheet: View {
             profile.position = selectedPosition
         }
         dismiss()
+    }
+}
+
+// MARK: - Disclaimer Sheet
+
+private struct DisclaimerSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+                Eyebrow(text: "Important")
+                Text("Disclaimer")
+                    .style(.title2)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+
+                Text("MF Elite is a training tool and does not replace professional coaching, medical advice, or physical therapy. Consult a physician before starting any new exercise program. Train within your limits and stop if you experience pain or discomfort. Drill content is provided by your coach for educational and training purposes. Results vary. MF Elite and its creators are not liable for injuries sustained during training.")
+                    .style(.body)
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+
+                GhostButton(label: "Close") { dismiss() }
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, DS.Spacing.s8)
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s24)
+            .padding(.bottom, DS.Spacing.s32)
+        }
+        .background(DS.Colors.Bg.base)
+        .presentationDetents([.medium, .large])
+        .presentationContentInteraction(.scrolls)
     }
 }
 

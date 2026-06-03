@@ -14,6 +14,10 @@ struct OnboardingPassportView: View {
     let onEnter: () -> Void
 
     @State private var reveal = false
+    @State private var legalURL: IdentifiableURL?
+
+    private let termsURL = URL(string: "https://m5cairio.com/mfelite/terms")!
+    private let privacyURL = URL(string: "https://m5cairio.com/mfelite/privacy")!
 
     private var classYear: Int { state.classYear }
 
@@ -52,6 +56,9 @@ struct OnboardingPassportView: View {
         .onAppear {
             withAnimation(DS.Motion.celebrationSpring) { reveal = true }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
+        .sheet(item: $legalURL) { item in
+            SafariView(url: item.url).ignoresSafeArea()
         }
     }
 
@@ -182,9 +189,32 @@ struct OnboardingPassportView: View {
                 onEnter()
             }
             .disabled(isFinishing)
+            legalConsent
             StepBar(filled: 6)
         }
         .padding(.bottom, DS.Spacing.s24)
+    }
+
+    private var legalConsent: some View {
+        (
+            Text("By continuing you agree to our ")
+                .foregroundColor(DS.Colors.Ink.quaternary)
+            + Text("Terms of Service")
+                .foregroundColor(DS.Colors.Ink.secondary)
+                .underline()
+            + Text(" and ")
+                .foregroundColor(DS.Colors.Ink.quaternary)
+            + Text("Privacy Policy")
+                .foregroundColor(DS.Colors.Ink.secondary)
+                .underline()
+        )
+        .style(.micro)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+        .onTapGesture { legalURL = IdentifiableURL(url: privacyURL) }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("View Terms of Service and Privacy Policy")
     }
 }
 
