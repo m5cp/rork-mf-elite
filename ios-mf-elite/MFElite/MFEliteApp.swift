@@ -40,16 +40,29 @@ struct MFEliteApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView()
-                .preferredColorScheme(.dark)
-                .fullScreenCover(isPresented: .constant(showOnboarding)) {
-                    OnboardingView {
-                        // Onboarding marks completion in PlayerProfileStore,
-                        // which flips `showOnboarding` and dismisses the cover.
+            ZStack {
+                MainTabView()
+                    .preferredColorScheme(.dark)
+                    .fullScreenCover(isPresented: .constant(showOnboarding)) {
+                        OnboardingView {
+                            // Onboarding marks completion in PlayerProfileStore,
+                            // which flips `showOnboarding` and dismisses the cover.
+                        }
+                        .modelContainer(container)
                     }
-                    .modelContainer(container)
+
+                // Hold a launch splash over everything until the session
+                // restore finishes, so the home screen never flashes before
+                // onboarding (new users) or before content loads (returning users).
+                if auth.isLoading {
+                    LaunchSplashView()
+                        .transition(.opacity)
+                        .zIndex(1)
                 }
-                .onAppear {
+            }
+            .animation(.easeInOut(duration: 0.3), value: auth.isLoading)
+            .preferredColorScheme(.dark)
+            .onAppear {
                     // No notification permission request on launch — the soft
                     // pre-permission sheet is shown after the first logged drill.
                     // If already authorized, keep the daily reminder scheduled.
@@ -87,6 +100,29 @@ struct MFEliteApp: App {
             NotificationService.shared.cancelStreakRisk()
         } else {
             NotificationService.shared.scheduleStreakRisk(streak: player.streak)
+        }
+    }
+}
+
+/// Pure-black launch splash held over the app until the auth session restore
+/// finishes, preventing the home screen from flashing before onboarding.
+private struct LaunchSplashView: View {
+    @State private var appeared = false
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            DiagonalStripes(opacity: 0.4)
+
+            Image("mf-logo-white")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 200)
+                .opacity(appeared ? 1 : 0)
+                .accessibilityLabel("MF Elite")
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.8)) { appeared = true }
         }
     }
 }

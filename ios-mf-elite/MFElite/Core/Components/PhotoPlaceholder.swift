@@ -2,8 +2,8 @@
 //  PhotoPlaceholder.swift
 //  MFElite
 //
-//  A striped "drop film here" surface used as the loading/empty state
-//  for coach video thumbnails.
+//  A striped placeholder surface used as the loading/empty state
+//  for drill demo thumbnails.
 //
 
 import SwiftUI

@@ -133,8 +133,16 @@ final class AuthService {
             }
 
             await exchangeCode(code)
-            if user != nil { await afterSignIn() }
+            if user != nil {
+                await afterSignIn()
+            } else if !showError {
+                // The flow returned without a session and without surfacing a
+                // specific error — never leave the user stranded silently.
+                setError("Sign-in didn't complete. Please try again.")
+            }
         } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+            return
+        } catch AuthFlowError.cancelledByUser {
             return
         } catch {
             setError(error.localizedDescription)

@@ -11,7 +11,7 @@ struct PremiumWelcomeView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var glow: Bool = false
 
-    private let perks = ["All Levels", "Certifications", "Film Library", "Streak Freezes"]
+    private let perks = ["All Levels", "Certifications", "Parent Reports", "Streak Freezes"]
 
     var body: some View {
         ZStack {

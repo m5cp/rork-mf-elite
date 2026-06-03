@@ -33,7 +33,7 @@ struct ParentReportView: View {
             VStack(alignment: .leading, spacing: 0) {
                 header
                 pillars(vm)
-                narrative
+                narrative(vm)
                 attendance(vm)
                 coachNote
                 ctas
@@ -54,7 +54,7 @@ struct ParentReportView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
             Eyebrow(text: "Monthly Progress Report")
-            Text("Player One is developing")
+            Text("\(PlayerProfileStore.shared.displayName) is developing")
                 .style(.hero)
                 .foregroundStyle(DS.Colors.Ink.primary)
                 .padding(.top, DS.Spacing.s8)
@@ -107,10 +107,10 @@ struct ParentReportView: View {
 
     // MARK: - 3. Development narrative
 
-    private var narrative: some View {
+    private func narrative(_ vm: ParentReportViewModel) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Eyebrow(text: "Development Narrative")
-            Text("Player One has shown consistent effort across Technical and Physical pathways this month. Ball Mastery and First Touch certifications demonstrate strong close-control development. The 14-day training streak shows growing commitment to daily practice.")
+            Text(narrativeText(vm))
                 .style(.body)
                 .foregroundStyle(DS.Colors.Ink.secondary)
                 .padding(.top, DS.Spacing.s12)
@@ -118,6 +118,31 @@ struct ParentReportView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s24 + 4)
+    }
+
+    /// A development narrative built from the player's real progress this month,
+    /// so a brand-new player never sees fabricated streaks or certifications.
+    private func narrativeText(_ vm: ParentReportViewModel) -> String {
+        let name = PlayerProfileStore.shared.displayName
+        guard vm.sessionsLogged > 0 || vm.drillsMastered > 0 || vm.streak > 0 else {
+            return "\(name) has just joined the academy. As training sessions are logged, this report will track consistency, drills mastered, and the certifications earned along the way."
+        }
+
+        var lines: [String] = []
+        if vm.drillsMastered > 0 {
+            let drillWord = vm.drillsMastered == 1 ? "drill" : "drills"
+            lines.append("\(name) has mastered \(vm.drillsMastered) \(drillWord) this month, showing real close-control development.")
+        } else {
+            lines.append("\(name) has shown consistent effort across the training pathways this month.")
+        }
+        if let cert = vm.certifiedCategoryNames.first {
+            lines.append("The \(cert) certification demonstrates strong progress.")
+        }
+        if vm.streak > 0 {
+            let dayWord = vm.streak == 1 ? "day" : "days"
+            lines.append("A \(vm.streak)-\(dayWord) training streak shows growing commitment to daily practice.")
+        }
+        return lines.joined(separator: " ")
     }
 
     // MARK: - 4. Attendance grid (8 weeks)

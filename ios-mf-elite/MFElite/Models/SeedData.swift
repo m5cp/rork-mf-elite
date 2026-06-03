@@ -24,22 +24,16 @@ enum SeedData {
             context.insert(buildDiscipline(discipline))
         }
 
+        // Brand-new players start at zero — no streak, no XP, nothing mastered.
+        // The bundled `demoPlayer` / `masteredDrillIDs` are intentionally ignored
+        // so the app never ships pre-filled fake progress.
         let player = PlayerState(
-            xp: bundle.demoPlayer.xp,
-            streak: bundle.demoPlayer.streak,
-            freezesRemaining: bundle.demoPlayer.freezes,
-            lastTrainedDate: Date()
+            xp: 0,
+            streak: 0,
+            freezesRemaining: 0,
+            lastTrainedDate: nil
         )
         context.insert(player)
-
-        for drillID in bundle.masteredDrillIDs {
-            context.insert(DrillProgress(
-                drillID: drillID,
-                passesLogged: ProgressionRules.masteryPasses,
-                lastLoggedAt: Date(),
-                isMastered: true
-            ))
-        }
 
         try? context.save()
     }

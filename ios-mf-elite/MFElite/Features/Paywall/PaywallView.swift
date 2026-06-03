@@ -20,9 +20,9 @@ struct PaywallView: View {
     private let supportEmail = "joe@m5cairio.com"
 
     private let features: [(label: String, free: Bool, elite: Bool)] = [
-        ("Level 1 drills", true, true),
-        ("Levels 2–5", false, true),
-        ("Tactical film library", false, true),
+        ("Level 1 of every discipline", true, true),
+        ("Daily training & streaks", true, true),
+        ("Levels 2–5 everywhere", false, true),
         ("Certifications", false, true),
         ("Parent reports", false, true),
         ("Streak freezes", false, true)
@@ -111,7 +111,7 @@ struct PaywallView: View {
                 .foregroundStyle(DS.Colors.Ink.primary)
                 .lineSpacing(-6)
                 .padding(.top, DS.Spacing.s8)
-            Text("Access every drill, every level, every certification. Train like the elite.")
+            Text("You’ve unlocked Level 1 of every discipline. Go Elite for every level, certification, and parent report.")
                 .style(.body)
                 .foregroundStyle(DS.Colors.Ink.secondary)
                 .frame(maxWidth: 320, alignment: .leading)

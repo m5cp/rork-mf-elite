@@ -47,7 +47,7 @@ struct DrillDetailView: View {
         let vm = viewModel
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                heroFilm(vm)
+                heroDemo(vm)
                 titleBlock(vm)
                 statStrip(vm)
                 purposeSection
@@ -73,9 +73,9 @@ struct DrillDetailView: View {
         }
     }
 
-    // MARK: - 1. Hero Demo Film
+    // MARK: - 1. Hero Demo Preview
 
-    private func heroFilm(_ vm: DrillDetailViewModel) -> some View {
+    private func heroDemo(_ vm: DrillDetailViewModel) -> some View {
         PhotoPlaceholder(height: 300, label: "DEMO · \(vm.clockDuration)")
             .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 18, bottomTrailingRadius: 18))
             .overlay(alignment: .topLeading) {

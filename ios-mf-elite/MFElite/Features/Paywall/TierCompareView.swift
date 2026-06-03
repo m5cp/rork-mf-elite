@@ -31,9 +31,9 @@ struct TierCompareView: View {
             ("Strength & power levels", false)
         ]),
         FeatureGroup(title: "Tactical", rows: [
-            ("Intro film session", true),
-            ("Full tactical film library", false),
-            ("Positioning & scanning units", false)
+            ("Level 1 positioning drills", true),
+            ("Scanning & awareness levels", false),
+            ("Decision-making progressions", false)
         ]),
         FeatureGroup(title: "Psychological", rows: [
             ("Daily mindset quote", true),

@@ -1,48 +1,41 @@
-# Secure player profiles: unique usernames, coach roster (create/edit/reset), family enrollment & privacy boundaries
+# Fix sign-in, splash flash, fake streak, free tier value, and remove film
 
-## Goal
+## What I'll fix
 
-Make sure a player's profile can be created either by the player or by a coach, always lands in the right shape, and stays private — coaches see training info, never personal/financial data. do not use the word child. each child should be called athlete. 
+### 1. Splash flash on launch
 
-## How profiles get created
+Right now the home screen briefly appears before the splash/onboarding shows. I'll make the splash appear instantly on every launch and hold it until the app has finished checking whether you're signed in — so new users see a clean splash → The Code → sign-in, and returning users see the splash then go straight home. No more home-then-splash flicker.
 
-- **Player self-signup**: the cinematic onboarding flow (creed → identify → position → pledge → number → passport) captures the player's name, class year, position, dominant foot, pledge tier, and kit number. A **unique username is auto-generated** from the name + member number (no dedicated username step); the data-layer uniqueness guard still applies, and the username stays editable later.
-- **Coach pre-creates**: from the admin area a coach can add a player with name, kit number, position and an **invite code**. Entering a code is **optional and never blocks sign-up** — onboarding flows straight through without one. A player who has a code can redeem it any time from **Settings → Redeem a code**, and the coach's details merge into their existing profile automatically (their own username is preserved). the coach has to have a method to create that invite code. it can be a one time code that he creates when he sets up the coach profile. it has to fit the format of the app currently. it is only for players who have subscribed or on a free trial. when the trial goes away, the coach maintain access to the file in case the user resubscibes. the user loses access to the progress and other paid services once the trial ends or they do not resubscribe at the appropriate time.
-- **Coach edits later**: a coach can update a joined player's name, kit number, or position at any time.
-- **Coach reset**: if a player's info breaks, the coach can reset it from the admin and the player re-enters details on next launch.
+### 2. The fake 14-day streak
 
-## Uniqueness & validation rules
+New users are currently seeded with a "demo" player that pretends they already have a 14-day streak and a pile of completed drills. I'll change this so a brand-new player starts at zero — 0-day streak, no XP, nothing marked complete. The full curriculum still loads; only the fake progress is removed. Anything that hardcodes "14-day streak" in copy (e.g. the parent report sample text) will be made dynamic or neutral.
 
-- **Username must be unique** across all users (case-insensitive). Enforced both in the app and at the data layer so two people can never share one — important at scale (thousands of users).
-- **Kit numbers and fun identifiers can overlap** — no uniqueness forced there.
-- **Positions** come from a fixed set (Goalkeeper, Defender, Midfielder, Forward, Winger, No preference).
-- **Names** just need to be non-empty with a sensible length cap.
-- Both the player path and the coach path run through the **same checks**, so data is always stored in one consistent format.
+### 3. Sign in with Apple not working
 
-## Families
+I'll harden the sign-in so it can't silently stall: clear loading feedback on the button, a visible error if Apple auth fails or times out, and a reliable retry. This makes the "Sign in with Apple" button actually complete and move you into the app.
 
-- One **parent/household account** can manage **multiple athlete** under a single login (each athlete is a separate player card with its own username, kit, and progress).
-- An athlete who wants to train under their **own separate login** can do so instead — their profile lives on their own account.
-- Coaches see each athlete as an individual player on the roster.
+### 4. Free tier — real, enticing value
 
-## Privacy & data security
+Today the messaging makes free look like "Level 1 only." The app already unlocks **Level 1 of every discipline and category** for free — a real taste of the whole academy. I'll fix the paywall and comparison copy to clearly sell this: free users explore Technical, Physical, Tactical, and Psychological pathways at Level 1, and Elite unlocks every level beyond. This makes the freemium split honest and compelling.
 
-- Profile data is split into two layers:
-  - **Shareable (coach can see)**: username, display name, kit number, position, rank/XP, streaks, certifications, drill progress — same as typical training apps.
-  - **Private (coach can NEVER see)**: email, account/sign-in identity, and subscription/billing status.
-- Coaches can only read and write the shareable roster fields; the private layer is locked to the owner only. This is enforced at the data layer, not just hidden in the UI.
+### 5. Remove all "film" features and mentions
 
-## Screens
+There is no film study or film vault, so I'll remove every reference to it:
 
-- **Onboarding** is a cinematic 6-step admission flow (creed slate, name + class year, pitch position + dominant foot, selectable pledge tier, live-monogram kit number keypad, member passport with Coach Matteo Finazzi). The unique username is auto-generated rather than entered as a step.
-- **Coach admin → Squad roster**: shows real players from the server (no longer mock data), with **one example placeholder entry that is clearly marked and never appears in the player-facing app**, plus an "Add player" form (name, kit, position, generated invite code).
-- **Coach player detail**: edit roster fields, see training progress, and a "Reset player info" action.
-- **Redeem a code** (optional): a standard "Redeem a code" action in Settings that opens Apple's native App Store offer/promo code redemption sheet. It accepts whatever code format App Store Connect generates (not a fixed 6-char code) and uses no custom keyboard input, so no system swipe-typing tooltip appears. It is never part of the onboarding gate.
+- Remove "Tactical film library" / "Intro film session" / "Full tactical film library" from the paywall and comparison screens.
+- Remove "Film Library" from the post-purchase welcome perks.
+- Replace the "Daily film — watched" daily goal on the home screen with a real goal (a technical drill focus).
+- Relabel the drill detail's "DEMO film" header to simply a demo preview, so no "film" wording remains anywhere.
 
-## Behind the scenes
+## Design
 
-- A documented data model + security rules for: shareable player records, private personal records, families, and coach invite codes.
-- A small shared validation layer reused by both onboarding and the coach admin so nothing can be saved in the wrong format.
-- The placeholder/example roster entry is flagged so it stays out of the player experience and any real reports.
+Everything stays in the existing black, mono-accent MF Elite aesthetic. The free-vs-Elite comparison will read cleanly with the film rows replaced by genuine pathway value, and the welcome perks will reflect what users actually get.
 
-I'll build the data model + security rules, the shared validation, the onboarding username step, and the coach admin roster (with the single hidden example), then verify the iOS build is clean.
+## After this
+
+- Clean splash with no flicker on launch
+- New players start at zero (no fake streak or fake completed drills)
+- Sign in with Apple completes reliably with proper feedback
+- Free tier clearly offers Level 1 across every discipline
+- No mention of film anywhere in the app
+
