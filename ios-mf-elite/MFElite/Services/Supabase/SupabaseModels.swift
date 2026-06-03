@@ -18,17 +18,105 @@ nonisolated struct ProfileUpsert: Encodable, Sendable {
 
 nonisolated struct PlayerProfileUpsert: Encodable, Sendable {
     let id: String
+    let accountId: String
+    let username: String
     let displayName: String
     let initials: String
     let kitNumber: String
     let position: String
 
     enum CodingKeys: String, CodingKey {
-        case id, position
+        case id, username, position
+        case accountId = "account_id"
         case displayName = "display_name"
         case initials
         case kitNumber = "kit_number"
     }
+}
+
+/// Shareable roster row a coach (or owner) can read. Contains NO private data
+/// — no email, sign-in identity, or billing. Mirrors the `player_profiles`
+/// columns the RLS layer exposes.
+nonisolated struct PlayerProfileRow: Codable, Sendable, Identifiable {
+    let id: String
+    let accountId: String?
+    let username: String?
+    let displayName: String?
+    let initials: String?
+    let kitNumber: String?
+    let position: String?
+    let managed: Bool?
+    let isExample: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case id, username, position, managed, initials
+        case accountId = "account_id"
+        case displayName = "display_name"
+        case kitNumber = "kit_number"
+        case isExample = "is_example"
+    }
+}
+
+/// Coach edit of a player's shareable roster fields (never the username).
+nonisolated struct PlayerRosterUpdate: Encodable, Sendable {
+    let displayName: String
+    let initials: String
+    let kitNumber: String
+    let position: String
+
+    enum CodingKeys: String, CodingKey {
+        case position, initials
+        case displayName = "display_name"
+        case kitNumber = "kit_number"
+    }
+}
+
+// MARK: - Roster invites (coach-issued codes)
+
+nonisolated struct RosterInviteInsert: Encodable, Sendable {
+    let code: String
+    let coachId: String
+    let displayName: String?
+    let kitNumber: String?
+    let position: String?
+    let isExample: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case code, position
+        case coachId = "coach_id"
+        case displayName = "display_name"
+        case kitNumber = "kit_number"
+        case isExample = "is_example"
+    }
+}
+
+nonisolated struct RosterInviteRow: Codable, Sendable, Identifiable {
+    let id: String
+    let code: String
+    let displayName: String?
+    let kitNumber: String?
+    let position: String?
+    let status: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, code, status, position
+        case displayName = "display_name"
+        case kitNumber = "kit_number"
+    }
+}
+
+nonisolated struct ClaimInviteParams: Encodable, Sendable {
+    let inviteCode: String
+    let pUsername: String
+
+    enum CodingKeys: String, CodingKey {
+        case inviteCode = "invite_code"
+        case pUsername = "p_username"
+    }
+}
+
+nonisolated struct UsernameAvailableParams: Encodable, Sendable {
+    let candidate: String
 }
 
 // MARK: - Curriculum (read)

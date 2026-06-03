@@ -30,6 +30,8 @@ struct OnboardingView: View {
                     OnboardingCodeView(state: state)
                 case .identify:
                     OnboardingIdentifyView(state: state)
+                case .username:
+                    OnboardingUsernameView(state: state)
                 case .position:
                     OnboardingPositionView(state: state)
                 case .pledge:
@@ -89,18 +91,23 @@ struct OnboardingView: View {
     private func createRemoteProfile() async {
         guard SupabaseService.shared.isConfigured,
               let userID = AuthService.shared.user?.id else { return }
-        let profile = PlayerProfileUpsert(
-            id: userID,
-            displayName: state.playerName,
-            initials: state.initials,
-            kitNumber: state.kitNumber,
-            position: state.position
-        )
         do {
-            try await SupabaseService.shared.client
-                .from("player_profiles")
-                .upsert(profile)
-                .execute()
+            // If the player arrived with a coach invite code, redeem it so the
+            // coach's pre-filled details merge in; otherwise create their own.
+            if state.hasInvite {
+                _ = try await ProfileService.shared.claimInvite(
+                    code: state.inviteCode,
+                    username: state.username
+                )
+            } else {
+                try await ProfileService.shared.upsertOwnProfile(
+                    userID: userID,
+                    username: state.username,
+                    name: state.playerName,
+                    kit: state.kitNumber,
+                    position: state.position
+                )
+            }
             try await SupabaseService.shared.client
                 .from("player_state")
                 .upsert(PlayerStateUpsert(

@@ -28,7 +28,13 @@ CREATE TABLE IF NOT EXISTS profiles (
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "profiles_select_all" ON profiles FOR SELECT USING (true);
+-- PRIVACY: `profiles` holds PII (email, sign-in identity). It is OWNER-ONLY.
+-- Coaches must NEVER read this table — they read `player_profiles` (the
+-- shareable roster layer) instead. The old permissive "USING (true)" policy
+-- leaked every user's email to every authenticated user, so we drop it.
+DROP POLICY IF EXISTS "profiles_select_all" ON profiles;
+DROP POLICY IF EXISTS "profiles_select_own" ON profiles;
+CREATE POLICY "profiles_select_own" ON profiles FOR SELECT USING (user_id() = id);
 CREATE POLICY "profiles_insert_own" ON profiles FOR INSERT WITH CHECK (user_id() = id);
 CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (user_id() = id) WITH CHECK (user_id() = id);
 
@@ -213,7 +219,7 @@ CREATE POLICY "announcements_coach_write" ON announcements
 -- player_profiles
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS player_profiles (
-  id            text PRIMARY KEY REFERENCES profiles(id),   -- = user_id()
+  id            text PRIMARY KEY,             -- player record id (= account id for self-managed players, random uuid for managed athletes)
   display_name  text,
   initials      text,
   kit_number    text,
@@ -221,15 +227,55 @@ CREATE TABLE IF NOT EXISTS player_profiles (
   created_at    timestamptz DEFAULT now()
 );
 
+-- --- Additive columns (safe to re-run) -------------------------------------
+-- username     : unique, case-insensitive handle. The ONLY uniqueness-enforced
+--                field. Kit numbers / fun identifiers may overlap.
+-- account_id   : the controlling login (parent or self). Multiple athletes that
+--                share one account_id form a family/household.
+-- managed      : true when this athlete has no own login (managed by a parent).
+-- is_example   : coach-only placeholder rows. Hidden from the player app and
+--                excluded from username uniqueness + any real reports.
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS username    text;
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS account_id  text REFERENCES profiles(id);
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS managed     boolean NOT NULL DEFAULT false;
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS is_example  boolean NOT NULL DEFAULT false;
+
+-- Backfill account_id for existing self-managed rows (id == account).
+UPDATE player_profiles SET account_id = id WHERE account_id IS NULL;
+
+-- Case-insensitive uniqueness on real (non-example) usernames.
+CREATE UNIQUE INDEX IF NOT EXISTS player_profiles_username_unique
+  ON player_profiles (lower(username))
+  WHERE is_example = false AND username IS NOT NULL;
+
 ALTER TABLE player_profiles ENABLE ROW LEVEL SECURITY;
 
--- Owner + any coach can read; owner can write.
+-- Owner (account holder) + any coach can read; owner writes their own + their
+-- managed athletes. Coaches may also UPDATE roster fields (edit / reset) but a
+-- trigger (below) prevents them from touching the username.
+DROP POLICY IF EXISTS "player_profiles_select" ON player_profiles;
+DROP POLICY IF EXISTS "player_profiles_insert_own" ON player_profiles;
+DROP POLICY IF EXISTS "player_profiles_update_own" ON player_profiles;
 CREATE POLICY "player_profiles_select" ON player_profiles
-  FOR SELECT USING (user_id() = id OR user_id() IN (SELECT user_id FROM coaches));
+  FOR SELECT USING (
+    user_id() = account_id
+    OR user_id() IN (SELECT user_id FROM coaches)
+  );
 CREATE POLICY "player_profiles_insert_own" ON player_profiles
-  FOR INSERT WITH CHECK (user_id() = id);
-CREATE POLICY "player_profiles_update_own" ON player_profiles
-  FOR UPDATE USING (user_id() = id) WITH CHECK (user_id() = id);
+  FOR INSERT WITH CHECK (
+    user_id() = account_id
+    OR user_id() IN (SELECT user_id FROM coaches)
+  );
+CREATE POLICY "player_profiles_update" ON player_profiles
+  FOR UPDATE USING (
+    user_id() = account_id
+    OR user_id() IN (SELECT user_id FROM coaches)
+  ) WITH CHECK (
+    user_id() = account_id
+    OR user_id() IN (SELECT user_id FROM coaches)
+  );
+CREATE POLICY "player_profiles_delete_own" ON player_profiles
+  FOR DELETE USING (user_id() = account_id);
 
 
 -- -----------------------------------------------------------------------------
@@ -303,3 +349,163 @@ CREATE POLICY "certifications_insert_own" ON certifications
   FOR INSERT WITH CHECK (user_id() = player_id);
 CREATE POLICY "certifications_delete_own" ON certifications
   FOR DELETE USING (user_id() = player_id);
+
+
+-- =============================================================================
+-- FAMILIES + ROSTER INVITES + PROFILE INTEGRITY
+-- =============================================================================
+
+-- -----------------------------------------------------------------------------
+-- families — a household. Multiple player_profiles sharing account_id belong to
+-- one family; this row just gives the household a name + owner.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS families (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  owner_id    text NOT NULL REFERENCES profiles(id),   -- the parent/primary login
+  name        text,
+  created_at  timestamptz DEFAULT now()
+);
+
+ALTER TABLE families ENABLE ROW LEVEL SECURITY;
+
+-- Owner-only. Coaches do NOT need household grouping; they see each athlete
+-- individually on the roster.
+CREATE POLICY "families_select_own" ON families
+  FOR SELECT USING (user_id() = owner_id);
+CREATE POLICY "families_insert_own" ON families
+  FOR INSERT WITH CHECK (user_id() = owner_id);
+CREATE POLICY "families_update_own" ON families
+  FOR UPDATE USING (user_id() = owner_id) WITH CHECK (user_id() = owner_id);
+CREATE POLICY "families_delete_own" ON families
+  FOR DELETE USING (user_id() = owner_id);
+
+-- Optional link from a player to a family (kept nullable + additive).
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS family_id uuid REFERENCES families(id) ON DELETE SET NULL;
+
+
+-- -----------------------------------------------------------------------------
+-- roster_invites — coach-issued one-time codes that pre-fill a player profile.
+-- A coach creates these in the admin; a subscribed/trial player redeems the
+-- code on first sign-in and the fields merge into their profile.
+--
+-- Subscription rule: redemption requires an active subscription or trial. After
+-- a trial lapses the invite + player_profile + progress ROWS are retained (the
+-- coach keeps the file in case the player resubscribes), but the player loses
+-- *access* to paid content — that gate is enforced client-side by the
+-- subscription entitlement, not by deleting data.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS roster_invites (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code         text NOT NULL UNIQUE,            -- 6-char A–Z0–9, matches app format
+  coach_id     text NOT NULL REFERENCES profiles(id),
+  display_name text,
+  kit_number   text,
+  position     text,
+  status       text NOT NULL DEFAULT 'pending', -- pending | claimed | revoked
+  claimed_by   text REFERENCES profiles(id),    -- account that redeemed
+  player_id    text,                            -- resulting player_profiles.id
+  created_at   timestamptz DEFAULT now(),
+  claimed_at   timestamptz
+);
+
+ALTER TABLE roster_invites ENABLE ROW LEVEL SECURITY;
+
+-- Coaches manage their own invites. Players never read this table directly —
+-- they redeem via the SECURITY DEFINER function below (so coach data is not
+-- exposed). The claimer can read their own claimed invite for confirmation.
+CREATE POLICY "roster_invites_coach_all" ON roster_invites
+  FOR ALL USING (user_id() = coach_id AND user_id() IN (SELECT user_id FROM coaches))
+  WITH CHECK (user_id() = coach_id AND user_id() IN (SELECT user_id FROM coaches));
+CREATE POLICY "roster_invites_select_claimer" ON roster_invites
+  FOR SELECT USING (user_id() = claimed_by);
+
+
+-- -----------------------------------------------------------------------------
+-- username_available(candidate) — SECURITY DEFINER so clients can check a name
+-- without being able to read other players' rows. Returns true if free.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION username_available(candidate text)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $
+  SELECT NOT EXISTS (
+    SELECT 1 FROM player_profiles
+    WHERE is_example = false
+      AND lower(username) = lower(trim(candidate))
+  );
+$;
+
+
+-- -----------------------------------------------------------------------------
+-- claim_roster_invite(invite_code, p_username) — redeem a coach invite for the
+-- calling user. Creates/updates the caller's player_profile with the coach's
+-- pre-filled fields + the chosen unique username, and marks the invite claimed.
+-- Runs as SECURITY DEFINER so the player never reads the coach's invite table.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION claim_roster_invite(invite_code text, p_username text)
+RETURNS player_profiles
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $
+DECLARE
+  uid     text := user_id();
+  inv     roster_invites;
+  result  player_profiles;
+BEGIN
+  IF uid IS NULL THEN
+    RAISE EXCEPTION 'not_authenticated';
+  END IF;
+
+  SELECT * INTO inv FROM roster_invites
+    WHERE lower(code) = lower(trim(invite_code)) AND status = 'pending'
+    FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'invalid_or_used_code';
+  END IF;
+
+  IF NOT username_available(p_username) THEN
+    RAISE EXCEPTION 'username_taken';
+  END IF;
+
+  INSERT INTO player_profiles (id, account_id, username, display_name, kit_number, position)
+    VALUES (uid, uid, trim(p_username), inv.display_name, inv.kit_number, inv.position)
+  ON CONFLICT (id) DO UPDATE
+    SET username     = EXCLUDED.username,
+        display_name = EXCLUDED.display_name,
+        kit_number   = EXCLUDED.kit_number,
+        position     = EXCLUDED.position
+  RETURNING * INTO result;
+
+  UPDATE roster_invites
+    SET status = 'claimed', claimed_by = uid, player_id = uid, claimed_at = now()
+    WHERE id = inv.id;
+
+  RETURN result;
+END;
+$;
+
+
+-- -----------------------------------------------------------------------------
+-- Protect the username: a coach may edit roster fields (name/kit/position) and
+-- reset, but must NOT change a player's chosen username. Owners may change
+-- their own.
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION protect_player_username()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $
+BEGIN
+  IF NEW.username IS DISTINCT FROM OLD.username AND user_id() <> OLD.account_id THEN
+    NEW.username := OLD.username;  -- silently keep the owner's handle
+  END IF;
+  RETURN NEW;
+END;
+$;
+
+DROP TRIGGER IF EXISTS trg_protect_player_username ON player_profiles;
+CREATE TRIGGER trg_protect_player_username
+  BEFORE UPDATE ON player_profiles
+  FOR EACH ROW EXECUTE FUNCTION protect_player_username();

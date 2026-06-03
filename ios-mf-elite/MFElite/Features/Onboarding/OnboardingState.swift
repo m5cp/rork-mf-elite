@@ -13,6 +13,7 @@ enum OnboardingStep: Int, CaseIterable {
     case splash
     case code
     case identify
+    case username
     case position
     case pledge
     case number
@@ -26,8 +27,12 @@ final class OnboardingState {
 
     var inviteCode: String = ""
     var playerName: String = ""
+    var username: String = ""
     var position: String = ""
     var kitNumber: String = "10"
+
+    /// True when the player arrived via a coach invite code (vs. open self-signup).
+    var hasInvite: Bool { ProfileValidation.isInviteCodeValid(inviteCode) }
 
     /// Derived initials for the passport monogram.
     var initials: String {
