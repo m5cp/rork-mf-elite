@@ -8,26 +8,44 @@
 import SwiftUI
 
 /// Small certification seal (~48pt default).
+///
+/// `dark == true` renders for light backgrounds (e.g. the Report Card) by
+/// swapping the white strokes/fill for black/gray tones.
 struct CertSeal: View {
     var size: CGFloat = 48
     var earned: Bool = false
+    var dark: Bool = false
+
+    private var ringColor: Color {
+        dark ? DS.Colors.Ground.tertiary : DS.Colors.Line.subtle
+    }
+    private var tickColor: Color {
+        dark ? Color.black.opacity(0.20) : Color.white.opacity(0.20)
+    }
+    private var discColor: Color {
+        dark ? Color.black : Color.white
+    }
+    private var checkColor: Color {
+        dark ? Color.white : DS.Colors.Ground.primary
+    }
 
     var body: some View {
         ZStack {
-            SealRing(size: size, tickCount: 24, tickLength: 4)
+            SealRing(size: size, tickCount: 24, tickLength: 4,
+                     ringColor: ringColor, tickColor: tickColor)
 
             if earned {
                 Circle()
-                    .fill(Color.white)
+                    .fill(discColor)
                     .frame(width: size * 0.8, height: size * 0.8)
                     .overlay(
                         Image(systemName: "checkmark")
                             .font(.system(size: size * 0.32, weight: .bold))
-                            .foregroundStyle(DS.Colors.Ground.primary)
+                            .foregroundStyle(checkColor)
                     )
             } else {
                 Circle()
-                    .stroke(DS.Colors.Line.subtle, lineWidth: 1)
+                    .stroke(ringColor, lineWidth: 1)
                     .frame(width: size * 0.8, height: size * 0.8)
             }
         }
@@ -77,6 +95,8 @@ private struct SealRing: View {
     let size: CGFloat
     let tickCount: Int
     let tickLength: CGFloat
+    var ringColor: Color = DS.Colors.Line.subtle
+    var tickColor: Color = Color.white.opacity(0.20)
 
     var body: some View {
         Canvas { context, canvasSize in
@@ -90,7 +110,7 @@ private struct SealRing: View {
                 width: radius * 2,
                 height: radius * 2
             ))
-            context.stroke(ringPath, with: .color(DS.Colors.Line.subtle), lineWidth: 1)
+            context.stroke(ringPath, with: .color(ringColor), lineWidth: 1)
 
             // Guilloché ticks
             let inner = radius - tickLength
@@ -101,7 +121,7 @@ private struct SealRing: View {
                 var tick = Path()
                 tick.move(to: CGPoint(x: center.x + cosA * inner, y: center.y + sinA * inner))
                 tick.addLine(to: CGPoint(x: center.x + cosA * radius, y: center.y + sinA * radius))
-                context.stroke(tick, with: .color(Color.white.opacity(0.20)), lineWidth: 1)
+                context.stroke(tick, with: .color(tickColor), lineWidth: 1)
             }
         }
         .frame(width: size, height: size)
