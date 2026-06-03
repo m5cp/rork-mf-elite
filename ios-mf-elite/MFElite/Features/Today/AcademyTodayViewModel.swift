@@ -102,8 +102,8 @@ final class AcademyTodayViewModel {
         }
     }
 
-    var playerName: String { "Player One" }
-    var playerInitials: String { "P1" }
+    var playerName: String { PlayerProfileStore.shared.displayName }
+    var playerInitials: String { PlayerProfileStore.shared.initials }
 
     var formattedDate: String {
         let formatter = DateFormatter()

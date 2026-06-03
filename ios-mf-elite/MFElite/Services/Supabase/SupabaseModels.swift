@@ -16,6 +16,21 @@ nonisolated struct ProfileUpsert: Encodable, Sendable {
     let name: String?
 }
 
+nonisolated struct PlayerProfileUpsert: Encodable, Sendable {
+    let id: String
+    let displayName: String
+    let initials: String
+    let kitNumber: String
+    let position: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, position
+        case displayName = "display_name"
+        case initials
+        case kitNumber = "kit_number"
+    }
+}
+
 // MARK: - Curriculum (read)
 
 nonisolated struct SupabaseDiscipline: Codable, Sendable, Identifiable {

@@ -13,7 +13,7 @@ struct AcademyHubView: View {
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
 
-    private let kitNumber = "09"
+    private var kitNumber: String { PlayerProfileStore.shared.kitNumber }
 
     private var masteredDrillIDs: Set<String> {
         Set(progress.filter { $0.isMastered }.map { $0.drillID })

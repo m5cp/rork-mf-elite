@@ -23,6 +23,8 @@ struct ProfileTabView: View {
 
     private var xp: Int { players.first?.xp ?? 0 }
 
+    private var profile = PlayerProfileStore.shared
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -60,9 +62,9 @@ struct ProfileTabView: View {
 
     private var playerCard: some View {
         VStack(spacing: 0) {
-            Monogram(size: 80, initials: "P1", kit: "09")
+            Monogram(size: 80, initials: profile.initials, kit: profile.kitNumber)
 
-            Text("Player One")
+            Text(profile.displayName)
                 .style(.title1)
                 .foregroundStyle(DS.Colors.Ink.primary)
                 .padding(.top, DS.Spacing.s12)

@@ -10,6 +10,8 @@ import SwiftData
 struct MFEliteApp: App {
     let container: ModelContainer
     @Environment(\.scenePhase) private var scenePhase
+    @State private var profileStore = PlayerProfileStore.shared
+    @State private var auth = AuthService.shared
 
     init() {
         SubscriptionService.shared.configure()
@@ -30,10 +32,23 @@ struct MFEliteApp: App {
         }
     }
 
+    private var showOnboarding: Bool {
+        // Wait until the session restore finishes so returning authenticated
+        // users don't see a flash of onboarding on launch.
+        !auth.isLoading && !auth.isAuthenticated && !profileStore.hasCompletedOnboarding
+    }
+
     var body: some Scene {
         WindowGroup {
             MainTabView()
                 .preferredColorScheme(.dark)
+                .fullScreenCover(isPresented: .constant(showOnboarding)) {
+                    OnboardingView {
+                        // Onboarding marks completion in PlayerProfileStore,
+                        // which flips `showOnboarding` and dismisses the cover.
+                    }
+                    .modelContainer(container)
+                }
                 .onAppear {
                     NotificationService.shared.requestPermission { granted in
                         if granted {
