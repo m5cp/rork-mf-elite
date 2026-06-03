@@ -14,6 +14,7 @@ struct SearchRoute: Hashable {}
 struct CurriculumSearchView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var progress: [DrillProgress]
+    @Environment(SubscriptionService.self) private var subscription
 
     @State private var searchText: String = ""
     @State private var selectedDisciplineID: String?
@@ -101,17 +102,28 @@ struct CurriculumSearchView: View {
             }
 
             ForEach(Array(results.enumerated()), id: \.element.id) { index, result in
-                NavigationLink(
-                    value: DrillRoute(
-                        discipline: result.discipline,
-                        category: result.category,
-                        level: result.level,
-                        drill: result.drill
-                    )
-                ) {
-                    ResultRow(result: result, isLast: index == results.count - 1)
+                let locked = subscription.isLevelNumberLocked(result.level.number)
+                let row = ResultRow(result: result, isLocked: locked, isLast: index == results.count - 1)
+                if locked {
+                    Button {
+                        subscription.presentPaywall()
+                    } label: {
+                        row
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                } else {
+                    NavigationLink(
+                        value: DrillRoute(
+                            discipline: result.discipline,
+                            category: result.category,
+                            level: result.level,
+                            drill: result.drill
+                        )
+                    ) {
+                        row
+                    }
+                    .buttonStyle(PressableButtonStyle())
                 }
-                .buttonStyle(PressableButtonStyle())
             }
         }
     }
@@ -196,11 +208,8 @@ private struct DisciplineChip: View {
 
 private struct ResultRow: View {
     let result: SearchResult
+    var isLocked: Bool = false
     let isLast: Bool
-
-    private var isLocked: Bool {
-        result.level.number > ProgressionRules.freeLevels
-    }
 
     private var breadcrumb: String {
         "\(result.discipline.name) · \(result.category.name) · LV\(result.level.number)".uppercased()
@@ -288,6 +297,7 @@ private struct BrowseCell: View {
         CurriculumSearchView()
     }
     .preferredColorScheme(.dark)
+    .environment(SubscriptionService.shared)
     .modelContainer(for: [
         Discipline.self, Category.self, MasteryLevel.self,
         Drill.self, DrillProgress.self, PlayerState.self

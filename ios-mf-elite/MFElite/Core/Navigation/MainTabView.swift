@@ -7,9 +7,11 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab: AppTab = .today
+    @State private var subscription = SubscriptionService.shared
 
     var body: some View {
-        ZStack(alignment: .bottom) {
+        @Bindable var subscription = subscription
+        return ZStack(alignment: .bottom) {
             DS.Colors.Bg.base.ignoresSafeArea()
 
             tabContent
@@ -18,6 +20,14 @@ struct MainTabView: View {
             CustomTabBar(selectedTab: $selectedTab)
         }
         .preferredColorScheme(.dark)
+        .environment(subscription)
+        .fullScreenCover(isPresented: $subscription.showPaywall) {
+            PaywallView()
+                .environment(subscription)
+        }
+        .fullScreenCover(isPresented: $subscription.showPremiumWelcome) {
+            PremiumWelcomeView()
+        }
     }
 
     @ViewBuilder

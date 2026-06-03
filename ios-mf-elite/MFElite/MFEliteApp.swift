@@ -12,6 +12,7 @@ struct MFEliteApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
+        SubscriptionService.shared.configure()
         do {
             let schema = Schema([
                 Discipline.self,

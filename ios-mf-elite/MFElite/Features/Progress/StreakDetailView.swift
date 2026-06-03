@@ -13,6 +13,7 @@ struct StreakRoute: Hashable {}
 
 struct StreakDetailView: View {
     @Query private var players: [PlayerState]
+    @Environment(SubscriptionService.self) private var subscription
 
     private var viewModel: StreakDetailViewModel {
         let player = players.first
@@ -29,6 +30,7 @@ struct StreakDetailView: View {
             VStack(alignment: .leading, spacing: 0) {
                 hero(vm)
                 todayPill(vm)
+                upgradePrompt(vm)
                 freezeCard(vm)
                 activityGrid(vm)
                 milestoneLadder(vm)
@@ -97,6 +99,31 @@ struct StreakDetailView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, DS.Spacing.s20)
+    }
+
+    // MARK: - 2b. Upgrade prompt
+
+    @ViewBuilder
+    private func upgradePrompt(_ vm: StreakDetailViewModel) -> some View {
+        if vm.streak >= 7 && !subscription.isElite {
+            Card(raised: true) {
+                VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                    Eyebrow(text: "Keep It Going")
+                    Text("Your discipline deserves Elite access")
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text("Unlock every level, certifications, and streak freezes to protect your run.")
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                    PrimaryButton(label: "Unlock Elite", size: .medium) {
+                        subscription.presentPaywall()
+                    }
+                    .padding(.top, DS.Spacing.s4)
+                }
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s24 + 4)
+        }
     }
 
     // MARK: - 3. Freeze tokens
@@ -299,6 +326,7 @@ struct StreakDetailView: View {
         StreakDetailView()
     }
     .preferredColorScheme(.dark)
+    .environment(SubscriptionService.shared)
     .modelContainer(for: [
         Discipline.self, Category.self, MasteryLevel.self,
         Drill.self, DrillProgress.self, PlayerState.self

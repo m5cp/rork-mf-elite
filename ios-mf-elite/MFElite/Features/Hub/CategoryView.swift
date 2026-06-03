@@ -13,6 +13,7 @@ struct CategoryView: View {
     let discipline: Discipline
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionService.self) private var subscription
     @Query private var progress: [DrillProgress]
 
     private var masteredDrillIDs: Set<String> {
@@ -131,16 +132,28 @@ struct CategoryView: View {
             .padding(.bottom, DS.Spacing.s8)
 
             ForEach(Array(vm.levels.enumerated()), id: \.element.id) { index, level in
-                NavigationLink(value: LevelRoute(discipline: discipline, category: category, level: level)) {
-                    LevelLadderRow(
-                        level: level,
-                        state: vm.levelState(level),
-                        masteredDrills: vm.masteredDrillCount(level),
-                        isFirst: index == 0,
-                        isLast: index == vm.levels.count - 1
-                    )
+                let locked = subscription.isLevelLocked(level)
+                let row = LevelLadderRow(
+                    level: level,
+                    state: vm.levelState(level),
+                    masteredDrills: vm.masteredDrillCount(level),
+                    isLocked: locked,
+                    isFirst: index == 0,
+                    isLast: index == vm.levels.count - 1
+                )
+                if locked {
+                    Button {
+                        subscription.presentPaywall()
+                    } label: {
+                        row
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                } else {
+                    NavigationLink(value: LevelRoute(discipline: discipline, category: category, level: level)) {
+                        row
+                    }
+                    .buttonStyle(PressableButtonStyle())
                 }
-                .buttonStyle(PressableButtonStyle())
             }
         }
         .padding(.top, DS.Spacing.s24)
@@ -153,6 +166,7 @@ private struct LevelLadderRow: View {
     let level: MasteryLevel
     let state: LevelState
     let masteredDrills: Int
+    var isLocked: Bool = false
     let isFirst: Bool
     let isLast: Bool
 
@@ -186,13 +200,14 @@ private struct LevelLadderRow: View {
 
             Spacer(minLength: DS.Spacing.s8)
 
-            Image(systemName: "chevron.right")
+            Image(systemName: isLocked ? "lock.fill" : "chevron.right")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(DS.Colors.Ink.quaternary)
         }
         .padding(.vertical, DS.Spacing.s16)
         .padding(.horizontal, DS.Spacing.s20)
         .contentShape(Rectangle())
+        .opacity(isLocked ? 0.55 : 1)
     }
 
     // MARK: Node + connector
@@ -255,7 +270,9 @@ private struct LevelLadderRow: View {
         case .inProgress:
             filledChip(text: "In Progress", icon: nil)
         case .upcoming:
-            if isFree {
+            if isLocked {
+                outlinedChip(text: "Members", icon: "lock.fill")
+            } else if isFree {
                 outlinedChip(text: "Free", icon: nil)
             } else {
                 outlinedChip(text: "Members", icon: "lock.fill")

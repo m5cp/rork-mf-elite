@@ -12,6 +12,7 @@ struct AcademyTodayView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
+    @Environment(SubscriptionService.self) private var subscription
 
     private var viewModel: AcademyTodayViewModel {
         AcademyTodayViewModel(
@@ -282,15 +283,25 @@ struct AcademyTodayView: View {
             VStack(spacing: 0) {
                 let recs = vm.recommendations
                 ForEach(Array(recs.enumerated()), id: \.element.id) { index, rec in
-                    NavigationLink(value: DrillRoute(
-                        discipline: rec.discipline,
-                        category: rec.category,
-                        level: rec.level,
-                        drill: rec.drill
-                    )) {
-                        recommendationRow(rec, isLast: index == recs.count - 1)
+                    let locked = subscription.isLevelNumberLocked(rec.level.number)
+                    if locked {
+                        Button {
+                            subscription.presentPaywall()
+                        } label: {
+                            recommendationRow(rec, isLocked: true, isLast: index == recs.count - 1)
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                    } else {
+                        NavigationLink(value: DrillRoute(
+                            discipline: rec.discipline,
+                            category: rec.category,
+                            level: rec.level,
+                            drill: rec.drill
+                        )) {
+                            recommendationRow(rec, isLast: index == recs.count - 1)
+                        }
+                        .buttonStyle(PressableButtonStyle())
                     }
-                    .buttonStyle(PressableButtonStyle())
                 }
             }
             .padding(.top, DS.Spacing.s12)
@@ -298,7 +309,7 @@ struct AcademyTodayView: View {
         .padding(.top, DS.Spacing.s24 + 4)
     }
 
-    private func recommendationRow(_ rec: Recommendation, isLast: Bool) -> some View {
+    private func recommendationRow(_ rec: Recommendation, isLocked: Bool = false, isLast: Bool) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: DS.Spacing.s16) {
                 DisciplineMark(kind: rec.discipline.mark, size: 22)
@@ -321,10 +332,11 @@ struct AcademyTodayView: View {
 
                 Spacer(minLength: DS.Spacing.s8)
 
-                Image(systemName: "chevron.right")
+                Image(systemName: isLocked ? "lock.fill" : "chevron.right")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(DS.Colors.Ink.quaternary)
             }
+            .opacity(isLocked ? 0.6 : 1)
             .padding(.vertical, DS.Spacing.s12 + 2)
 
             if !isLast {
@@ -339,6 +351,7 @@ struct AcademyTodayView: View {
 #Preview {
     AcademyTodayView()
         .preferredColorScheme(.dark)
+        .environment(SubscriptionService.shared)
         .modelContainer(for: [
             Discipline.self, Category.self, MasteryLevel.self,
             Drill.self, DrillProgress.self, PlayerState.self

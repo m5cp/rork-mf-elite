@@ -21,6 +21,7 @@ struct LevelView: View {
     let discipline: Discipline
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionService.self) private var subscription
     @Query private var progress: [DrillProgress]
 
     private var masteredDrillIDs: Set<String> {
@@ -56,6 +57,12 @@ struct LevelView: View {
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)
         .navigationBarHidden(true)
+        .onAppear {
+            if subscription.isLevelLocked(level) {
+                dismiss()
+                subscription.presentPaywall()
+            }
+        }
     }
 
     // MARK: - 1. Breadcrumb
