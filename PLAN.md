@@ -37,7 +37,7 @@ Make sure a player's profile can be created either by the player or by a coach, 
 - **Onboarding** gets a username step with live "this name is taken" feedback.
 - **Coach admin → Squad roster**: shows real players from the server (no longer mock data), with **one example placeholder entry that is clearly marked and never appears in the player-facing app**, plus an "Add player" form (name, kit, position, generated invite code).
 - **Coach player detail**: edit roster fields, see training progress, and a "Reset player info" action.
-- **Redeem a code** (optional): a standard "Redeem a code" screen in Settings where a player can enter a coach invite code at any time; the coach's details merge into their existing profile (username preserved). It is never part of the onboarding gate.
+- **Redeem a code** (optional): a standard "Redeem a code" action in Settings that opens Apple's native App Store offer/promo code redemption sheet. It accepts whatever code format App Store Connect generates (not a fixed 6-char code) and uses no custom keyboard input, so no system swipe-typing tooltip appears. It is never part of the onboarding gate.
 
 ## Behind the scenes
 

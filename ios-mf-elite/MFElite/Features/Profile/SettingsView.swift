@@ -7,12 +7,12 @@
 
 import SwiftUI
 import SwiftData
+import RevenueCat
 
 struct SettingsRoute: Hashable {}
 
 struct SettingsView: View {
     @State private var showCoachLogin = false
-    @State private var showRedeemCode = false
 
     var body: some View {
         ScrollView {
@@ -28,7 +28,7 @@ struct SettingsView: View {
 
                 VStack(spacing: 0) {
                     Button {
-                        showRedeemCode = true
+                        Purchases.shared.presentCodeRedemptionSheet()
                     } label: {
                         settingsRow(icon: "ticket", label: "Redeem a code")
                     }
@@ -54,9 +54,6 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(isPresented: $showCoachLogin) {
             CoachLoginView()
-        }
-        .sheet(isPresented: $showRedeemCode) {
-            RedeemCodeView()
         }
     }
 
