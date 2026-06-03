@@ -15,6 +15,31 @@
 
 
 -- -----------------------------------------------------------------------------
+-- user_id() — resolves the current user's Rork id from the verified JWT.
+--
+-- On Rork's hosted Supabase this is installed automatically during
+-- provisioning. When pointing the app at a SELF-OWNED Supabase project you MUST
+-- create it yourself (this block), otherwise every RLS policy below errors and
+-- all reads/writes fail.
+--
+-- It reads the `sub` claim that PostgREST puts into `request.jwt.claims` after
+-- it verifies the bearer token. For that verification to populate the claims,
+-- your Supabase project must be configured to TRUST Rork's JWTs (see the
+-- "JWT trust" note at the bottom of this file).
+-- -----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION user_id()
+RETURNS text
+LANGUAGE sql
+STABLE
+AS $
+  SELECT COALESCE(
+    nullif(current_setting('request.jwt.claims', true)::json ->> 'sub', ''),
+    nullif(current_setting('request.jwt.claim.sub', true), '')
+  );
+$;
+
+
+-- -----------------------------------------------------------------------------
 -- profiles — canonical user table (referenced by all player-owned tables)
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS profiles (
@@ -635,3 +660,23 @@ DROP TRIGGER IF EXISTS trg_protect_player_username ON player_profiles;
 CREATE TRIGGER trg_protect_player_username
   BEFORE UPDATE ON player_profiles
   FOR EACH ROW EXECUTE FUNCTION protect_player_username();
+
+
+-- =============================================================================
+-- JWT TRUST (self-owned Supabase only) — REQUIRED for user_id() to work
+-- =============================================================================
+-- This app authenticates with **Rork Auth** (Sign in with Apple), not Supabase
+-- Auth. For RLS to resolve the signed-in user, your Supabase project must
+-- verify Rork's JWTs so `request.jwt.claims` (and therefore `user_id()`) is
+-- populated. This is a DASHBOARD setting, not SQL — do it once:
+--
+--   Supabase Dashboard → Authentication → Sign In / Providers →
+--   Third-Party Auth → Add provider → Custom
+--     • JWKS URL : https://api.rork.com/.well-known/jwks.json
+--     • Issuer   : https://api.rork.com
+--
+-- After saving, Rork's bearer tokens are accepted by PostgREST, `auth.jwt()`
+-- returns the Rork claims (sub, email, role=authenticated), and every policy
+-- above resolves correctly. Until this is configured, all authenticated
+-- queries will be rejected even though the schema itself is correct.
+-- =============================================================================
