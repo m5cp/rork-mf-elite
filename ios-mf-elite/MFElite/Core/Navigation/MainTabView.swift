@@ -16,8 +16,11 @@ struct MainTabView: View {
 
             tabContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .adaptiveContentWidth()
 
             CustomTabBar(selectedTab: $selectedTab)
+                .frame(maxWidth: AdaptiveLayout.maxContentWidth)
+                .frame(maxWidth: .infinity)
         }
         .preferredColorScheme(.dark)
         .environment(subscription)
