@@ -105,7 +105,7 @@ struct StreakDetailView: View {
 
     @ViewBuilder
     private func upgradePrompt(_ vm: StreakDetailViewModel) -> some View {
-        if vm.streak >= 7 && !subscription.isElite {
+        if vm.streak >= 7 && !subscription.hasFullAccess {
             Card(raised: true) {
                 VStack(alignment: .leading, spacing: DS.Spacing.s12) {
                     Eyebrow(text: "Keep It Going")

@@ -19,7 +19,7 @@ private enum WorkspaceSheet: Identifiable {
     case announcements
     case parentReport
     case progressionRules
-    case changePIN
+    case manageCoaches
 
     var id: String {
         switch self {
@@ -29,7 +29,7 @@ private enum WorkspaceSheet: Identifiable {
         case .announcements: return "announcements"
         case .parentReport: return "parentReport"
         case .progressionRules: return "rules"
-        case .changePIN: return "pin"
+        case .manageCoaches: return "coaches"
         }
     }
 }
@@ -43,6 +43,7 @@ struct CoachWorkspaceView: View {
     @State private var isPublishing = false
     @State private var activeSheet: WorkspaceSheet?
     @State private var toast: String?
+    @State private var auth = AuthService.shared
 
     private var viewModel: CoachWorkspaceViewModel {
         CoachWorkspaceViewModel(disciplines: disciplines)
@@ -58,6 +59,9 @@ struct CoachWorkspaceView: View {
                         liveCounts(viewModel)
                         curriculumTree(viewModel)
                         toolsSection
+                        if auth.isHeadCoach {
+                            manageCoachesSection
+                        }
                         progressionRules
                         certificationsSection
                         dashboardContent
@@ -103,8 +107,8 @@ struct CoachWorkspaceView: View {
             CoachParentReportView()
         case .progressionRules:
             CoachProgressionRulesView()
-        case .changePIN:
-            SetCoachPINView(onDone: { activeSheet = nil })
+        case .manageCoaches:
+            CoachManageCoachesView()
         }
     }
 
@@ -252,8 +256,6 @@ struct CoachWorkspaceView: View {
                 navRow(icon: "square.and.pencil", label: "Build session", route: CoachBuildRoute())
                 Hairline()
                 buttonRow(icon: "doc.text", label: "Parent report") { activeSheet = .parentReport }
-                Hairline()
-                buttonRow(icon: "lock.rotation", label: "Change PIN") { activeSheet = .changePIN }
             }
         }
         .padding(.horizontal, DS.Spacing.s20)
@@ -304,6 +306,21 @@ struct CoachWorkspaceView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    // MARK: - Manage Coaches (head coach only)
+
+    private var manageCoachesSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Team")
+            VStack(spacing: 0) {
+                buttonRow(icon: "person.badge.shield.checkmark", label: "Manage coaches") {
+                    activeSheet = .manageCoaches
+                }
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s32)
     }
 
     // MARK: - Progression Rules

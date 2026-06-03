@@ -91,7 +91,7 @@ struct OnboardingPledgeView: View {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 state.advance()
             }
-            StepBar(filled: 4)
+            StepBar(filled: 5, total: 7)
         }
         .padding(.bottom, DS.Spacing.s24)
     }

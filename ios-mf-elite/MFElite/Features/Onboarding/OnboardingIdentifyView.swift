@@ -117,7 +117,7 @@ struct OnboardingIdentifyView: View {
             }
             .opacity(canContinue ? 1 : 0.4)
             .disabled(!canContinue)
-            StepBar(filled: 2)
+            StepBar(filled: 3, total: 7)
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.bottom, DS.Spacing.s24)

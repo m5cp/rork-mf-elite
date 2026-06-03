@@ -40,18 +40,63 @@ CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (user_id() = id
 
 
 -- -----------------------------------------------------------------------------
--- coaches — allow-list of users with curriculum write access
+-- coaches — allow-list of users with curriculum write access.
+--
+-- A coach is identified by EMAIL up-front (seeded by an admin). On the coach's
+-- first Sign in with Apple, the app matches their email to a row here and
+-- stamps `user_id` so every later RLS check resolves by `user_id` (works even
+-- if the coach later hides their email). `is_active` revokes access without
+-- deleting the file. `role` distinguishes head coaches (who manage the team).
 -- -----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS coaches (
-  user_id     text PRIMARY KEY REFERENCES profiles(id),
-  created_at  timestamptz DEFAULT now()
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email        text UNIQUE NOT NULL,
+  display_name text,
+  role         text NOT NULL DEFAULT 'coach',   -- 'coach' | 'head_coach'
+  user_id      text REFERENCES profiles(id),    -- populated after first sign-in
+  is_active    boolean NOT NULL DEFAULT true,
+  created_at   timestamptz DEFAULT now()
 );
+
+-- Migrate any legacy coaches table (PK was user_id, no email/role columns).
+ALTER TABLE coaches ADD COLUMN IF NOT EXISTS id           uuid DEFAULT gen_random_uuid();
+ALTER TABLE coaches ADD COLUMN IF NOT EXISTS email        text;
+ALTER TABLE coaches ADD COLUMN IF NOT EXISTS display_name text;
+ALTER TABLE coaches ADD COLUMN IF NOT EXISTS role         text NOT NULL DEFAULT 'coach';
+ALTER TABLE coaches ADD COLUMN IF NOT EXISTS is_active    boolean NOT NULL DEFAULT true;
 
 ALTER TABLE coaches ENABLE ROW LEVEL SECURITY;
 
+-- Seed the two head coaches. Emails are stored lower-cased so the app can match
+-- case-insensitively with a plain equality check.
+INSERT INTO coaches (email, display_name, role)
+VALUES
+  ('mf.elitetraining@gmail.com', 'Coach Matteo Finazzi', 'head_coach'),
+  ('josephmcgee36@gmail.com',    'Joe McGee',            'head_coach')
+ON CONFLICT (email) DO UPDATE
+  SET display_name = EXCLUDED.display_name,
+      role         = EXCLUDED.role,
+      is_active    = true;
+
 -- Any authenticated user can read the coach list (so the app can check its own role).
+DROP POLICY IF EXISTS "coaches_select_all" ON coaches;
 CREATE POLICY "coaches_select_all" ON coaches FOR SELECT USING (true);
--- Inserts/updates to coaches are done by an admin via the service role only (no client policy).
+
+-- Self-link: on first sign-in a user may stamp their own `user_id` onto the row
+-- whose email matches their JWT email. They cannot change email/role/is_active.
+DROP POLICY IF EXISTS "coaches_self_link" ON coaches;
+CREATE POLICY "coaches_self_link" ON coaches
+  FOR UPDATE USING (lower(email) = lower(auth.jwt() ->> 'email'))
+  WITH CHECK (lower(email) = lower(auth.jwt() ->> 'email'));
+
+-- Head coaches manage the team (add / deactivate other coaches).
+DROP POLICY IF EXISTS "coaches_head_manage" ON coaches;
+CREATE POLICY "coaches_head_manage" ON coaches
+  FOR ALL USING (
+    user_id() IN (SELECT user_id FROM coaches WHERE role = 'head_coach' AND is_active = true)
+  ) WITH CHECK (
+    user_id() IN (SELECT user_id FROM coaches WHERE role = 'head_coach' AND is_active = true)
+  );
 
 
 -- =============================================================================
@@ -78,8 +123,8 @@ ALTER TABLE disciplines ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "disciplines_select_auth" ON disciplines
   FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
 CREATE POLICY "disciplines_coach_write" ON disciplines
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches));
+  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
+  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
 
 
 -- -----------------------------------------------------------------------------
@@ -100,8 +145,8 @@ ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "categories_select_auth" ON categories
   FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
 CREATE POLICY "categories_coach_write" ON categories
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches));
+  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
+  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
 
 
 -- -----------------------------------------------------------------------------
@@ -121,8 +166,8 @@ ALTER TABLE levels ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "levels_select_auth" ON levels
   FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
 CREATE POLICY "levels_coach_write" ON levels
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches));
+  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
+  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
 
 
 -- -----------------------------------------------------------------------------
@@ -146,8 +191,8 @@ ALTER TABLE drills ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "drills_select_auth" ON drills
   FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
 CREATE POLICY "drills_coach_write" ON drills
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches));
+  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
+  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
 
 
 -- -----------------------------------------------------------------------------
@@ -168,8 +213,8 @@ ALTER TABLE progression_rules ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "rules_select_auth" ON progression_rules
   FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
 CREATE POLICY "rules_coach_write" ON progression_rules
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches));
+  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
+  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
 
 
 -- -----------------------------------------------------------------------------
@@ -187,8 +232,8 @@ ALTER TABLE daily_quotes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "quotes_select_auth" ON daily_quotes
   FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
 CREATE POLICY "quotes_coach_write" ON daily_quotes
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches));
+  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
+  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
 
 
 -- -----------------------------------------------------------------------------
@@ -207,8 +252,8 @@ ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "announcements_select_auth" ON announcements
   FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
 CREATE POLICY "announcements_coach_write" ON announcements
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches));
+  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
+  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
 
 
 -- -----------------------------------------------------------------------------
@@ -227,8 +272,8 @@ ALTER TABLE coach_notes ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "coach_notes_select_auth" ON coach_notes
   FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
 CREATE POLICY "coach_notes_coach_write" ON coach_notes
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches));
+  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
+  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
 
 
 -- =============================================================================
@@ -290,20 +335,20 @@ DROP POLICY IF EXISTS "player_profiles_update_own" ON player_profiles;
 CREATE POLICY "player_profiles_select" ON player_profiles
   FOR SELECT USING (
     user_id() = account_id
-    OR user_id() IN (SELECT user_id FROM coaches)
+    OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true)
   );
 CREATE POLICY "player_profiles_insert_own" ON player_profiles
   FOR INSERT WITH CHECK (
     user_id() = account_id
-    OR user_id() IN (SELECT user_id FROM coaches)
+    OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true)
   );
 CREATE POLICY "player_profiles_update" ON player_profiles
   FOR UPDATE USING (
     user_id() = account_id
-    OR user_id() IN (SELECT user_id FROM coaches)
+    OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true)
   ) WITH CHECK (
     user_id() = account_id
-    OR user_id() IN (SELECT user_id FROM coaches)
+    OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true)
   );
 CREATE POLICY "player_profiles_delete_own" ON player_profiles
   FOR DELETE USING (user_id() = account_id);
@@ -326,7 +371,7 @@ CREATE TABLE IF NOT EXISTS player_state (
 ALTER TABLE player_state ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "player_state_select" ON player_state
-  FOR SELECT USING (user_id() = player_id OR user_id() IN (SELECT user_id FROM coaches));
+  FOR SELECT USING (user_id() = player_id OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
 CREATE POLICY "player_state_insert_own" ON player_state
   FOR INSERT WITH CHECK (user_id() = player_id);
 CREATE POLICY "player_state_update_own" ON player_state
@@ -351,7 +396,7 @@ CREATE TABLE IF NOT EXISTS player_progress (
 ALTER TABLE player_progress ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "player_progress_select" ON player_progress
-  FOR SELECT USING (user_id() = player_id OR user_id() IN (SELECT user_id FROM coaches));
+  FOR SELECT USING (user_id() = player_id OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
 CREATE POLICY "player_progress_insert_own" ON player_progress
   FOR INSERT WITH CHECK (user_id() = player_id);
 CREATE POLICY "player_progress_update_own" ON player_progress
@@ -375,7 +420,7 @@ CREATE TABLE IF NOT EXISTS certifications (
 ALTER TABLE certifications ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "certifications_select" ON certifications
-  FOR SELECT USING (user_id() = player_id OR user_id() IN (SELECT user_id FROM coaches));
+  FOR SELECT USING (user_id() = player_id OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
 CREATE POLICY "certifications_insert_own" ON certifications
   FOR INSERT WITH CHECK (user_id() = player_id);
 CREATE POLICY "certifications_delete_own" ON certifications
@@ -445,8 +490,8 @@ ALTER TABLE roster_invites ENABLE ROW LEVEL SECURITY;
 -- they redeem via the SECURITY DEFINER function below (so coach data is not
 -- exposed). The claimer can read their own claimed invite for confirmation.
 CREATE POLICY "roster_invites_coach_all" ON roster_invites
-  FOR ALL USING (user_id() = coach_id AND user_id() IN (SELECT user_id FROM coaches))
-  WITH CHECK (user_id() = coach_id AND user_id() IN (SELECT user_id FROM coaches));
+  FOR ALL USING (user_id() = coach_id AND user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
+  WITH CHECK (user_id() = coach_id AND user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
 CREATE POLICY "roster_invites_select_claimer" ON roster_invites
   FOR SELECT USING (user_id() = claimed_by);
 

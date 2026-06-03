@@ -190,7 +190,7 @@ struct OnboardingPassportView: View {
             }
             .disabled(isFinishing)
             legalConsent
-            StepBar(filled: 6)
+            StepBar(filled: 7, total: 7)
         }
         .padding(.bottom, DS.Spacing.s24)
     }

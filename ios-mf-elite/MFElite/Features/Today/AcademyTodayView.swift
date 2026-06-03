@@ -15,6 +15,7 @@ struct AcademyTodayView: View {
     @Environment(SubscriptionService.self) private var subscription
     @State private var profile = PlayerProfileStore.shared
     @State private var announcements = AnnouncementStore.shared
+    @State private var auth = AuthService.shared
 
     private var viewModel: AcademyTodayViewModel {
         AcademyTodayViewModel(
@@ -173,7 +174,9 @@ struct AcademyTodayView: View {
             Spacer()
 
             HStack(spacing: DS.Spacing.s8) {
-                if !subscription.isElite {
+                if auth.isCoach {
+                    coachBadge
+                } else if !subscription.hasFullAccess {
                     upgradeButton
                 }
 
@@ -200,6 +203,23 @@ struct AcademyTodayView: View {
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s12)
+    }
+
+    /// Subtle badge confirming the user is in coach mode (full access).
+    private var coachBadge: some View {
+        Text("COACH")
+            .font(.system(size: 11, weight: .bold))
+            .tracking(1.2)
+            .foregroundStyle(DS.Colors.Ink.primary)
+            .padding(.vertical, 6)
+            .padding(.horizontal, DS.Spacing.s12)
+            .background(DS.Colors.Bg.raised)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.pill)
+                    .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+            )
+            .accessibilityLabel("Coach mode")
     }
 
     /// Always-visible upgrade entry point for free (Trialist) players.

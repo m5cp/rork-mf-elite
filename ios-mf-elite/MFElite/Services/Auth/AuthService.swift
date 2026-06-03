@@ -24,8 +24,15 @@ final class AuthService {
     var isLoading: Bool = true
     var isSigningIn: Bool = false
     var isCoach: Bool = false
+    /// 'coach' | 'head_coach' when `isCoach`, else nil.
+    var coachRole: String?
+    /// Display name from the coaches table (used for the minimal coach profile).
+    var coachDisplayName: String?
     var showError: Bool = false
     var errorMessage: String = ""
+
+    /// Head coaches can manage the team (add / deactivate other coaches).
+    var isHeadCoach: Bool { isCoach && coachRole == "head_coach" }
 
     var isAuthenticated: Bool { user != nil }
 
@@ -143,6 +150,8 @@ final class AuthService {
         UserDefaults.standard.removeObject(forKey: "RORK_AUTH_ACCESS_TOKEN")
         user = nil
         isCoach = false
+        coachRole = nil
+        coachDisplayName = nil
     }
 
     // MARK: - Account deletion
@@ -177,22 +186,68 @@ final class AuthService {
 
     // MARK: - Coach role
 
-    /// Query the `coaches` table to learn if the current user has write access.
+    /// Determine coach access from the `coaches` table. First match by `user_id`
+    /// (already linked); otherwise match by email and stamp `user_id` so future
+    /// checks resolve by id even if the coach later hides their email.
     func checkCoachRole() async {
-        guard SupabaseService.shared.isConfigured else { isCoach = false; return }
-        guard let userID = user?.id else { isCoach = false; return }
+        guard SupabaseService.shared.isConfigured, let user else {
+            clearCoachState(); return
+        }
+        let client = SupabaseService.shared.client
         do {
-            let rows: [CoachRow] = try await SupabaseService.shared.client
+            // 1. Already linked by user_id.
+            let byID: [CoachRow] = try await client
                 .from("coaches")
                 .select()
-                .eq("user_id", value: userID)
+                .eq("user_id", value: user.id)
+                .eq("is_active", value: true)
                 .execute()
                 .value
-            isCoach = !rows.isEmpty
+            if let row = byID.first {
+                applyCoach(row)
+                return
+            }
+
+            // 2. Match by email, then self-link the user_id.
+            let email = user.email.lowercased()
+            guard !email.isEmpty else { clearCoachState(); return }
+            let byEmail: [CoachRow] = try await client
+                .from("coaches")
+                .select()
+                .eq("email", value: email)
+                .eq("is_active", value: true)
+                .execute()
+                .value
+            guard let row = byEmail.first else { clearCoachState(); return }
+
+            do {
+                try await client
+                    .from("coaches")
+                    .update(CoachLinkUpdate(userId: user.id))
+                    .eq("id", value: row.id)
+                    .execute()
+            } catch {
+                // Non-fatal — RLS may reject the link, but access still applies
+                // for this session via the email match below.
+                print("[AuthService] coach self-link failed: \(error)")
+            }
+            applyCoach(row)
         } catch {
             // Default to non-coach on failure; not fatal.
-            isCoach = false
+            clearCoachState()
         }
+    }
+
+    private func applyCoach(_ row: CoachRow) {
+        isCoach = true
+        coachRole = row.role ?? "coach"
+        coachDisplayName = row.displayName
+    }
+
+    private func clearCoachState() {
+        isCoach = false
+        coachRole = nil
+        coachDisplayName = nil
     }
 
     // MARK: - Post-sign-in housekeeping
@@ -397,7 +452,23 @@ private struct RefreshResponse: Codable {
     let expires_in: Int
 }
 
-nonisolated struct CoachRow: Codable, Sendable {
+nonisolated struct CoachRow: Codable, Sendable, Identifiable {
+    let id: String
+    let email: String?
+    let displayName: String?
+    let role: String?
+    let userId: String?
+    let isActive: Bool?
+
+    enum CodingKeys: String, CodingKey {
+        case id, email, role
+        case displayName = "display_name"
+        case userId = "user_id"
+        case isActive = "is_active"
+    }
+}
+
+nonisolated struct CoachLinkUpdate: Encodable, Sendable {
     let userId: String
     enum CodingKeys: String, CodingKey { case userId = "user_id" }
 }

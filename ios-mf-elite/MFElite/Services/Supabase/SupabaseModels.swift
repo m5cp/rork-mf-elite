@@ -183,6 +183,27 @@ nonisolated struct RedeemInviteParams: Encodable, Sendable {
     }
 }
 
+// MARK: - Coaches (team management)
+
+nonisolated struct CoachInsert: Encodable, Sendable {
+    let email: String
+    let displayName: String?
+    let role: String
+
+    enum CodingKeys: String, CodingKey {
+        case email, role
+        case displayName = "display_name"
+    }
+}
+
+nonisolated struct CoachActiveUpdate: Encodable, Sendable {
+    let isActive: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case isActive = "is_active"
+    }
+}
+
 // MARK: - Curriculum (read)
 
 nonisolated struct SupabaseDiscipline: Codable, Sendable, Identifiable {

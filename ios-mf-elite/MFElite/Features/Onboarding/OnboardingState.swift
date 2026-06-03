@@ -12,22 +12,27 @@ import Observation
 enum OnboardingStep: Int, CaseIterable {
     case splash
     case code
+    case signIn
     case identify
     case position
     case pledge
     case number
     case passport
 
-    /// 1-of-6 progress index for the StepBar (splash excluded).
+    /// Total filled segments for the StepBar (players see 7 chapters; splash excluded).
+    static let stepTotal = 7
+
+    /// 1-of-7 progress index for the StepBar (splash excluded).
     var stepIndex: Int {
         switch self {
         case .splash:   return 0
         case .code:     return 1
-        case .identify: return 2
-        case .position: return 3
-        case .pledge:   return 4
-        case .number:   return 5
-        case .passport: return 6
+        case .signIn:   return 2
+        case .identify: return 3
+        case .position: return 4
+        case .pledge:   return 5
+        case .number:   return 6
+        case .passport: return 7
         }
     }
 }

@@ -29,6 +29,10 @@ struct OnboardingView: View {
                     OnboardingSplashView(state: state)
                 case .code:
                     OnboardingCodeView(state: state)
+                case .signIn:
+                    OnboardingSignInView(state: state) {
+                        handleAuthenticated()
+                    }
                 case .identify:
                     OnboardingIdentifyView(state: state)
                 case .position:
@@ -49,7 +53,7 @@ struct OnboardingView: View {
             ))
             .id(state.step)
 
-            if state.step != .splash && !isFinishing {
+            if state.step != .splash && state.step != .signIn && !isFinishing {
                 skipButton
             }
         }
@@ -84,6 +88,40 @@ struct OnboardingView: View {
         .padding(.top, DS.Spacing.s12)
     }
 
+    /// After Sign in with Apple: coaches skip the player setup entirely and go
+    /// straight to the academy; players continue the cinematic flow.
+    private func handleAuthenticated() {
+        if AuthService.shared.isCoach {
+            finishAsCoach()
+        } else {
+            state.advance()
+        }
+    }
+
+    /// Minimal coach completion: store a lightweight profile (no kit/position/
+    /// pledge needed) and enter the academy with full access.
+    private func finishAsCoach() {
+        guard !isFinishing else { return }
+        isFinishing = true
+
+        let coachName = AuthService.shared.coachDisplayName
+            ?? AuthService.shared.user?.name
+            ?? "Coach"
+        PlayerProfileStore.shared.complete(
+            name: coachName,
+            username: AuthService.shared.user?.id ?? "coach",
+            kit: "",
+            position: "Coach",
+            skipped: true
+        )
+        ensurePlayerState()
+
+        Task {
+            await CurriculumSyncService.shared.syncCurriculum(context: modelContext, force: true)
+            await MainActor.run { onComplete() }
+        }
+    }
+
     private func finish(skipped: Bool = false) {
         guard !isFinishing else { return }
         isFinishing = true
@@ -102,10 +140,12 @@ struct OnboardingView: View {
         // 2. Ensure a local PlayerState exists at zero.
         ensurePlayerState()
 
-        // 3. Best-effort remote: Sign in with Apple + profile creation. Falls
-        //    back to anonymous local-only mode if auth isn't ready / declined.
+        // 3. Remote profile creation. The player already authenticated at the
+        //    Sign in step; if they skipped past it, fall back to a sign-in here.
         Task {
-            await AuthService.shared.signInWithApple()
+            if !AuthService.shared.isAuthenticated {
+                await AuthService.shared.signInWithApple()
+            }
             if AuthService.shared.isAuthenticated {
                 await createRemoteProfile()
                 await CurriculumSyncService.shared.syncCurriculum(context: modelContext)

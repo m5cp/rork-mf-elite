@@ -181,6 +181,42 @@ final class CoachContentService {
             .execute()
     }
 
+    // MARK: - Coaches (head-coach team management)
+
+    /// All coaches (active + inactive) for the management list.
+    func fetchCoaches() async throws -> [CoachRow] {
+        try await client
+            .from("coaches")
+            .select()
+            .order("created_at", ascending: true)
+            .execute()
+            .value
+    }
+
+    /// Invite a new coach by email. They gain access on first Sign in with Apple
+    /// using that email. RLS restricts this to head coaches.
+    func addCoach(email: String, displayName: String, role: String) async throws {
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let name = displayName.trimmingCharacters(in: .whitespacesAndNewlines)
+        try await client
+            .from("coaches")
+            .insert(CoachInsert(
+                email: normalizedEmail,
+                displayName: name.isEmpty ? nil : name,
+                role: role
+            ))
+            .execute()
+    }
+
+    /// Activate / deactivate a coach (revokes access without deleting the row).
+    func setCoachActive(id: String, active: Bool) async throws {
+        try await client
+            .from("coaches")
+            .update(CoachActiveUpdate(isActive: active))
+            .eq("id", value: id)
+            .execute()
+    }
+
     // MARK: - Publish
 
     /// Bump a local publish stamp so player apps know to re-fetch. In production

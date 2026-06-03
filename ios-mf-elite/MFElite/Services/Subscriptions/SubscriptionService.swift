@@ -121,18 +121,26 @@ final class SubscriptionService {
 
     // MARK: - Gating helpers
 
-    /// A level is locked when it is beyond the free tier and the player is not elite.
+    /// True when the user has full access to all content: an active Elite
+    /// subscription OR a verified coach (coaches never pay).
+    var hasFullAccess: Bool {
+        isElite || AuthService.shared.isCoach
+    }
+
+    /// A level is locked when it is beyond the free tier and the user lacks full access.
     func isLevelLocked(_ level: MasteryLevel) -> Bool {
-        level.number > ProgressionRules.freeLevels && !isElite
+        level.number > ProgressionRules.freeLevels && !hasFullAccess
     }
 
-    /// True when a level number is locked for the current player.
+    /// True when a level number is locked for the current user.
     func isLevelNumberLocked(_ number: Int) -> Bool {
-        number > ProgressionRules.freeLevels && !isElite
+        number > ProgressionRules.freeLevels && !hasFullAccess
     }
 
-    /// Present the paywall from anywhere in the app.
+    /// Present the paywall from anywhere in the app. No-op for users who already
+    /// have full access (e.g. coaches), so they never see a purchase prompt.
     func presentPaywall() {
+        guard !hasFullAccess else { return }
         showPaywall = true
     }
 }

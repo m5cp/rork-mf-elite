@@ -29,7 +29,6 @@ struct SettingsView: View {
     @AppStorage("MF_NOTIF_COACH") private var coachAnnouncements = true
 
     @State private var editingField: AccountField?
-    @State private var showCoachLogin = false
     @State private var showDeleteConfirm = false
     @State private var showSignOutConfirm = false
     @State private var safariURL: IdentifiableURL?
@@ -50,7 +49,6 @@ struct SettingsView: View {
                 accountSection
                 subscriptionSection
                 notificationsSection
-                coachSection
                 supportSection
                 dangerSection
                 footerView
@@ -61,9 +59,6 @@ struct SettingsView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
-        .fullScreenCover(isPresented: $showCoachLogin) {
-            CoachLoginView()
-        }
         .sheet(item: $editingField) { field in
             AccountEditSheet(field: field, profile: profile)
                 .preferredColorScheme(.dark)
@@ -150,11 +145,11 @@ struct SettingsView: View {
                 .style(.title3)
                 .foregroundStyle(DS.Colors.Ink.primary)
             Spacer(minLength: DS.Spacing.s12)
-            Text(subscription.isElite ? "Elite" : "Free (Trialist)")
+            Text(planLabel)
                 .style(.callout)
                 .foregroundStyle(DS.Colors.Ink.tertiary)
                 .lineLimit(1)
-            if !subscription.isElite {
+            if !subscription.hasFullAccess {
                 Button {
                     subscription.presentPaywall()
                 } label: {
@@ -175,6 +170,12 @@ struct SettingsView: View {
         .contentShape(Rectangle())
     }
 
+    /// Coaches get full access for free, so the plan reads "Coach" not "Free".
+    private var planLabel: String {
+        if auth.isCoach { return "Coach (Full access)" }
+        return subscription.isElite ? "Elite" : "Free (Trialist)"
+    }
+
     // MARK: - Notifications
 
     private var notificationsSection: some View {
@@ -185,14 +186,6 @@ struct SettingsView: View {
             toggleRow(label: "Streak alerts", isOn: $streakAlerts)
             Hairline()
             toggleRow(label: "Coach announcements", isOn: $coachAnnouncements)
-        }
-    }
-
-    // MARK: - Coach
-
-    private var coachSection: some View {
-        section("Coach Access") {
-            iconRow(icon: "lock.shield", label: "Coach workspace") { showCoachLogin = true }
         }
     }
 

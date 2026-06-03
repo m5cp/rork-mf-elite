@@ -11,6 +11,8 @@ import SwiftData
 struct ProfileTabView: View {
     @Query private var players: [PlayerState]
     @Environment(SubscriptionService.self) private var subscription
+    @State private var auth = AuthService.shared
+    @State private var showCoachWorkspace = false
 
     private var currentRank: AcademyRank {
         AcademyRank.rank(for: players.first?.xp ?? 0)
@@ -56,6 +58,9 @@ struct ProfileTabView: View {
             .navigationDestination(for: SettingsRoute.self) { _ in
                 SettingsView()
             }
+            .fullScreenCover(isPresented: $showCoachWorkspace) {
+                CoachWorkspaceView()
+            }
         }
     }
 
@@ -82,7 +87,7 @@ struct ProfileTabView: View {
 
     private var menu: some View {
         VStack(spacing: 0) {
-            if !subscription.isElite {
+            if !subscription.hasFullAccess {
                 upgradeRow
                 Hairline()
             }
@@ -109,9 +114,43 @@ struct ProfileTabView: View {
             Hairline()
             menuRow(icon: "doc.text", label: "Parent Report",
                     route: ParentReportRoute())
+            if auth.isCoach {
+                Hairline()
+                coachWorkspaceRow
+            }
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32)
+    }
+
+    /// Direct entry to the coach admin — shown only to verified coaches.
+    private var coachWorkspaceRow: some View {
+        Button {
+            showCoachWorkspace = true
+        } label: {
+            HStack(spacing: DS.Spacing.s16) {
+                Image(systemName: "shield.checkmark.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .frame(width: 36, height: 36)
+                    .background(DS.Colors.Bg.raised)
+                    .clipShape(Circle())
+
+                Text("Coach Workspace")
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(.vertical, DS.Spacing.s16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("Coach Workspace")
     }
 
     /// Upgrade entry point shown only to free (Trialist) players.
