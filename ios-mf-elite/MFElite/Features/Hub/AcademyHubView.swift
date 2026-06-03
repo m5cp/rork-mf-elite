@@ -54,6 +54,9 @@ struct AcademyHubView: View {
             .navigationDestination(for: DrillRoute.self) { route in
                 DrillDetailView(drill: route.drill, level: route.level, category: route.category, discipline: route.discipline)
             }
+            .navigationDestination(for: SearchRoute.self) { _ in
+                CurriculumSearchView()
+            }
         }
     }
 
@@ -61,10 +64,14 @@ struct AcademyHubView: View {
 
     private var masthead: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
+            HStack(spacing: DS.Spacing.s12) {
                 Eyebrow(text: "Season 25 — 26")
                 Spacer()
                 Eyebrow(text: "MF · Academy")
+                NavigationLink(value: SearchRoute()) {
+                    searchIcon
+                }
+                .buttonStyle(PressableButtonStyle())
             }
 
             SlashRule()
@@ -87,6 +94,19 @@ struct AcademyHubView: View {
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s64)
+    }
+
+    private var searchIcon: some View {
+        Image(systemName: "magnifyingglass")
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(DS.Colors.Ink.primary)
+            .frame(width: 36, height: 36)
+            .background(DS.Colors.Bg.raised)
+            .clipShape(Circle())
+            .overlay(
+                Circle().stroke(DS.Colors.Line.hairline, lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.30), radius: 2, y: 1)
     }
 
     // MARK: - 2. Academy Standing Strip
