@@ -63,19 +63,15 @@ Train every day. Master every touch. Rise through the academy.
 ## App Review notes
 
 ```
-Test account: Will be provided via App Store Connect.
-
-Onboarding does NOT require an invite code — sign-up flows straight through. A coach invite code is optional and can be redeemed later via Settings → Redeem a code (Apple's native code redemption sheet).
-
-Coach admin is accessible from Profile → Settings → Coach workspace. Coach passcode: 1234
-
-The app uses RevenueCat for subscription management. A sandbox Apple ID can be used to test purchases. Restore Purchases is available on the paywall and in Settings → Subscription.
-
-Curriculum content (drills, categories, levels) is managed remotely via Supabase. The app ships with seed data for offline/first-launch use.
-
-No user-generated content is uploaded. Players log drill completions via an honour-code self-report system (no video recording or upload). Coach demo films are a future feature.
-
-Account deletion is available in-app: Settings → Delete account. It removes all remote player records and local data, then returns to onboarding.
+Test account: Provided via App Store Connect.
+Invite code: Any code accepted (server-side validation in production).
+Onboarding can be skipped via "Skip" button.
+Coach admin: Profile → Settings → Coach workspace. Default PIN: 1234 (prompted to change on first login).
+Subscription: RevenueCat. Sandbox Apple ID for testing. Prices load dynamically.
+Content managed by coach via in-app admin — no App Store update needed.
+No user-generated content shared publicly.
+Designed for youth athletes (10+) with parental oversight.
+Contact: joe@m5cairio.com
 ```
 
 ## Data collection (App Privacy)

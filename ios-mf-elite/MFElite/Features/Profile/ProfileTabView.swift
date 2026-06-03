@@ -8,12 +8,6 @@
 import SwiftUI
 import SwiftData
 
-/// Lightweight route to a not-yet-built profile destination.
-struct ProfilePlaceholderRoute: Hashable {
-    let title: String
-    let note: String
-}
-
 struct ProfileTabView: View {
     @Query private var players: [PlayerState]
     @Environment(SubscriptionService.self) private var subscription
@@ -61,9 +55,6 @@ struct ProfileTabView: View {
             }
             .navigationDestination(for: SettingsRoute.self) { _ in
                 SettingsView()
-            }
-            .navigationDestination(for: ProfilePlaceholderRoute.self) { route in
-                ProfilePlaceholder(title: route.title, note: route.note)
             }
         }
     }
@@ -177,33 +168,6 @@ struct ProfileTabView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableButtonStyle())
-    }
-}
-
-// MARK: - Placeholder Destination
-
-private struct ProfilePlaceholder: View {
-    let title: String
-    let note: String
-
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-                Eyebrow(text: title)
-                Text(title)
-                    .style(.hero)
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                Text(note)
-                    .style(.body)
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, DS.Spacing.s20)
-            .padding(.top, DS.Spacing.s24)
-        }
-        .background(DS.Colors.Bg.base)
-        .navigationTitle("")
-        .navigationBarTitleDisplayMode(.inline)
     }
 }
 

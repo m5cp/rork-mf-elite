@@ -11,15 +11,27 @@ import SwiftData
 struct CoachBuildSessionView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @State private var selectedIDs: Set<String> = []
+    @State private var activePlayerRoute: DrillRoute?
 
-    /// All drills flattened with their parent discipline, in curriculum order.
+    /// All drills flattened with their full curriculum context, in order.
     private var allDrills: [(drill: Drill, discipline: Discipline)] {
+        sessionDrills.map { ($0.drill, $0.discipline) }
+    }
+
+    /// Same list but carrying category + level so a session can be played.
+    private var sessionDrills: [DrillRoute] {
         disciplines.flatMap { discipline in
             discipline.categories
                 .sorted { $0.sortIndex < $1.sortIndex }
-                .flatMap { $0.levels.sorted { $0.sortIndex < $1.sortIndex } }
-                .flatMap { $0.drills.sorted { $0.sortIndex < $1.sortIndex } }
-                .map { ($0, discipline) }
+                .flatMap { category in
+                    category.levels
+                        .sorted { $0.sortIndex < $1.sortIndex }
+                        .flatMap { level in
+                            level.drills
+                                .sorted { $0.sortIndex < $1.sortIndex }
+                                .map { DrillRoute(discipline: discipline, category: category, level: level, drill: $0) }
+                        }
+                }
         }
     }
 
@@ -36,8 +48,17 @@ struct CoachBuildSessionView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .fullScreenCover(item: $activePlayerRoute) { route in
+            DrillPlayerView(
+                drill: route.drill,
+                level: route.level,
+                category: route.category,
+                discipline: route.discipline,
+                onNextDrill: { next in activePlayerRoute = next }
+            )
+        }
         .safeAreaInset(edge: .bottom) {
-            PrimaryButton(label: "Start session", hint: "\(selectedIDs.count) DRILLS") {}
+            PrimaryButton(label: "Start session", hint: "\(selectedIDs.count) DRILLS") { startSession() }
                 .padding(.horizontal, DS.Spacing.s20)
                 .padding(.bottom, DS.Spacing.s12)
                 .opacity(selectedIDs.isEmpty ? 0.5 : 1)
@@ -158,6 +179,13 @@ struct CoachBuildSessionView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    /// Launches the selected drills in order, chaining one into the next.
+    private func startSession() {
+        let lineup = sessionDrills.filter { selectedIDs.contains($0.drill.id) }
+        guard let first = lineup.first else { return }
+        activePlayerRoute = first
     }
 
     private func toggle(_ id: String) {

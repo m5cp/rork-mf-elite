@@ -316,18 +316,14 @@ struct AcademyTodayView: View {
                         .foregroundStyle(DS.Colors.Ink.tertiary)
                         .padding(.top, DS.Spacing.s8)
 
-                    HStack(spacing: DS.Spacing.s12) {
-                        NavigationLink(value: LevelRoute(
-                            discipline: focus.discipline,
-                            category: focus.category,
-                            level: focus.level
-                        )) {
-                            resumeButtonLabel
-                        }
-                        .buttonStyle(PressableButtonStyle())
-
-                        IconButton(systemName: "bookmark", size: 44) {}
+                    NavigationLink(value: LevelRoute(
+                        discipline: focus.discipline,
+                        category: focus.category,
+                        level: focus.level
+                    )) {
+                        resumeButtonLabel
                     }
+                    .buttonStyle(PressableButtonStyle())
                     .padding(.top, DS.Spacing.s16)
                 }
                 .padding(DS.Spacing.s16)
