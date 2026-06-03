@@ -65,8 +65,8 @@ struct DisciplineMark: View {
         for i in 0..<sides {
             let angle = Angle(degrees: rotation + Double(i) / Double(sides) * 360).radians
             let point = CGPoint(
-                x: center.x + radius * cos(angle),
-                y: center.y + radius * sin(angle)
+                x: center.x + radius * CGFloat(cos(angle)),
+                y: center.y + radius * CGFloat(sin(angle))
             )
             if i == 0 {
                 path.move(to: point)
