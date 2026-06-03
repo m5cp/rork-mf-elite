@@ -48,12 +48,11 @@ struct AcademyHubView: View {
             .navigationDestination(for: CategoryRoute.self) { route in
                 CategoryView(category: route.category, discipline: route.discipline)
             }
-            .navigationDestination(for: MasteryLevel.self) { level in
-                Text("Level detail coming in 2C")
-                    .style(.body)
-                    .foregroundStyle(DS.Colors.Ink.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(DS.Colors.Bg.base)
+            .navigationDestination(for: LevelRoute.self) { route in
+                LevelView(level: route.level, category: route.category, discipline: route.discipline)
+            }
+            .navigationDestination(for: DrillRoute.self) { route in
+                DrillDetailView(drill: route.drill, level: route.level, category: route.category, discipline: route.discipline)
             }
         }
     }

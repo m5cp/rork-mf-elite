@@ -131,7 +131,7 @@ struct CategoryView: View {
             .padding(.bottom, DS.Spacing.s8)
 
             ForEach(Array(vm.levels.enumerated()), id: \.element.id) { index, level in
-                NavigationLink(value: level) {
+                NavigationLink(value: LevelRoute(discipline: discipline, category: category, level: level)) {
                     LevelLadderRow(
                         level: level,
                         state: vm.levelState(level),
