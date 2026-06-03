@@ -35,6 +35,7 @@ struct AcademyHubView: View {
                     masthead
                     standingStrip(viewModel)
                     pathwaysSection(viewModel)
+                    moreSection
                     scalabilityFooter(viewModel)
                 }
                 .padding(.bottom, 120)
@@ -56,6 +57,12 @@ struct AcademyHubView: View {
             }
             .navigationDestination(for: SearchRoute.self) { _ in
                 CurriculumSearchView()
+            }
+            .navigationDestination(for: DrillLibraryRoute.self) { _ in
+                DrillLibraryView()
+            }
+            .navigationDestination(for: RoutinesRoute.self) { _ in
+                RoutinesView()
             }
         }
     }
@@ -177,6 +184,27 @@ struct AcademyHubView: View {
         .padding(.top, DS.Spacing.s32)
     }
 
+    // MARK: - 4. More
+
+    private var moreSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "More")
+                .padding(.horizontal, DS.Spacing.s20)
+                .padding(.bottom, DS.Spacing.s4 + 2)
+
+            NavigationLink(value: DrillLibraryRoute()) {
+                MoreRow(icon: "list.bullet", label: "Drill Library", detail: "Every drill, one list", isLast: false)
+            }
+            .buttonStyle(PressableButtonStyle())
+
+            NavigationLink(value: RoutinesRoute()) {
+                MoreRow(icon: "figure.run", label: "Routines", detail: "Curated training sessions", isLast: true)
+            }
+            .buttonStyle(PressableButtonStyle())
+        }
+        .padding(.top, DS.Spacing.s32)
+    }
+
     // MARK: - 5. Scalability Footer
 
     private func scalabilityFooter(_ vm: AcademyHubViewModel) -> some View {
@@ -288,6 +316,50 @@ private struct PathwayRow: View {
                     .padding(.top, DS.Spacing.s4)
             }
             .padding(.vertical, DS.Spacing.s20)
+
+            if !isLast {
+                Hairline()
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - MoreRow
+
+private struct MoreRow: View {
+    let icon: String
+    let label: String
+    let detail: String
+    let isLast: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: DS.Spacing.s16) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .frame(width: 40, height: 40)
+                    .background(DS.Colors.Bg.raised)
+                    .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                    Text(label)
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text(detail)
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(.vertical, DS.Spacing.s16)
 
             if !isLast {
                 Hairline()
