@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 
 /// Navigation route to the academy report card.
 struct ReportCardRoute: Hashable {}
@@ -16,8 +17,9 @@ struct ReportCardView: View {
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
 
-    /// Hairline tuned for the white card.
-    private let inkLine = Color.black.opacity(0.12)
+    @State private var profile = PlayerProfileStore.shared
+    @State private var shareURL: URL?
+    @State private var showShare = false
 
     private var viewModel: ParentReportViewModel {
         ParentReportViewModel(
@@ -34,8 +36,13 @@ struct ReportCardView: View {
         let vm = viewModel
         ScrollView {
             VStack(spacing: 0) {
-                reportCard(vm)
-                ctas
+                ReportCardContent(vm: vm, playerName: profile.displayName)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.xl))
+                    .raisedElevation()
+                    .padding(.horizontal, DS.Spacing.s20)
+                    .padding(.top, DS.Spacing.s24)
+                ctas(vm)
             }
             .padding(.bottom, 120)
         }
@@ -43,25 +50,83 @@ struct ReportCardView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showShare) {
+            if let shareURL {
+                ShareSheet(items: [shareURL])
+            }
+        }
     }
 
-    // MARK: - The white card
+    // MARK: - PDF export
 
-    private func reportCard(_ vm: ParentReportViewModel) -> some View {
+    /// Renders the white report card to a high-resolution single-page PDF.
+    private func generatePDF(_ vm: ParentReportViewModel) -> URL? {
+        let content = ReportCardContent(vm: vm, playerName: profile.displayName)
+            .frame(width: 540)
+            .background(Color.white)
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 3.0
+
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("MF_Elite_Report_Card.pdf")
+        var didRender = false
+        renderer.render { size, context in
+            var box = CGRect(origin: .zero, size: size)
+            guard let pdf = CGContext(url as CFURL, mediaBox: &box, nil) else { return }
+            pdf.beginPDFPage(nil)
+            context(pdf)
+            pdf.endPDFPage()
+            pdf.closePDF()
+            didRender = true
+        }
+        return didRender ? url : nil
+    }
+
+    private func sharePDF(_ vm: ParentReportViewModel) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        guard let url = generatePDF(vm) else { return }
+        shareURL = url
+        showShare = true
+    }
+
+    // MARK: - CTAs (outside the white card)
+
+    private func ctas(_ vm: ParentReportViewModel) -> some View {
+        VStack(spacing: DS.Spacing.s12) {
+            PrimaryButton(label: "Download PDF") { sharePDF(vm) }
+            SecondaryButton(label: "Share with family") { sharePDF(vm) }
+            Text("Official academy document")
+                .style(.microSm)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .frame(maxWidth: .infinity)
+                .padding(.top, DS.Spacing.s4)
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s24)
+    }
+}
+
+// MARK: - Report Card Content (the white credential — used on-screen and for PDF)
+
+/// The inner white report-card content, with no outer black background, so it
+/// can be rendered directly to a PDF via `ImageRenderer`.
+struct ReportCardContent: View {
+    let vm: ParentReportViewModel
+    var playerName: String = "Player One"
+
+    /// Hairline tuned for the white card.
+    private let inkLine = Color.black.opacity(0.12)
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             letterhead
-            playerInfo(vm)
-            grades(vm)
-            certifications(vm)
+            playerInfo
+            grades
+            certifications
             signature
         }
         .padding(DS.Spacing.s32)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.white)
-        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.xl))
-        .raisedElevation()
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s24)
     }
 
     // MARK: - Letterhead
@@ -87,10 +152,10 @@ struct ReportCardView: View {
 
     // MARK: - Player info
 
-    private func playerInfo(_ vm: ParentReportViewModel) -> some View {
+    private var playerInfo: some View {
         let rank = vm.currentRank
         return VStack(alignment: .leading, spacing: DS.Spacing.s4) {
-            Text("Player One")
+            Text(playerName)
                 .style(.title1)
                 .foregroundStyle(Color.black)
             Text("Rank \(rank.numeral) · \(rank.title) · Season 25—26")
@@ -104,7 +169,7 @@ struct ReportCardView: View {
 
     // MARK: - Grade rows
 
-    private func grades(_ vm: ParentReportViewModel) -> some View {
+    private var grades: some View {
         let rows: [(String, String)] = [
             ("Consistency", vm.consistencyGrade.rawValue),
             ("Discipline", vm.disciplineGrade.rawValue),
@@ -136,7 +201,7 @@ struct ReportCardView: View {
 
     // MARK: - Certifications
 
-    private func certifications(_ vm: ParentReportViewModel) -> some View {
+    private var certifications: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text("Certifications")
                 .style(.callout)
@@ -189,25 +254,6 @@ struct ReportCardView: View {
         .padding(.top, DS.Spacing.s32 - 4)
     }
 
-    // MARK: - CTAs (outside the white card)
-
-    private var ctas: some View {
-        VStack(spacing: DS.Spacing.s12) {
-            PrimaryButton(label: "Download PDF") {
-                // TODO: PDF export via ImageRenderer/PDFKit in the polish phase.
-            }
-            SecondaryButton(label: "Share with family") {
-                // TODO: share sheet.
-            }
-            Text("Official academy document")
-                .style(.microSm)
-                .foregroundStyle(DS.Colors.Ink.quaternary)
-                .frame(maxWidth: .infinity)
-                .padding(.top, DS.Spacing.s4)
-        }
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s24)
-    }
 }
 
 // MARK: - Flow Layout (wrapping pills)

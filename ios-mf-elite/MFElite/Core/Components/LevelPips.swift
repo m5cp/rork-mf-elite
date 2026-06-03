@@ -21,6 +21,9 @@ struct LevelPips: View {
                     .frame(maxWidth: .infinity)
             }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Level progress")
+        .accessibilityValue("\(max(0, done)) of \(max(0, total)) complete")
     }
 
     private func color(for index: Int) -> Color {

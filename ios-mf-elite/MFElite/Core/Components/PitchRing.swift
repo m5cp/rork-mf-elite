@@ -35,6 +35,9 @@ struct PitchRing: View {
             }
         }
         .frame(width: size, height: size)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(label): \(value)")
+        .accessibilityValue("\(Int((max(0, min(1, progress)) * 100).rounded())) percent")
     }
 }
 
