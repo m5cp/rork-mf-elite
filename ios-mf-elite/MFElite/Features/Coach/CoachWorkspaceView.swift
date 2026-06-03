@@ -13,9 +13,11 @@ private struct CoachBuildRoute: Hashable {}
 
 struct CoachWorkspaceView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
 
     @State private var awardCerts = true
+    @State private var isPublishing = false
 
     private var viewModel: CoachWorkspaceViewModel {
         CoachWorkspaceViewModel(disciplines: disciplines)
@@ -274,7 +276,15 @@ struct CoachWorkspaceView: View {
             PrimaryButton(label: "Preview as player") {
                 dismiss()
             }
-            SecondaryButton(label: "Publish changes") {}
+            SecondaryButton(label: isPublishing ? "Publishing…" : "Publish changes") {
+                guard !isPublishing else { return }
+                isPublishing = true
+                Task {
+                    await CoachContentService.shared.publishChanges()
+                    await CurriculumSyncService.shared.syncCurriculum(context: modelContext, force: true)
+                    isPublishing = false
+                }
+            }
             Text("Stored in Supabase · RLS-secured · No App Store update needed")
                 .style(.microSm)
                 .foregroundStyle(DS.Colors.Ink.quaternary)

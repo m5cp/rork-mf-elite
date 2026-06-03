@@ -207,6 +207,25 @@ final class DrillPlayerViewModel {
 
         try? context.save()
         isComplete = true
+
+        // Mirror progress to Supabase (fire-and-forget; offline-safe).
+        ProgressSyncService.shared.pushDrillCompletion(
+            drillID: drillID,
+            passesLogged: progress.passesLogged,
+            isMastered: progress.isMastered
+        )
+        if let player {
+            ProgressSyncService.shared.pushPlayerState(
+                xp: player.xp,
+                streak: player.streak,
+                freezes: player.freezesRemaining,
+                lastTrained: player.lastTrainedDate,
+                streakPB: player.streak
+            )
+        }
+        if categoryJustCertified {
+            ProgressSyncService.shared.pushCertification(categoryID: category.id)
+        }
     }
 
     /// Returns the milestone name if `streak` exactly matches a milestone threshold.

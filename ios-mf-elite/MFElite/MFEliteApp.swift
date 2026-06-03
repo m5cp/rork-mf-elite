@@ -40,6 +40,7 @@ struct MFEliteApp: App {
                             NotificationService.shared.scheduleDailyReminder()
                         }
                     }
+                    Task { await bootstrapBackend() }
                 }
         }
         .modelContainer(container)
@@ -48,6 +49,18 @@ struct MFEliteApp: App {
                 scheduleStreakRiskIfNeeded()
             }
         }
+    }
+
+    /// Restore the Rork Auth session, then (if signed in) pull the latest
+    /// curriculum and player progress from Supabase. The local SwiftData seed is
+    /// always present as an offline-first fallback, so this is purely additive.
+    private func bootstrapBackend() async {
+        let context = container.mainContext
+        await AuthService.shared.checkSession()
+        guard AuthService.shared.isAuthenticated else { return }
+        await CurriculumSyncService.shared.syncCurriculum(context: context)
+        await ProgressSyncService.shared.pullPlayerState(context: context)
+        await ProgressSyncService.shared.pullPlayerProgress(context: context)
     }
 
     /// When backgrounding, warn the player tonight if they haven't trained today.
