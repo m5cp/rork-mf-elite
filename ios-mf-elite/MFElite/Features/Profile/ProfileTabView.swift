@@ -46,6 +46,9 @@ struct ProfileTabView: View {
             .navigationDestination(for: StreakRoute.self) { _ in
                 StreakDetailView()
             }
+            .navigationDestination(for: FamilyRoute.self) { _ in
+                FamilyManagementView()
+            }
             .navigationDestination(for: ParentReportRoute.self) { _ in
                 ParentReportView()
             }
@@ -89,6 +92,9 @@ struct ProfileTabView: View {
             Hairline()
             menuRow(icon: "flame", label: "Streak",
                     route: StreakRoute())
+            Hairline()
+            menuRow(icon: "person.2", label: "Family",
+                    route: FamilyRoute())
             Hairline()
             menuRow(icon: "gearshape", label: "Settings",
                     route: SettingsRoute())

@@ -71,6 +71,53 @@ nonisolated struct PlayerRosterUpdate: Encodable, Sendable {
     }
 }
 
+// MARK: - Families (household management)
+
+/// A household row. Multiple `player_profiles` sharing one `account_id` belong
+/// to the same family; this just names the household and records its owner.
+nonisolated struct FamilyRow: Codable, Sendable, Identifiable {
+    let id: String
+    let ownerId: String
+    let name: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, name
+        case ownerId = "owner_id"
+    }
+}
+
+nonisolated struct FamilyInsert: Encodable, Sendable {
+    let ownerId: String
+    let name: String?
+
+    enum CodingKeys: String, CodingKey {
+        case name
+        case ownerId = "owner_id"
+    }
+}
+
+/// Insert/upsert for an athlete created by a parent under their account. These
+/// athletes are `managed` (no own login) and linked to a `family_id`.
+nonisolated struct ManagedAthleteUpsert: Encodable, Sendable {
+    let id: String
+    let accountId: String
+    let familyId: String?
+    let username: String
+    let displayName: String
+    let initials: String
+    let kitNumber: String
+    let position: String
+    let managed: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case id, username, position, managed, initials
+        case accountId = "account_id"
+        case familyId = "family_id"
+        case displayName = "display_name"
+        case kitNumber = "kit_number"
+    }
+}
+
 // MARK: - Roster invites (coach-issued codes)
 
 nonisolated struct RosterInviteInsert: Encodable, Sendable {
