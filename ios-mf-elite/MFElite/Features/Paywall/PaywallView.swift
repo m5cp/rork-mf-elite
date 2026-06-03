@@ -201,7 +201,7 @@ struct PaywallView: View {
 
     private var legalFooter: some View {
         VStack(spacing: DS.Spacing.s12) {
-            Text("Subscription auto-renews. Cancel anytime in Settings. Payment charged to Apple ID at confirmation. See Terms & Privacy Policy.")
+            Text(autoRenewalTerms)
                 .style(.microSm)
                 .foregroundStyle(DS.Colors.Ink.quaternary)
                 .multilineTextAlignment(.center)
@@ -218,6 +218,28 @@ struct PaywallView: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s16)
+    }
+
+    /// Auto-renewal terms built from the selected package's live RevenueCat pricing.
+    private var autoRenewalTerms: String {
+        guard let package = selectedPackage else {
+            return "Subscription auto-renews unless canceled at least 24 hours before the end of the current period. Payment is charged to your Apple ID at confirmation. Manage or cancel anytime in your App Store account settings. See Terms & Privacy Policy."
+        }
+        let price = package.storeProduct.localizedPriceString
+        let period = periodWord(for: package)
+        return "Payment of \(price) will be charged to your Apple ID account at confirmation of purchase. Subscription automatically renews at \(price)/\(period) unless canceled at least 24 hours before the end of the current period. Manage or cancel anytime in your App Store account settings. See Terms & Privacy Policy."
+    }
+
+    private func periodWord(for package: Package) -> String {
+        switch package.packageType {
+        case .weekly: return "week"
+        case .monthly: return "month"
+        case .annual: return "year"
+        case .twoMonth: return "2 months"
+        case .threeMonth: return "3 months"
+        case .sixMonth: return "6 months"
+        default: return "period"
+        }
     }
 }
 

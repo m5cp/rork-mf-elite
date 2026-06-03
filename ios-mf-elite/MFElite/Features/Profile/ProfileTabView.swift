@@ -16,6 +16,7 @@ struct ProfilePlaceholderRoute: Hashable {
 
 struct ProfileTabView: View {
     @Query private var players: [PlayerState]
+    @Environment(SubscriptionService.self) private var subscription
 
     private var currentRank: AcademyRank {
         AcademyRank.rank(for: players.first?.xp ?? 0)
@@ -90,6 +91,10 @@ struct ProfileTabView: View {
 
     private var menu: some View {
         VStack(spacing: 0) {
+            if !subscription.isElite {
+                upgradeRow
+                Hairline()
+            }
             menuRow(icon: "chart.line.uptrend.xyaxis", label: "Academy Progression",
                     route: ProgressionRoute())
             Hairline()
@@ -116,6 +121,36 @@ struct ProfileTabView: View {
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32)
+    }
+
+    /// Upgrade entry point shown only to free (Trialist) players.
+    private var upgradeRow: some View {
+        Button {
+            subscription.presentPaywall()
+        } label: {
+            HStack(spacing: DS.Spacing.s16) {
+                Image(systemName: "star.fill")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .frame(width: 36, height: 36)
+                    .background(DS.Colors.Bg.raised)
+                    .clipShape(Circle())
+
+                Text("Upgrade to Elite")
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+
+                Spacer(minLength: 0)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(.vertical, DS.Spacing.s16)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("Upgrade to Elite")
     }
 
     private func menuRow<R: Hashable>(icon: String, label: String, route: R) -> some View {

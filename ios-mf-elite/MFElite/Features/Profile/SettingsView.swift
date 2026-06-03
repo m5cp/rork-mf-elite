@@ -114,12 +114,43 @@ struct SettingsView: View {
 
     private var subscriptionSection: some View {
         section("Subscription") {
-            valueRow(label: "Current plan", value: subscription.isElite ? "Elite" : "Free (Trialist)", action: nil)
+            currentPlanRow
             Hairline()
             actionRow(label: "Manage subscription") { UIApplication.shared.open(manageSubscriptionURL) }
             Hairline()
             actionRow(label: "Restore purchases") { Task { await subscription.restorePurchases() } }
         }
+    }
+
+    private var currentPlanRow: some View {
+        HStack(spacing: DS.Spacing.s12) {
+            Text("Current plan")
+                .style(.title3)
+                .foregroundStyle(DS.Colors.Ink.primary)
+            Spacer(minLength: DS.Spacing.s12)
+            Text(subscription.isElite ? "Elite" : "Free (Trialist)")
+                .style(.callout)
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+                .lineLimit(1)
+            if !subscription.isElite {
+                Button {
+                    subscription.presentPaywall()
+                } label: {
+                    Text("UPGRADE")
+                        .font(.system(size: 11, weight: .bold))
+                        .tracking(1.2)
+                        .foregroundStyle(DS.Colors.Ground.primary)
+                        .padding(.vertical, 5)
+                        .padding(.horizontal, DS.Spacing.s12)
+                        .background(Color.white)
+                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+                }
+                .buttonStyle(PressableButtonStyle())
+                .accessibilityLabel("Upgrade to Elite")
+            }
+        }
+        .padding(.vertical, DS.Spacing.s16 - 2)
+        .contentShape(Rectangle())
     }
 
     // MARK: - Notifications

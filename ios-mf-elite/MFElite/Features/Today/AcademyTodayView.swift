@@ -117,28 +117,57 @@ struct AcademyTodayView: View {
 
             Spacer()
 
-            NavigationLink(value: StreakRoute()) {
-                HStack(spacing: DS.Spacing.s4 + 2) {
-                    Image(systemName: "chart.bar.fill")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                    Text("\(vm.streak)")
-                        .font(DS.Typography.num(size: 14))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+            HStack(spacing: DS.Spacing.s8) {
+                if !subscription.isElite {
+                    upgradeButton
                 }
-                .padding(.vertical, 6)
-                .padding(.horizontal, DS.Spacing.s12)
-                .background(DS.Colors.Bg.raised)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
-                .overlay(
-                    RoundedRectangle(cornerRadius: DS.Radius.pill)
-                        .stroke(DS.Colors.Line.hairline, lineWidth: 1)
-                )
+
+                NavigationLink(value: StreakRoute()) {
+                    HStack(spacing: DS.Spacing.s4 + 2) {
+                        Image(systemName: "chart.bar.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("\(vm.streak)")
+                            .font(DS.Typography.num(size: 14))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                    }
+                    .padding(.vertical, 6)
+                    .padding(.horizontal, DS.Spacing.s12)
+                    .background(DS.Colors.Bg.raised)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DS.Radius.pill)
+                            .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+                    )
+                }
+                .buttonStyle(PressableButtonStyle())
             }
-            .buttonStyle(PressableButtonStyle())
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s12)
+    }
+
+    /// Always-visible upgrade entry point for free (Trialist) players.
+    private var upgradeButton: some View {
+        Button {
+            subscription.presentPaywall()
+        } label: {
+            HStack(spacing: DS.Spacing.s4 + 1) {
+                Text("UPGRADE")
+                    .font(.system(size: 11, weight: .bold))
+                    .tracking(1.2)
+                Image(systemName: "arrow.up.circle")
+                    .font(.system(size: 12, weight: .bold))
+            }
+            .foregroundStyle(DS.Colors.Ground.primary)
+            .padding(.vertical, 6)
+            .padding(.horizontal, DS.Spacing.s12 + 2)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+            .pillLightElevation()
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("Upgrade to Elite")
     }
 
     // MARK: - 2. Salutation
