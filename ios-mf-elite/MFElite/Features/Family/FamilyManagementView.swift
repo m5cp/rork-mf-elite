@@ -237,33 +237,12 @@ struct FamilyManagementView: View {
     }
 
     private func addAthlete(username: String, name: String, kit: String, position: String) {
-        let athlete = family.addAthlete(username: username, name: name, kit: kit, position: position)
-        // Best-effort remote enrollment under the parent's account + family.
-        Task {
-            guard let accountID = AuthService.shared.user?.id else { return }
-            do {
-                let fam = try await FamilyService.shared.ensureFamily(
-                    ownerID: accountID,
-                    name: family.householdName.isEmpty ? nil : family.householdName
-                )
-                try await FamilyService.shared.addManagedAthlete(
-                    accountID: accountID,
-                    familyID: fam?.id,
-                    athlete: athlete
-                )
-            } catch {
-                print("[Family] remote enrollment failed: \(error)")
-            }
-        }
+        family.addAthlete(username: username, name: name, kit: kit, position: position)
     }
 
     private func remove(_ athlete: Athlete) {
         family.removeAthlete(id: athlete.id)
         athleteToRemove = nil
-        Task {
-            do { try await FamilyService.shared.removeAthlete(id: athlete.id) }
-            catch { print("[Family] remote removal failed: \(error)") }
-        }
     }
 }
 

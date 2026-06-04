@@ -47,7 +47,7 @@ struct OnboardingIdentifyView: View {
                         }
                         .padding(.top, DS.Spacing.s8)
 
-                        Text("This name appears on your dossier and on every report your coach writes.")
+                        Text("This name appears on your player card and in your reports.")
                             .style(.foot)
                             .foregroundStyle(DS.Colors.Ink.tertiary)
                             .padding(.top, DS.Spacing.s8)
@@ -117,7 +117,7 @@ struct OnboardingIdentifyView: View {
             }
             .opacity(canContinue ? 1 : 0.4)
             .disabled(!canContinue)
-            StepBar(filled: 3, total: 7)
+            StepBar(filled: 2, total: OnboardingStep.stepTotal)
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.bottom, DS.Spacing.s24)

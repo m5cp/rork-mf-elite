@@ -13,7 +13,6 @@ enum NotificationCategory: String {
     case dailyReminder = "DAILY_REMINDER"
     case streakRisk = "STREAK_RISK"
     case milestone = "MILESTONE"
-    case coachAnnouncement = "COACH_ANNOUNCEMENT"
 }
 
 /// Stable identifiers so we can update or cancel individual notifications.

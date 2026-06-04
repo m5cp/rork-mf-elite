@@ -11,7 +11,6 @@ struct MFEliteApp: App {
     let container: ModelContainer
     @Environment(\.scenePhase) private var scenePhase
     @State private var profileStore = PlayerProfileStore.shared
-    @State private var auth = AuthService.shared
 
     init() {
         SubscriptionService.shared.configure()
@@ -33,42 +32,27 @@ struct MFEliteApp: App {
     }
 
     private var showOnboarding: Bool {
-        // Wait until the session restore finishes so returning authenticated
-        // users don't see a flash of onboarding on launch.
-        !auth.isLoading && !auth.isAuthenticated && !profileStore.hasCompletedOnboarding
+        !profileStore.hasCompletedOnboarding
     }
 
     var body: some Scene {
         WindowGroup {
-            ZStack {
-                MainTabView()
-                    .preferredColorScheme(.dark)
-                    .fullScreenCover(isPresented: .constant(showOnboarding)) {
-                        OnboardingView {
-                            // Onboarding marks completion in PlayerProfileStore,
-                            // which flips `showOnboarding` and dismisses the cover.
-                        }
-                        .modelContainer(container)
+            MainTabView()
+                .preferredColorScheme(.dark)
+                .fullScreenCover(isPresented: .constant(showOnboarding)) {
+                    OnboardingView {
+                        // Onboarding marks completion in PlayerProfileStore,
+                        // which flips `showOnboarding` and dismisses the cover.
                     }
-
-                // Hold a launch splash over everything until the session
-                // restore finishes, so the home screen never flashes before
-                // onboarding (new users) or before content loads (returning users).
-                if auth.isLoading {
-                    LaunchSplashView()
-                        .transition(.opacity)
-                        .zIndex(1)
+                    .modelContainer(container)
                 }
-            }
-            .animation(.easeInOut(duration: 0.3), value: auth.isLoading)
-            .preferredColorScheme(.dark)
-            .onAppear {
+                .preferredColorScheme(.dark)
+                .onAppear {
                     // No notification permission request on launch — the soft
                     // pre-permission sheet is shown after the first logged drill.
                     // If already authorized, keep the daily reminder scheduled.
                     NotificationService.shared.scheduleDailyReminderIfAuthorized()
                     profileStore.incrementSession()
-                    Task { await bootstrapBackend() }
                 }
         }
         .modelContainer(container)
@@ -77,18 +61,6 @@ struct MFEliteApp: App {
                 scheduleStreakRiskIfNeeded()
             }
         }
-    }
-
-    /// Restore the Rork Auth session, then (if signed in) pull the latest
-    /// curriculum and player progress from Supabase. The local SwiftData seed is
-    /// always present as an offline-first fallback, so this is purely additive.
-    private func bootstrapBackend() async {
-        let context = container.mainContext
-        await AuthService.shared.checkSession()
-        guard AuthService.shared.isAuthenticated else { return }
-        await CurriculumSyncService.shared.syncCurriculum(context: context)
-        await ProgressSyncService.shared.pullPlayerState(context: context)
-        await ProgressSyncService.shared.pullPlayerProgress(context: context)
     }
 
     /// When backgrounding, warn the player tonight if they haven't trained today.
@@ -100,29 +72,6 @@ struct MFEliteApp: App {
             NotificationService.shared.cancelStreakRisk()
         } else {
             NotificationService.shared.scheduleStreakRisk(streak: player.streak)
-        }
-    }
-}
-
-/// Pure-black launch splash held over the app until the auth session restore
-/// finishes, preventing the home screen from flashing before onboarding.
-private struct LaunchSplashView: View {
-    @State private var appeared = false
-
-    var body: some View {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            DiagonalStripes(opacity: 0.4)
-
-            Image("mf-logo-white")
-                .resizable()
-                .scaledToFit()
-                .frame(height: 200)
-                .opacity(appeared ? 1 : 0)
-                .accessibilityLabel("MF Elite")
-        }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 0.8)) { appeared = true }
         }
     }
 }

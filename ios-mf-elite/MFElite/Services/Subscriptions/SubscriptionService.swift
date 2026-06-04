@@ -121,10 +121,10 @@ final class SubscriptionService {
 
     // MARK: - Gating helpers
 
-    /// True when the user has full access to all content: an active Elite
-    /// subscription OR a verified coach (coaches never pay).
+    /// True when the user has full access to all content via an active Elite
+    /// subscription.
     var hasFullAccess: Bool {
-        isElite || AuthService.shared.isCoach
+        isElite
     }
 
     /// A level is locked when it is beyond the free tier and the user lacks full access.
@@ -138,7 +138,7 @@ final class SubscriptionService {
     }
 
     /// Present the paywall from anywhere in the app. No-op for users who already
-    /// have full access (e.g. coaches), so they never see a purchase prompt.
+    /// have full access, so they never see a purchase prompt.
     func presentPaywall() {
         guard !hasFullAccess else { return }
         showPaywall = true

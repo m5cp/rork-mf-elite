@@ -236,16 +236,9 @@ struct AddAthleteSheet: View {
             usernameStatus = candidate.isEmpty ? .idle : .error(formatError.localizedDescription ?? "Invalid username")
             return
         }
-        usernameStatus = .checking
-        checkTask = Task {
-            try? await Task.sleep(for: .milliseconds(450))
-            if Task.isCancelled { return }
-            let available = await ProfileService.shared.isUsernameAvailable(candidate)
-            if Task.isCancelled || candidate != trimmedUsername { return }
-            usernameStatus = available
-                ? .available
-                : .error(ProfileValidation.UsernameError.taken.localizedDescription ?? "Taken")
-        }
+        // V1 is local-only — a valid format is enough; uniqueness isn't enforced
+        // against any backend.
+        usernameStatus = .available
     }
 }
 

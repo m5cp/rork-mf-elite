@@ -2,8 +2,8 @@
 //  SettingsView.swift
 //  MFElite
 //
-//  Full settings: account, subscription, notifications, coach access,
-//  support links, and the danger zone (delete / sign out).
+//  Full settings: account, subscription, notifications, and support links.
+//  V1 is local-only — no account, so no sign out or delete account.
 //
 
 import SwiftUI
@@ -21,16 +21,12 @@ private enum AccountField: Identifiable {
 struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(SubscriptionService.self) private var subscription
-    @State private var auth = AuthService.shared
     @State private var profile = PlayerProfileStore.shared
 
     @AppStorage("MF_NOTIF_DAILY") private var dailyReminder = true
     @AppStorage("MF_NOTIF_STREAK") private var streakAlerts = true
-    @AppStorage("MF_NOTIF_COACH") private var coachAnnouncements = true
 
     @State private var editingField: AccountField?
-    @State private var showDeleteConfirm = false
-    @State private var showSignOutConfirm = false
     @State private var safariURL: IdentifiableURL?
     @State private var mailRequest: MailRequest?
     @State private var showDisclaimer = false
@@ -50,7 +46,6 @@ struct SettingsView: View {
                 subscriptionSection
                 notificationsSection
                 supportSection
-                dangerSection
                 footerView
             }
             .padding(.bottom, 120)
@@ -62,18 +57,6 @@ struct SettingsView: View {
         .sheet(item: $editingField) { field in
             AccountEditSheet(field: field, profile: profile)
                 .preferredColorScheme(.dark)
-        }
-        .alert("Delete your account?", isPresented: $showDeleteConfirm) {
-            Button("Delete", role: .destructive) { deleteAccount() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will permanently remove all your training data. This cannot be undone.")
-        }
-        .alert("Sign out?", isPresented: $showSignOutConfirm) {
-            Button("Sign out", role: .destructive) { signOut() }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("You can sign back in any time to restore your progress.")
         }
         .sheet(item: $safariURL) { item in
             SafariView(url: item.url).ignoresSafeArea()
@@ -170,10 +153,8 @@ struct SettingsView: View {
         .contentShape(Rectangle())
     }
 
-    /// Coaches get full access for free, so the plan reads "Coach" not "Free".
     private var planLabel: String {
-        if auth.isCoach { return "Coach (Full access)" }
-        return subscription.isElite ? "Elite" : "Free (Trialist)"
+        subscription.isElite ? "Elite" : "Free (Trialist)"
     }
 
     // MARK: - Notifications
@@ -184,8 +165,6 @@ struct SettingsView: View {
                 .onChange(of: dailyReminder) { _, on in applyDailyReminder(on) }
             Hairline()
             toggleRow(label: "Streak alerts", isOn: $streakAlerts)
-            Hairline()
-            toggleRow(label: "Coach announcements", isOn: $coachAnnouncements)
         }
     }
 
@@ -206,8 +185,6 @@ struct SettingsView: View {
             iconRow(icon: "exclamationmark.bubble", label: "Report a Problem") {
                 composeSupport(subject: "MF Elite — Report a Problem")
             }
-            Hairline()
-            actionRow(label: "Redeem a code") { Purchases.shared.presentCodeRedemptionSheet() }
         }
     }
 
@@ -224,34 +201,24 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Danger zone
-
-    private var dangerSection: some View {
-        VStack(spacing: 0) {
-            Button { showDeleteConfirm = true } label: {
-                dangerLabel("Delete account")
-            }
-            .buttonStyle(PressableButtonStyle())
-            Hairline()
-            Button { showSignOutConfirm = true } label: {
-                plainLabel("Sign out")
-            }
-            .buttonStyle(PressableButtonStyle())
-        }
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s32)
-    }
-
     // MARK: - Footer
 
     private var footerView: some View {
-        VStack(spacing: DS.Spacing.s4) {
-            Text("MF ELITE v1.0.0")
+        VStack(spacing: DS.Spacing.s12) {
+            Text("Your training data is stored on this device. Deleting the app will erase your progress.")
                 .style(.microSm)
                 .foregroundStyle(DS.Colors.Ink.quaternary)
-            Text("BUILT BY M5CAIRIO")
-                .style(.microSm)
-                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, DS.Spacing.s12)
+
+            VStack(spacing: DS.Spacing.s4) {
+                Text("MF ELITE v1.0.0")
+                    .style(.microSm)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                Text("BUILT BY M5CAIRIO")
+                    .style(.microSm)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, DS.Spacing.s20)
@@ -357,28 +324,6 @@ struct SettingsView: View {
         .padding(.vertical, DS.Spacing.s12)
     }
 
-    private func dangerLabel(_ text: String) -> some View {
-        HStack {
-            Text(text)
-                .style(.title3)
-                .foregroundStyle(Color.red.opacity(0.8))
-            Spacer()
-        }
-        .padding(.vertical, DS.Spacing.s16 - 2)
-        .contentShape(Rectangle())
-    }
-
-    private func plainLabel(_ text: String) -> some View {
-        HStack {
-            Text(text)
-                .style(.title3)
-                .foregroundStyle(DS.Colors.Ink.primary)
-            Spacer()
-        }
-        .padding(.vertical, DS.Spacing.s16 - 2)
-        .contentShape(Rectangle())
-    }
-
     // MARK: - Actions
 
     private func applyDailyReminder(_ on: Bool) {
@@ -391,31 +336,6 @@ struct SettingsView: View {
         }
     }
 
-    private func signOut() {
-        Task {
-            await auth.signOut()
-            profile.reset()
-        }
-    }
-
-    private func deleteAccount() {
-        Task {
-            await auth.deleteAccount()
-            clearLocalData()
-            profile.reset()
-        }
-    }
-
-    /// Clears the player's local progression so the next launch starts fresh.
-    private func clearLocalData() {
-        do {
-            try modelContext.delete(model: DrillProgress.self)
-            try modelContext.delete(model: PlayerState.self)
-            try modelContext.save()
-        } catch {
-            print("[Settings] local data clear failed: \(error)")
-        }
-    }
 }
 
 // MARK: - Account Edit Sheet

@@ -5,10 +5,10 @@
 
 import Foundation
 
-/// Central, coach-editable constants that govern XP rewards and progression
-/// gating. Values are seeded with sensible defaults and overridden at runtime by
-/// whatever the coach last published to Supabase (cached in `UserDefaults` so the
-/// gating survives offline launches). Read as `ProgressionRules.freeLevels` etc.
+/// Central constants that govern XP rewards and progression gating. Values are
+/// seeded with sensible defaults and persisted in `UserDefaults`. Content and
+/// rule updates ship through App Store updates in V1. Read as
+/// `ProgressionRules.freeLevels` etc.
 enum ProgressionRules {
     private static let defaults = UserDefaults.standard
 
@@ -54,8 +54,7 @@ enum ProgressionRules {
 
     // MARK: - Persistence
 
-    /// Persist the latest rules pulled from Supabase. Coach edits flow through the
-    /// same store so the UI reflects them immediately, before the next full sync.
+    /// Persist updated progression rules into the local store.
     static func apply(
         xpPerDrill: Int,
         xpLevelBonus: Int,

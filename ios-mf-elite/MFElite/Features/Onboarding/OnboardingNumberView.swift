@@ -76,7 +76,7 @@ struct OnboardingNumberView: View {
             }
             .opacity(number.isEmpty ? 0.4 : 1)
             .disabled(number.isEmpty)
-            StepBar(filled: 6, total: 7)
+            StepBar(filled: 5, total: OnboardingStep.stepTotal)
         }
         .padding(.bottom, DS.Spacing.s24)
     }

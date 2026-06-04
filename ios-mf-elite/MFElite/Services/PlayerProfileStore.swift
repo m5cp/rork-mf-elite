@@ -4,8 +4,8 @@
 //
 //  Lightweight, UserDefaults-backed store for the player's identity captured
 //  during onboarding (name, initials, kit number, position) plus the
-//  onboarding-complete flag. This is the local source of truth for display;
-//  Supabase `player_profiles` is the remote mirror created on completion.
+//  onboarding-complete flag. This is the only source of truth for the player's
+//  identity — V1 is fully local, on-device.
 //
 
 import SwiftUI
@@ -25,7 +25,6 @@ final class PlayerProfileStore {
         static let skipped = "MF_ONBOARDING_SKIPPED"
         static let promptDismissed = "MF_PROFILE_PROMPT_DISMISSED"
         static let sessionCount = "MF_SESSION_COUNT"
-        static let memberNumber = "MF_PLAYER_MEMBER_NUMBER"
     }
 
     private let defaults = UserDefaults.standard
@@ -57,17 +56,6 @@ final class PlayerProfileStore {
     var sessionCount: Int {
         didSet { defaults.set(sessionCount, forKey: Keys.sessionCount) }
     }
-    /// The player's real, sequential member number (issued by Supabase). Nil
-    /// until it has been successfully claimed.
-    var memberNumber: Int? {
-        didSet {
-            if let memberNumber {
-                defaults.set(memberNumber, forKey: Keys.memberNumber)
-            } else {
-                defaults.removeObject(forKey: Keys.memberNumber)
-            }
-        }
-    }
 
     private init() {
         hasCompletedOnboarding = defaults.bool(forKey: Keys.completed)
@@ -78,7 +66,6 @@ final class PlayerProfileStore {
         onboardingSkipped = defaults.bool(forKey: Keys.skipped)
         profilePromptDismissed = defaults.bool(forKey: Keys.promptDismissed)
         sessionCount = defaults.integer(forKey: Keys.sessionCount)
-        memberNumber = defaults.object(forKey: Keys.memberNumber) as? Int
     }
 
     /// Show the Today "complete your profile" banner only to skippers, for the
@@ -112,14 +99,7 @@ final class PlayerProfileStore {
         hasCompletedOnboarding = true
     }
 
-    /// Merge shareable fields returned after redeeming a coach invite code.
-    func applyRosterMerge(name: String?, kit: String?, position: String?) {
-        if let name, !name.isEmpty { displayName = name }
-        if let kit, !kit.isEmpty { kitNumber = kit }
-        if let position, !position.isEmpty { self.position = position }
-    }
-
-    /// Reset for testing / sign-out.
+    /// Reset for testing.
     func reset() {
         hasCompletedOnboarding = false
         displayName = "Player"
@@ -128,6 +108,5 @@ final class PlayerProfileStore {
         position = ""
         onboardingSkipped = false
         profilePromptDismissed = false
-        memberNumber = nil
     }
 }

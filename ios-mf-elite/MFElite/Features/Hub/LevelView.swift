@@ -185,7 +185,7 @@ struct LevelView: View {
     // MARK: - 5. Footer caption
 
     private var footerCaption: some View {
-        Text("Drills synced from Supabase · Coach can add more any time")
+        Text("More drills are added with every MF Elite update")
             .style(.microSm)
             .foregroundStyle(DS.Colors.Ink.quaternary)
             .multilineTextAlignment(.center)

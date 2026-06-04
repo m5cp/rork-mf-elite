@@ -14,8 +14,6 @@ struct AcademyTodayView: View {
     @Query private var progress: [DrillProgress]
     @Environment(SubscriptionService.self) private var subscription
     @State private var profile = PlayerProfileStore.shared
-    @State private var announcements = AnnouncementStore.shared
-    @State private var auth = AuthService.shared
 
     private var viewModel: AcademyTodayViewModel {
         AcademyTodayViewModel(
@@ -36,7 +34,6 @@ struct AcademyTodayView: View {
                         completeProfileBanner
                     }
                     salutation(vm)
-                    announcementCards
                     dailyStandard(vm)
                     goalsCard(vm)
                     continuePathway(vm)
@@ -47,7 +44,6 @@ struct AcademyTodayView: View {
             .background(DS.Colors.Bg.base)
             .scrollIndicators(.hidden)
             .navigationBarHidden(true)
-            .task { await announcements.refresh() }
             .navigationDestination(for: LevelRoute.self) { route in
                 LevelView(level: route.level, category: route.category, discipline: route.discipline)
             }
@@ -105,58 +101,6 @@ struct AcademyTodayView: View {
         .padding(.top, DS.Spacing.s16)
     }
 
-    // MARK: - Coach announcements
-
-    @ViewBuilder
-    private var announcementCards: some View {
-        if !announcements.visible.isEmpty {
-            VStack(spacing: DS.Spacing.s12) {
-                ForEach(announcements.visible) { item in
-                    announcementCard(item)
-                }
-            }
-            .padding(.horizontal, DS.Spacing.s20)
-            .padding(.top, DS.Spacing.s16)
-        }
-    }
-
-    private func announcementCard(_ item: SupabaseAnnouncement) -> some View {
-        Card(padding: DS.Spacing.s16) {
-            VStack(alignment: .leading, spacing: DS.Spacing.s4) {
-                HStack(alignment: .top) {
-                    Eyebrow(text: "Coach Announcement")
-                    Spacer(minLength: DS.Spacing.s8)
-                    Button {
-                        withAnimation(DS.Motion.standardSpring) {
-                            announcements.dismiss(item.id)
-                        }
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(DS.Colors.Ink.quaternary)
-                            .frame(width: 24, height: 24)
-                    }
-                    .buttonStyle(PressableButtonStyle())
-                    .accessibilityLabel("Dismiss announcement")
-                }
-                Text(item.title)
-                    .style(.title3)
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                    .padding(.top, DS.Spacing.s4)
-                if let body = item.body, !body.isEmpty {
-                    Text(body)
-                        .style(.body)
-                        .foregroundStyle(DS.Colors.Ink.tertiary)
-                        .padding(.top, DS.Spacing.s4)
-                }
-            }
-        }
-        .overlay(
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
-        )
-    }
-
     // MARK: - 1. Top Bar
 
     private func topBar(_ vm: AcademyTodayViewModel) -> some View {
@@ -174,9 +118,7 @@ struct AcademyTodayView: View {
             Spacer()
 
             HStack(spacing: DS.Spacing.s8) {
-                if auth.isCoach {
-                    coachBadge
-                } else if !subscription.hasFullAccess {
+                if !subscription.hasFullAccess {
                     upgradeButton
                 }
 
@@ -203,23 +145,6 @@ struct AcademyTodayView: View {
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s12)
-    }
-
-    /// Subtle badge confirming the user is in coach mode (full access).
-    private var coachBadge: some View {
-        Text("COACH")
-            .font(.system(size: 11, weight: .bold))
-            .tracking(1.2)
-            .foregroundStyle(DS.Colors.Ink.primary)
-            .padding(.vertical, 6)
-            .padding(.horizontal, DS.Spacing.s12)
-            .background(DS.Colors.Bg.raised)
-            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
-            .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.pill)
-                    .stroke(DS.Colors.Line.hairline, lineWidth: 1)
-            )
-            .accessibilityLabel("Coach mode")
     }
 
     /// Always-visible upgrade entry point for free (Trialist) players.

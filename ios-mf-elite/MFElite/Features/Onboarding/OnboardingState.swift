@@ -3,7 +3,7 @@
 //  MFElite
 //
 //  Local, transient state captured across the onboarding sequence. Persisted
-//  to PlayerProfileStore + Supabase only on completion.
+//  to PlayerProfileStore (on-device) only on completion.
 //
 
 import SwiftUI
@@ -12,7 +12,6 @@ import Observation
 enum OnboardingStep: Int, CaseIterable {
     case splash
     case code
-    case signIn
     case identify
     case position
     case pledge
@@ -20,15 +19,14 @@ enum OnboardingStep: Int, CaseIterable {
     case passport
 
     /// Total filled segments for the StepBar. Players see 6 chapters; the
-    /// gateway (continue-as-player / coach sign-in) screen is not a counted step.
+    /// splash screen is not a counted step.
     static let stepTotal = 6
 
-    /// 1-of-6 progress index for the StepBar (splash + gateway excluded).
+    /// 1-of-6 progress index for the StepBar (splash excluded).
     var stepIndex: Int {
         switch self {
         case .splash:   return 0
         case .code:     return 1
-        case .signIn:   return 1
         case .identify: return 2
         case .position: return 3
         case .pledge:   return 4
@@ -106,12 +104,6 @@ final class OnboardingState {
     var pledgeTier: PledgeTier = .standard
     var kitNumber: String = ""
 
-    /// Real, sequential member number issued by Supabase on the passport. Nil
-    /// until claimed; the passport shows a pending state rather than a fake
-    /// number. Persisted to PlayerProfileStore once assigned.
-    var memberNumber: Int? = PlayerProfileStore.shared.memberNumber
-    private var isClaimingMemberNumber = false
-
 
     /// Defaults to the upcoming graduation year (next year after July).
     static var defaultClassYear: Int {
@@ -144,22 +136,8 @@ final class OnboardingState {
             .lowercased()
             .filter { $0.isLetter || $0.isNumber }
         let trimmed = base.isEmpty ? "player" : String(base.prefix(12))
-        let suffix = memberNumber.map(String.init) ?? String(Int.random(in: 1000...9999))
+        let suffix = String(Int.random(in: 1000...9999))
         return "\(trimmed)\(suffix)"
-    }
-
-    /// Claim a real, sequential member number from Supabase. Safe to call
-    /// repeatedly — it only fetches once per session and skips if already set.
-    /// When offline the number stays nil and the passport shows a pending state
-    /// until a later attempt succeeds.
-    func claimMemberNumberIfNeeded() async {
-        guard memberNumber == nil, !isClaimingMemberNumber else { return }
-        isClaimingMemberNumber = true
-        defer { isClaimingMemberNumber = false }
-        if let number = await ProfileService.shared.claimMemberNumber() {
-            memberNumber = number
-            PlayerProfileStore.shared.memberNumber = number
-        }
     }
 
     func advance() {
@@ -167,17 +145,15 @@ final class OnboardingState {
         withAnimation(DS.Motion.standardSpring) { step = next }
     }
 
-    /// Step back one screen so the player can fix a mistake. Players skip the
-    /// optional sign-in screen on the way back, landing on The Code instead.
+    /// Step back one screen so the player can fix a mistake.
     func goBack() {
         guard let previous = OnboardingStep(rawValue: step.rawValue - 1) else { return }
-        let target = previous == .signIn ? OnboardingStep.code : previous
-        withAnimation(DS.Motion.standardSpring) { step = target }
+        withAnimation(DS.Motion.standardSpring) { step = previous }
     }
 
     /// Whether a back button should be offered for the current step.
     var canGoBack: Bool {
-        step != .splash && step != .code && step != .signIn
+        step != .splash && step != .code
     }
 
     /// Fill any details the player hasn't supplied with sensible defaults so a

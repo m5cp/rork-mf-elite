@@ -104,7 +104,7 @@ struct OnboardingPositionView: View {
             }
             .opacity(selected == nil ? 0.4 : 1)
             .disabled(selected == nil)
-            StepBar(filled: 4, total: 7)
+            StepBar(filled: 3, total: OnboardingStep.stepTotal)
         }
         .padding(.bottom, DS.Spacing.s24)
     }

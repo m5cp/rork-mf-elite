@@ -212,11 +212,15 @@ struct ParentReportView: View {
         Card(raised: true) {
             VStack(alignment: .leading, spacing: 0) {
                 Eyebrow(text: "Coach Note")
-                Text("A personalized note from the coach will appear here once \(PlayerProfileStore.shared.displayName) has logged their first sessions.")
+                Text("\u{201C}Keep training every day. The discipline you build now will define the player you become.\u{201D}")
                     .font(DS.Typography.callout)
                     .italic()
                     .foregroundStyle(DS.Colors.Ink.secondary)
                     .padding(.top, DS.Spacing.s12 - 2)
+                Text("\u{2014} Coach Matteo Finazzi")
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .padding(.top, DS.Spacing.s8)
             }
         }
         .padding(.horizontal, DS.Spacing.s20)

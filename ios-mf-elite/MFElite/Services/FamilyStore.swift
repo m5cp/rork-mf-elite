@@ -9,8 +9,7 @@
 //  Switching the active athlete mirrors their identity into PlayerProfileStore
 //  so the rest of the app reflects the right person.
 //
-//  Supabase `player_profiles` (sharing one `account_id`) is the remote mirror;
-//  FamilyService syncs this store up best-effort. The app works fully offline.
+//  All data is stored locally on-device. The app works fully offline.
 //
 
 import SwiftUI
@@ -140,7 +139,7 @@ final class FamilyStore {
         guard athletes.isEmpty else { return }
         let profile = PlayerProfileStore.shared
         let primary = Athlete(
-            id: AuthService.shared.user?.id ?? UUID().uuidString,
+            id: UUID().uuidString,
             username: "",
             displayName: profile.displayName,
             kitNumber: profile.kitNumber,
