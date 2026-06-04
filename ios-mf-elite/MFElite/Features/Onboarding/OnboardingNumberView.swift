@@ -63,12 +63,6 @@ struct OnboardingNumberView: View {
                         .foregroundStyle(Color.white.opacity(0.78))
                         .padding(10)
                 }
-                .overlay(alignment: .bottomLeading) {
-                    Text(state.initials)
-                        .style(.microSm)
-                        .foregroundStyle(Color.white.opacity(0.78))
-                        .padding(10)
-                }
 
             Eyebrow(text: "\(state.positionName) · \(state.playerName.isEmpty ? "Athlete" : state.playerName)")
         }

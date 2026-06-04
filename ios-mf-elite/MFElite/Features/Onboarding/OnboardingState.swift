@@ -149,6 +149,19 @@ final class OnboardingState {
         withAnimation(DS.Motion.standardSpring) { step = next }
     }
 
+    /// Step back one screen so the player can fix a mistake. Players skip the
+    /// optional sign-in screen on the way back, landing on The Code instead.
+    func goBack() {
+        guard let previous = OnboardingStep(rawValue: step.rawValue - 1) else { return }
+        let target = previous == .signIn ? OnboardingStep.code : previous
+        withAnimation(DS.Motion.standardSpring) { step = target }
+    }
+
+    /// Whether a back button should be offered for the current step.
+    var canGoBack: Bool {
+        step != .splash && step != .code && step != .signIn
+    }
+
     /// Fill any details the player hasn't supplied with sensible defaults so a
     /// skipped onboarding still produces a complete, editable profile.
     func applySkipDefaults() {

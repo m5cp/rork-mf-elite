@@ -58,6 +58,10 @@ struct OnboardingView: View {
             if state.step != .splash && state.step != .signIn && !isFinishing {
                 skipButton
             }
+
+            if state.canGoBack && !isFinishing {
+                backButton
+            }
         }
         .preferredColorScheme(.dark)
         .sheet(isPresented: $showSkipConfirm) {
@@ -88,6 +92,26 @@ struct OnboardingView: View {
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s12)
+    }
+
+    private var backButton: some View {
+        VStack {
+            HStack {
+                Button { state.goBack() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.secondary)
+                        .frame(width: 44, height: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(PressableButtonStyle())
+                .accessibilityLabel("Back")
+                Spacer()
+            }
+            Spacer()
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s8)
     }
 
     /// After a coach sign-in: recognized coaches skip the player setup entirely

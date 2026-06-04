@@ -36,7 +36,7 @@ struct OnboardingPassportView: View {
                     .foregroundStyle(DS.Colors.Ink.primary)
                     .padding(.top, DS.Spacing.s12)
 
-                Text("You are now Class of \(classYear). Your first session starts now.")
+                Text("You are now Class of \(String(classYear)). Your first session starts now.")
                     .style(.body)
                     .foregroundStyle(DS.Colors.Ink.secondary)
                     .padding(.top, DS.Spacing.s8)
