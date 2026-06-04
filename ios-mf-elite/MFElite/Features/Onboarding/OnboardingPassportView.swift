@@ -21,6 +21,7 @@ struct OnboardingPassportView: View {
 
     private var classYear: Int? { state.classYear }
     private var classYearText: String { classYear.map(String.init) ?? "—" }
+    private var memberNumberText: String { state.memberNumber.map(String.init) ?? "Pending" }
 
     var body: some View {
         ZStack {
@@ -37,7 +38,7 @@ struct OnboardingPassportView: View {
                     .foregroundStyle(DS.Colors.Ink.primary)
                     .padding(.top, DS.Spacing.s12)
 
-                Text(classYear.map { "You are now Class of \($0). Your first session starts now." } ?? "Your first session starts now.")
+                Text(classYear.map { "You are now Class of \(String($0)). Your first session starts now." } ?? "Your first session starts now.")
                     .style(.body)
                     .foregroundStyle(DS.Colors.Ink.secondary)
                     .padding(.top, DS.Spacing.s8)
@@ -57,6 +58,7 @@ struct OnboardingPassportView: View {
         .onAppear {
             withAnimation(DS.Motion.celebrationSpring) { reveal = true }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
+            Task { await state.claimMemberNumberIfNeeded() }
         }
         .sheet(item: $legalURL) { item in
             SafariView(url: item.url).ignoresSafeArea()
@@ -79,7 +81,7 @@ struct OnboardingPassportView: View {
                     .accessibilityLabel("MF Elite")
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text("MF · MEMBER № \(state.memberNumber)")
+                    Text("MF · MEMBER № \(memberNumberText)")
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .tracking(1.2)
                         .foregroundStyle(DS.Colors.Ground.secondary)
@@ -108,7 +110,7 @@ struct OnboardingPassportView: View {
                         .foregroundStyle(DS.Colors.Ground.primary)
                 }
                 Spacer()
-                Text("№ \(state.memberNumber)")
+                Text("№ \(memberNumberText)")
                     .font(DS.Typography.num(size: 14))
                     .foregroundStyle(DS.Colors.Ground.primary)
             }

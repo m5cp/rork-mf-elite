@@ -255,7 +255,7 @@ struct CoachWorkspaceView: View {
                 Hairline()
                 navRow(icon: "square.and.pencil", label: "Build session", route: CoachBuildRoute())
                 Hairline()
-                buttonRow(icon: "doc.text", label: "Parent report") { activeSheet = .parentReport }
+                buttonRow(icon: "doc.text", label: "Player report") { activeSheet = .parentReport }
             }
         }
         .padding(.horizontal, DS.Spacing.s20)

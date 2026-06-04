@@ -662,6 +662,49 @@ CREATE TRIGGER trg_protect_player_username
   FOR EACH ROW EXECUTE FUNCTION protect_player_username();
 
 
+-- -----------------------------------------------------------------------------
+-- member_counter + claim_member_number() — issues a REAL, sequential member
+-- number for the passport (#1, #2, #3 …). Players are NOT authenticated while
+-- building a profile, so this runs as SECURITY DEFINER and is granted to anon.
+-- Each call atomically increments and returns the next id, so every profile
+-- gets a unique, accurate number tied to how many have been built — never a
+-- made-up value. The client only displays the number once this succeeds; if
+-- offline it holds and retries, never showing a fake number.
+-- -----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS member_counter (
+  id     boolean PRIMARY KEY DEFAULT true,        -- single-row table
+  value  integer NOT NULL DEFAULT 0,
+  CONSTRAINT member_counter_singleton CHECK (id)
+);
+
+INSERT INTO member_counter (id, value)
+  VALUES (true, 0)
+  ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE member_counter ENABLE ROW LEVEL SECURITY;
+-- No direct policies: the counter is only ever touched through the SECURITY
+-- DEFINER function below, never read or written directly by clients.
+
+CREATE OR REPLACE FUNCTION claim_member_number()
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $
+DECLARE
+  next_value integer;
+BEGIN
+  UPDATE member_counter
+    SET value = value + 1
+    WHERE id = true
+    RETURNING value INTO next_value;
+  RETURN next_value;
+END;
+$;
+
+GRANT EXECUTE ON FUNCTION claim_member_number() TO anon, authenticated;
+
+
 -- =============================================================================
 -- JWT TRUST (self-owned Supabase only) — REQUIRED for user_id() to work
 -- =============================================================================

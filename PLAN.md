@@ -1,42 +1,27 @@
-# Remove forced sign-in for players, coach-only Google login, and zero out all fake data
+# Fix onboarding number, real member ID, class year, level state, and remove placeholder stats
 
-## What changes
+## What I'll fix
 
-### 1. Players never have to sign in
+**1. Stray letter in the number box**
+On the "Pick your number" screen, the badge currently draws the player's initial (the "J") behind the big number, so it reads like "2J2". I'll make the badge show only the number cleanly, with no letter behind it.
 
-- Right after "The Code" screen, players go **straight into building their profile** — name, position, pledge, kit number, passport. No Apple ID, no email, no password.
-- A player's profile and progress live on their device. Creating a profile is instant and frictionless.
+**2. Real member number (no more made-up number)**
+Right now every player gets a random 4‑digit number. Instead, each new profile will get the **next number in line based on how many profiles already exist in your database** (member #1, #2, #3…), saved permanently to that player. If the phone is offline at sign‑up, the app will **wait and assign the real number once it syncs** rather than showing a fake one — so the number on the passport is always accurate and tied to a real subscriber/profile.
 
-### 2. Coaches are the only ones who sign in
+**3. Class year shows as "2,029"**
+The welcome line still prints the year with a comma. I'll make the class year always display as a clean four‑digit year (e.g. "2029") everywhere it appears, with no comma.
 
-- The sign-in step becomes **optional**, not forced. The screen will show a clear primary action to **"Continue as a player"** and a smaller secondary option: **"MF Elite Coach? Sign in."**
-- Coaches sign in with **Google (Gmail)** so their email matches the authorized coaches list. If their email is on the list, they're recognized as a coach and taken straight to the home screen with full access — skipping all the player setup steps.
-- If someone who isn't on the coaches list signs in, they're simply treated as a regular player (no coach powers).
+**4. "Resume level" when nothing's been started**
+On the Today screen, the pathway card says "Resume level" even at 0 of 4 drills. I'll make it say **"Start level"** when the player hasn't begun, and only say "Resume level" once they've actually made progress.
 
-### 3. New onboarding flow
+**5. "Parent report" → "Player report" everywhere**
+I'll rename it to "Player report" across the app — the paywall feature list, the paywall description text, the report screen itself, and the coach tools that create it.
 
-- **Player sees:** Splash → The Code → Continue as player → Identify → Position → Pledge → Number → Passport → Home.
-- **Coach sees:** Splash → The Code → Coach sign in → Home.
-- The progress bar at the bottom of each step updates to reflect the player's steps (no longer counts a sign-in step).
+**6. Remove the fake 86% consistency**
+The report card shows a hardcoded 86% "consistency" score. I'll make all the report stats reflect **real training data**, so a brand‑new player correctly shows 0% until sessions are logged. As drills are completed, those logged sessions sync to your database and feed the consistency score and XP, so the scores grow from genuine activity.
 
-### 4. Everything starts at zero — no fake data
+## Notes
 
-Across the entire app, nothing is pre-filled with made-up numbers or sample people:
-
-- **Streaks, XP, levels, and stats** all start at zero for a brand-new profile.
-- Any leftover "14-day streak" sample text and example stat values are removed or shown as real zeros/empty states.
-- **Coach roster** no longer shows a fake example athlete — it starts empty until real players exist.
-- **Family / multiple athletes** starts empty.
-- **Parent report and progress screens** show clean empty states instead of placeholder data.
-- The fixed "Coach Matteo Finazzi" placeholder name is no longer hard-coded into a new player's profile.
-
-### Design / feel
-
-- The new "Continue as a player" screen keeps the same cinematic dark MF Elite styling — bold MF mark, the same typography and diagonal-stripe backdrop — so it feels like a natural part of the admission flow, not a barrier.
-- Empty states (no streak yet, no athletes yet, no progress yet) get short, encouraging copy rather than blank space, so the app still feels intentional on day one.
-
-### Notes
-
-- Because players no longer have accounts, their data stays on-device and won't sync to the cloud. Coaches (who do sign in) keep full cloud access to manage curriculum and content.
-- After the changes I'll run a full build check to make sure everything compiles cleanly.
+- All numbers and stats default to zero/empty for a fresh account since the app isn't live yet.
+- I'll build the app to confirm everything compiles cleanly before handing back.
 

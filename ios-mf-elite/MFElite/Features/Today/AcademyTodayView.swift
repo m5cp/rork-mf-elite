@@ -396,7 +396,7 @@ struct AcademyTodayView: View {
                         category: focus.category,
                         level: focus.level
                     )) {
-                        resumeButtonLabel
+                        resumeButtonLabel(started: done > 0)
                     }
                     .buttonStyle(PressableButtonStyle())
                     .padding(.top, DS.Spacing.s16)
@@ -407,8 +407,9 @@ struct AcademyTodayView: View {
     }
 
     /// Styled to match PrimaryButton (medium) but usable as a NavigationLink label.
-    private var resumeButtonLabel: some View {
-        Text("Resume level")
+    /// Reads "Start level" until the player has mastered at least one drill.
+    private func resumeButtonLabel(started: Bool) -> some View {
+        Text(started ? "Resume level" : "Start level")
             .font(.system(size: 17, weight: .bold))
             .tracking(0.1)
             .foregroundStyle(DS.Colors.Ground.primary)

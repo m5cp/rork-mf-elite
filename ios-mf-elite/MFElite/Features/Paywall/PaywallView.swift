@@ -24,7 +24,7 @@ struct PaywallView: View {
         ("Daily training & streaks", true, true),
         ("Levels 2–5 everywhere", false, true),
         ("Certifications", false, true),
-        ("Parent reports", false, true),
+        ("Player reports", false, true),
         ("Streak freezes", false, true)
     ]
 
@@ -111,7 +111,7 @@ struct PaywallView: View {
                 .foregroundStyle(DS.Colors.Ink.primary)
                 .lineSpacing(-6)
                 .padding(.top, DS.Spacing.s8)
-            Text("You’ve unlocked Level 1 of every discipline. Go Elite for every level, certification, and parent report.")
+            Text("You’ve unlocked Level 1 of every discipline. Go Elite for every level, certification, and player report.")
                 .style(.body)
                 .foregroundStyle(DS.Colors.Ink.secondary)
                 .frame(maxWidth: 320, alignment: .leading)

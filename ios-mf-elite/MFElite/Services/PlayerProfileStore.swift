@@ -25,6 +25,7 @@ final class PlayerProfileStore {
         static let skipped = "MF_ONBOARDING_SKIPPED"
         static let promptDismissed = "MF_PROFILE_PROMPT_DISMISSED"
         static let sessionCount = "MF_SESSION_COUNT"
+        static let memberNumber = "MF_PLAYER_MEMBER_NUMBER"
     }
 
     private let defaults = UserDefaults.standard
@@ -56,6 +57,17 @@ final class PlayerProfileStore {
     var sessionCount: Int {
         didSet { defaults.set(sessionCount, forKey: Keys.sessionCount) }
     }
+    /// The player's real, sequential member number (issued by Supabase). Nil
+    /// until it has been successfully claimed.
+    var memberNumber: Int? {
+        didSet {
+            if let memberNumber {
+                defaults.set(memberNumber, forKey: Keys.memberNumber)
+            } else {
+                defaults.removeObject(forKey: Keys.memberNumber)
+            }
+        }
+    }
 
     private init() {
         hasCompletedOnboarding = defaults.bool(forKey: Keys.completed)
@@ -66,6 +78,7 @@ final class PlayerProfileStore {
         onboardingSkipped = defaults.bool(forKey: Keys.skipped)
         profilePromptDismissed = defaults.bool(forKey: Keys.promptDismissed)
         sessionCount = defaults.integer(forKey: Keys.sessionCount)
+        memberNumber = defaults.object(forKey: Keys.memberNumber) as? Int
     }
 
     /// Show the Today "complete your profile" banner only to skippers, for the
@@ -115,5 +128,6 @@ final class PlayerProfileStore {
         position = ""
         onboardingSkipped = false
         profilePromptDismissed = false
+        memberNumber = nil
     }
 }

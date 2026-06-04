@@ -50,6 +50,27 @@ final class ProfileService {
         }
     }
 
+    // MARK: - Member number
+
+    /// Atomically claim the next sequential member number from Supabase via the
+    /// `claim_member_number` SECURITY DEFINER RPC. Works even when no user is
+    /// signed in (players don't authenticate). Returns nil when Supabase isn't
+    /// configured or the network fails, so the caller can show a pending state
+    /// and retry later instead of inventing a fake number.
+    func claimMemberNumber() async -> Int? {
+        guard isConfigured else { return nil }
+        do {
+            let value: Int = try await client
+                .rpc("claim_member_number")
+                .execute()
+                .value
+            return value
+        } catch {
+            print("[ProfileService] claimMemberNumber failed: \(error)")
+            return nil
+        }
+    }
+
     // MARK: - Player self-create (onboarding)
 
     /// Upsert the signed-in player's own shareable profile. `id == account_id`

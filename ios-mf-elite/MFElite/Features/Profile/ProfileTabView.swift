@@ -112,7 +112,7 @@ struct ProfileTabView: View {
             menuRow(icon: "gearshape", label: "Settings",
                     route: SettingsRoute())
             Hairline()
-            menuRow(icon: "doc.text", label: "Parent Report",
+            menuRow(icon: "doc.text", label: "Player Report",
                     route: ParentReportRoute())
             if auth.isCoach {
                 Hairline()

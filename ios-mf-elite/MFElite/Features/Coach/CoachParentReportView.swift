@@ -64,7 +64,7 @@ struct CoachParentReportView: View {
             }
             .background(DS.Colors.Bg.base)
             .scrollIndicators(.hidden)
-            .navigationTitle("Parent Report")
+            .navigationTitle("Player Report")
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDoneButton { isFocused = false }
             .toolbar {

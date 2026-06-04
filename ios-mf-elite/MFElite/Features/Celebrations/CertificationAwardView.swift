@@ -51,7 +51,7 @@ struct CertificationAwardView: View {
                         .foregroundStyle(DS.Colors.Ink.primary)
                         .multilineTextAlignment(.center)
 
-                    Text("Your coach will sign this certification. It will appear on your parent report and academy record.")
+                    Text("Your coach will sign this certification. It will appear on your player report and academy record.")
                         .style(.body)
                         .foregroundStyle(DS.Colors.Ink.secondary)
                         .multilineTextAlignment(.center)

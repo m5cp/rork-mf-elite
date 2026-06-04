@@ -106,8 +106,11 @@ final class OnboardingState {
     var pledgeTier: PledgeTier = .standard
     var kitNumber: String = ""
 
-    /// Member number issued on the passport — a stable random 4-digit ID.
-    let memberNumber: Int = Int.random(in: 1000...9999)
+    /// Real, sequential member number issued by Supabase on the passport. Nil
+    /// until claimed; the passport shows a pending state rather than a fake
+    /// number. Persisted to PlayerProfileStore once assigned.
+    var memberNumber: Int? = PlayerProfileStore.shared.memberNumber
+    private var isClaimingMemberNumber = false
 
 
     /// Defaults to the upcoming graduation year (next year after July).
@@ -141,7 +144,22 @@ final class OnboardingState {
             .lowercased()
             .filter { $0.isLetter || $0.isNumber }
         let trimmed = base.isEmpty ? "player" : String(base.prefix(12))
-        return "\(trimmed)\(memberNumber)"
+        let suffix = memberNumber.map(String.init) ?? String(Int.random(in: 1000...9999))
+        return "\(trimmed)\(suffix)"
+    }
+
+    /// Claim a real, sequential member number from Supabase. Safe to call
+    /// repeatedly — it only fetches once per session and skips if already set.
+    /// When offline the number stays nil and the passport shows a pending state
+    /// until a later attempt succeeds.
+    func claimMemberNumberIfNeeded() async {
+        guard memberNumber == nil, !isClaimingMemberNumber else { return }
+        isClaimingMemberNumber = true
+        defer { isClaimingMemberNumber = false }
+        if let number = await ProfileService.shared.claimMemberNumber() {
+            memberNumber = number
+            PlayerProfileStore.shared.memberNumber = number
+        }
     }
 
     func advance() {

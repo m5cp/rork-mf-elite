@@ -49,7 +49,7 @@ struct OnboardingNumberView: View {
 
     private var monogramPreview: some View {
         VStack(spacing: DS.Spacing.s12) {
-            Monogram(size: 168, initials: state.initials, kit: nil)
+            Monogram(size: 168, initials: "", kit: nil)
                 .overlay {
                     Text(displayNumber)
                         .font(.system(size: 110, weight: .heavy))

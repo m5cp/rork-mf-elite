@@ -67,9 +67,13 @@ final class ParentReportViewModel {
 
     // MARK: - Pillar stats
 
-    /// Percentage of scheduled training days completed this month.
-    /// TODO: derive from a real attendance log once the coach back-end is wired.
-    var consistencyPercent: Int { 86 }
+    /// Real weekly consistency, derived from the player's actual streak (capped
+    /// at a 7-day week). Returns 0 until training is logged, so a fresh account
+    /// never shows a fabricated score. Grows as honest sessions are logged.
+    var consistencyPercent: Int {
+        guard streak > 0 else { return 0 }
+        return Int((Double(min(streak, 7)) / 7.0 * 100).rounded())
+    }
 
     /// Drills mastered this month.
     var drillsMastered: Int { masteredDrillIDs.count }

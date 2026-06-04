@@ -38,7 +38,7 @@ struct TierCompareView: View {
         FeatureGroup(title: "Psychological", rows: [
             ("Daily mindset quote", true),
             ("Mind training exercises", false),
-            ("Certifications & parent reports", false)
+            ("Certifications & player reports", false)
         ])
     ]
 
