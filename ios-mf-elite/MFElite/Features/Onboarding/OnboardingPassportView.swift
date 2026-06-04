@@ -19,7 +19,8 @@ struct OnboardingPassportView: View {
     private let termsURL = URL(string: "https://m5cairio.com/mfelite/terms")!
     private let privacyURL = URL(string: "https://m5cairio.com/mfelite/privacy")!
 
-    private var classYear: Int { state.classYear }
+    private var classYear: Int? { state.classYear }
+    private var classYearText: String { classYear.map(String.init) ?? "—" }
 
     var body: some View {
         ZStack {
@@ -36,7 +37,7 @@ struct OnboardingPassportView: View {
                     .foregroundStyle(DS.Colors.Ink.primary)
                     .padding(.top, DS.Spacing.s12)
 
-                Text("You are now Class of \(String(classYear)). Your first session starts now.")
+                Text(classYear.map { "You are now Class of \($0). Your first session starts now." } ?? "Your first session starts now.")
                     .style(.body)
                     .foregroundStyle(DS.Colors.Ink.secondary)
                     .padding(.top, DS.Spacing.s8)
@@ -82,7 +83,7 @@ struct OnboardingPassportView: View {
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .tracking(1.2)
                         .foregroundStyle(DS.Colors.Ground.secondary)
-                    Text("CLASS · \(classYear)")
+                    Text("CLASS · \(classYearText)")
                         .font(.system(size: 9, weight: .medium, design: .monospaced))
                         .tracking(1.2)
                         .foregroundStyle(DS.Colors.Ground.tertiary)
@@ -145,7 +146,7 @@ struct OnboardingPassportView: View {
             }
             HStack(spacing: 0) {
                 fieldCell("FOOT", state.foot)
-                fieldCell("CLASS", String(classYear))
+                fieldCell("CLASS", classYearText)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

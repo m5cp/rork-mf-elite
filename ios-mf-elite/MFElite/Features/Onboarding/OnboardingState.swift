@@ -100,7 +100,7 @@ final class OnboardingState {
     var step: OnboardingStep = .splash
 
     var playerName: String = ""
-    var classYear: Int = OnboardingState.defaultClassYear
+    var classYear: Int? = nil
     var selectedPosition: PitchPosition? = nil
     var foot: String = "Right"
     var pledgeTier: PledgeTier = .standard

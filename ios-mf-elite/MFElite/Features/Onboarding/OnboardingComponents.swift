@@ -140,10 +140,18 @@ struct UnderlineField: View {
 /// A scroll-wheel year selector styled to match the editorial underline input.
 /// No keyboard — pure selection. Tapping the field reveals a native wheel.
 struct YearPickerField: View {
-    @Binding var year: Int
+    @Binding var year: Int?
     var range: ClosedRange<Int> = 1980...2050
 
     @State private var expanded = false
+
+    /// Year used to seat the wheel when nothing has been chosen yet.
+    private var wheelSelection: Binding<Int> {
+        Binding(
+            get: { year ?? OnboardingState.defaultClassYear },
+            set: { year = $0 }
+        )
+    }
 
     var body: some View {
         VStack(spacing: DS.Spacing.s8) {
@@ -152,9 +160,9 @@ struct YearPickerField: View {
                 withAnimation(DS.Motion.standardSpring) { expanded.toggle() }
             } label: {
                 HStack {
-                    Text(String(year))
+                    Text(year.map(String.init) ?? "Select year")
                         .font(.system(size: 22, weight: .bold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .foregroundStyle(year == nil ? DS.Colors.Ink.quaternary : DS.Colors.Ink.primary)
                     Spacer()
                     Image(systemName: expanded ? "chevron.up" : "chevron.down")
                         .font(.system(size: 13, weight: .semibold))
@@ -163,14 +171,14 @@ struct YearPickerField: View {
             }
             .buttonStyle(PressableButtonStyle())
             .accessibilityLabel("Class year")
-            .accessibilityValue(String(year))
+            .accessibilityValue(year.map(String.init) ?? "Not set")
 
             Rectangle()
                 .fill(Color.white)
                 .frame(height: 1.5)
 
             if expanded {
-                Picker("Class year", selection: $year) {
+                Picker("Class year", selection: wheelSelection) {
                     ForEach(Array(range), id: \.self) { value in
                         Text(String(value))
                             .foregroundStyle(DS.Colors.Ink.primary)

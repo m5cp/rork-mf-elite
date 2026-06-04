@@ -12,11 +12,11 @@ struct OnboardingIdentifyView: View {
     let state: OnboardingState
 
     @State private var name: String = ""
-    @State private var classYear: Int = OnboardingState.defaultClassYear
+    @State private var classYear: Int? = nil
     @FocusState private var nameFocused: Bool
 
     private var canContinue: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && classYear != nil
     }
 
     var body: some View {
