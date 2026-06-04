@@ -20,6 +20,9 @@ struct ProfileTabView: View {
 
     private var profile = PlayerProfileStore.shared
 
+    @State private var showAvatarPicker = false
+    @State private var showEditProfile = false
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -56,6 +59,12 @@ struct ProfileTabView: View {
             .navigationDestination(for: SettingsRoute.self) { _ in
                 SettingsView()
             }
+            .sheet(isPresented: $showAvatarPicker) {
+                AvatarPickerSheet()
+            }
+            .sheet(isPresented: $showEditProfile) {
+                EditProfileSheet()
+            }
         }
     }
 
@@ -63,7 +72,30 @@ struct ProfileTabView: View {
 
     private var playerCard: some View {
         VStack(spacing: 0) {
-            Monogram(size: 80, initials: profile.initials, kit: profile.kitNumber)
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                showAvatarPicker = true
+            } label: {
+                AvatarView(
+                    selection: profile.avatar,
+                    photo: profile.avatarPhoto,
+                    initials: profile.initials,
+                    kit: profile.kitNumber,
+                    size: 88,
+                    shape: .circle
+                )
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(.black)
+                        .frame(width: 28, height: 28)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(DS.Colors.Bg.base, lineWidth: 2))
+                }
+            }
+            .buttonStyle(PressableButtonStyle())
+            .accessibilityLabel("Change avatar")
 
             Text(profile.displayName)
                 .style(.title1)
@@ -72,6 +104,24 @@ struct ProfileTabView: View {
 
             Eyebrow(text: "Rank \(currentRank.numeral) · \(currentRank.title) · \(xp.formatted()) XP")
                 .padding(.top, DS.Spacing.s8)
+
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                showEditProfile = true
+            } label: {
+                HStack(spacing: DS.Spacing.s8) {
+                    Image(systemName: "pencil")
+                        .font(.system(size: 12, weight: .semibold))
+                    Text("Edit profile")
+                        .style(.foot)
+                }
+                .foregroundStyle(DS.Colors.Ink.primary)
+                .padding(.vertical, DS.Spacing.s8)
+                .padding(.horizontal, DS.Spacing.s16)
+                .overlay(Capsule().stroke(DS.Colors.Line.subtle, lineWidth: 1))
+            }
+            .buttonStyle(PressableButtonStyle())
+            .padding(.top, DS.Spacing.s16)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, DS.Spacing.s20)

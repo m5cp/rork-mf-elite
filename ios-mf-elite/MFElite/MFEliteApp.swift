@@ -53,6 +53,7 @@ struct MFEliteApp: App {
                     // If already authorized, keep the daily reminder scheduled.
                     NotificationService.shared.scheduleDailyReminderIfAuthorized()
                     profileStore.incrementSession()
+                    KeyboardWarmup.run()
                 }
         }
         .modelContainer(container)

@@ -1,23 +1,23 @@
-# Strip Supabase & auth — local-only V1
+# Add player avatars (photo or built-in) and remove the swipe-typing popup
 
-V1 ships as a standalone, local-only training app. All data lives in SwiftData on-device. Supabase, authentication, and coach self-service are deferred to V2.
+## Avatars on the player card & profile
 
-## Done in this patch
+**What you'll be able to do**
+- On your player card (the white passport during onboarding) and the profile header, the plain photo box / initials badge becomes a tappable avatar.
+- Tapping it opens a chooser where you can **upload a photo from your library** or **pick from a set of built-in MF avatars**.
+- Your chosen avatar is saved on your device and shown on both the passport card and the profile screen.
 
-- [x] Removed all Supabase code, services, and the SPM package
-- [x] Removed all authentication (no Sign in with Apple/Google/Rork Auth)
-- [x] Removed the Coach Workspace and every coach view + coach role logic
-- [x] Removed the announcements system
-- [x] Simplified onboarding: Splash → Code → Identify → Position → Pledge → Number → Passport (no sign-in step)
-- [x] Removed member-number concept (no backend to issue real sequential numbers)
-- [x] Simplified Settings: no sign out, no delete account, no coach access; added on-device data note
-- [x] Subscription gating now keyed off RevenueCat only
-- [x] Family management works fully locally (no remote sync)
-- [x] Drill progress saves locally only (no progress sync)
-- [x] Player report uses hardcoded Coach Matteo Finazzi note
+**Editing your profile**
+- In the profile screen you'll be able to **change your avatar, edit your name, and edit your kit number** in one place (a simple "Edit profile" sheet), with changes saved instantly.
 
-## Stays the same
+**Design**
+- The avatar sits in the same spot as today's photo placeholder — a clean rounded square on the passport card and a circular avatar on the profile header, matching the app's black-and-white editorial style.
+- Built-in MF avatars will be simple, on-brand monogram/crest style tiles so they look intentional, not generic.
+- A small camera/edit glyph overlays the avatar so it's clear it can be changed; tapping gives haptic feedback.
 
-- Full curriculum from bundled JSON, drill player, XP/streak/progression, certifications
-- Today, Academy Hub, search, library, routines, streak detail, progression, badges
-- RevenueCat paywall and content gating, local notifications, design system
+## Remove the "Speed up your typing" popup
+- The popup is an iOS system tutorial that appears the first time the keyboard opens (on the name screen). I'll quietly trigger and dismiss it in the background at app launch so you never see it interrupt onboarding.
+
+## Screens affected
+- **Onboarding passport card** — photo box becomes the chosen avatar.
+- **Profile header** — initials badge becomes the chosen avatar, plus a new "Edit profile" sheet for avatar, name, and number.

@@ -15,6 +15,8 @@ struct OnboardingPassportView: View {
 
     @State private var reveal = false
     @State private var legalURL: IdentifiableURL?
+    @State private var showAvatarPicker = false
+    @State private var profile = PlayerProfileStore.shared
 
     private let termsURL = URL(string: "https://m5cairio.com/mfelite/terms")!
     private let privacyURL = URL(string: "https://m5cairio.com/mfelite/privacy")!
@@ -60,6 +62,9 @@ struct OnboardingPassportView: View {
         }
         .sheet(item: $legalURL) { item in
             SafariView(url: item.url).ignoresSafeArea()
+        }
+        .sheet(isPresented: $showAvatarPicker) {
+            AvatarPickerSheet()
         }
     }
 
@@ -120,11 +125,32 @@ struct OnboardingPassportView: View {
     }
 
     private var photoBox: some View {
-        ZStack {
-            PhotoPlaceholder(height: 116, label: "PHOTO")
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            showAvatarPicker = true
+        } label: {
+            AvatarView(
+                selection: profile.avatar,
+                photo: profile.avatarPhoto,
+                initials: profile.initials,
+                kit: nil,
+                size: 92,
+                shape: .roundedRect(DS.Radius.sm)
+            )
+            .frame(height: 116, alignment: .top)
+            .overlay(alignment: .bottomTrailing) {
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(.black)
+                    .frame(width: 24, height: 24)
+                    .background(Color.white)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(Color.black.opacity(0.15), lineWidth: 1))
+                    .offset(x: 4, y: 4)
+            }
         }
-        .frame(width: 92, height: 116)
-        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("Change avatar")
     }
 
     private var identityFields: some View {
@@ -220,9 +246,12 @@ struct OnboardingPassportView: View {
 }
 
 #Preview {
-    let state = OnboardingState()
-    state.playerName = "Marcus Bell"
-    state.kitNumber = "10"
-    state.foot = "Right"
-    return OnboardingPassportView(state: state, isFinishing: false, onEnter: {})
+    let state: OnboardingState = {
+        let s = OnboardingState()
+        s.playerName = "Marcus Bell"
+        s.kitNumber = "10"
+        s.foot = "Right"
+        return s
+    }()
+    OnboardingPassportView(state: state, isFinishing: false, onEnter: {})
 }
