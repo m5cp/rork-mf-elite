@@ -59,9 +59,9 @@ final class PlayerProfileStore {
 
     private init() {
         hasCompletedOnboarding = defaults.bool(forKey: Keys.completed)
-        displayName = defaults.string(forKey: Keys.name) ?? "Player One"
+        displayName = defaults.string(forKey: Keys.name) ?? "Player"
         username = defaults.string(forKey: Keys.username) ?? ""
-        kitNumber = defaults.string(forKey: Keys.kit) ?? "09"
+        kitNumber = defaults.string(forKey: Keys.kit) ?? ""
         position = defaults.string(forKey: Keys.position) ?? ""
         onboardingSkipped = defaults.bool(forKey: Keys.skipped)
         profilePromptDismissed = defaults.bool(forKey: Keys.promptDismissed)
@@ -82,7 +82,7 @@ final class PlayerProfileStore {
             .split(separator: " ")
             .map { String($0) }
             .filter { !$0.isEmpty }
-        guard let first = parts.first?.first else { return "P1" }
+        guard let first = parts.first?.first else { return "P" }
         if parts.count >= 2, let second = parts[1].first {
             return "\(first)\(second)".uppercased()
         }
@@ -109,9 +109,9 @@ final class PlayerProfileStore {
     /// Reset for testing / sign-out.
     func reset() {
         hasCompletedOnboarding = false
-        displayName = "Player One"
+        displayName = "Player"
         username = ""
-        kitNumber = "09"
+        kitNumber = ""
         position = ""
         onboardingSkipped = false
         profilePromptDismissed = false

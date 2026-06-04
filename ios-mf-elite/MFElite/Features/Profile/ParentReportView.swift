@@ -35,7 +35,7 @@ struct ParentReportView: View {
                 pillars(vm)
                 narrative(vm)
                 attendance(vm)
-                coachNote
+                coachNote(vm)
                 ctas
             }
             .padding(.bottom, 120)
@@ -208,19 +208,15 @@ struct ParentReportView: View {
 
     // MARK: - 5. Coach note
 
-    private var coachNote: some View {
+    private func coachNote(_ vm: ParentReportViewModel) -> some View {
         Card(raised: true) {
             VStack(alignment: .leading, spacing: 0) {
                 Eyebrow(text: "Coach Note")
-                Text("Player One is progressing well through the Technical pathway. Focus next month on Tactical awareness — positioning and scanning will round out the development profile.")
+                Text("A personalized note from the coach will appear here once \(PlayerProfileStore.shared.displayName) has logged their first sessions.")
                     .font(DS.Typography.callout)
                     .italic()
                     .foregroundStyle(DS.Colors.Ink.secondary)
                     .padding(.top, DS.Spacing.s12 - 2)
-                Text("— Coach Williams")
-                    .style(.foot)
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
-                    .padding(.top, DS.Spacing.s12)
             }
         }
         .padding(.horizontal, DS.Spacing.s20)

@@ -164,8 +164,8 @@ final class FamilyStore {
     /// the player card, and reports all show the active athlete.
     private func mirrorToProfileStore(_ athlete: Athlete) {
         let profile = PlayerProfileStore.shared
-        profile.displayName = athlete.displayName.isEmpty ? "Player One" : athlete.displayName
-        profile.kitNumber = athlete.kitNumber.isEmpty ? "09" : athlete.kitNumber
+        profile.displayName = athlete.displayName.isEmpty ? "Player" : athlete.displayName
+        profile.kitNumber = athlete.kitNumber
         profile.position = athlete.position
     }
 

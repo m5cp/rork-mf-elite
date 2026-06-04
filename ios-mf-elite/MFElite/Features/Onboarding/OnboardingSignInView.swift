@@ -2,16 +2,18 @@
 //  OnboardingSignInView.swift
 //  MFElite
 //
-//  Step 2 — Sign in with Apple. Triggered right after "The Code". Authenticates
-//  the user up-front so coaches can be detected and routed straight to the
-//  academy, while players continue the cinematic admission flow.
+//  The gateway shown right after "The Code". Players continue with no sign-in
+//  and go straight into building their profile. Only MF Elite coaches sign in
+//  — with Google, so the resolved Gmail matches the authorized coaches list.
 //
 
 import SwiftUI
 
 struct OnboardingSignInView: View {
     let state: OnboardingState
-    /// Called after a successful sign-in. The coordinator decides routing.
+    /// Continue as a player — no account, no email. Advances the cinematic flow.
+    let onContinueAsPlayer: () -> Void
+    /// Called after a coach sign-in completes. The coordinator decides routing.
     let onAuthenticated: () -> Void
 
     @State private var auth = AuthService.shared
@@ -36,11 +38,11 @@ struct OnboardingSignInView: View {
 
                 VStack(spacing: DS.Spacing.s12) {
                     Eyebrow(text: "Join the Academy")
-                    Text("Sign in to continue")
+                    Text("Claim your place")
                         .style(.title1)
                         .foregroundStyle(DS.Colors.Ink.primary)
                         .multilineTextAlignment(.center)
-                    Text("Use your Apple ID to secure your academy profile.")
+                    Text("No account needed — set up your profile and start training in seconds.")
                         .style(.body)
                         .foregroundStyle(DS.Colors.Ink.secondary)
                         .multilineTextAlignment(.center)
@@ -50,16 +52,15 @@ struct OnboardingSignInView: View {
                 Spacer()
 
                 VStack(spacing: DS.Spacing.s16) {
-                    appleButton
+                    PrimaryButton(label: "Continue as a player") {
+                        onContinueAsPlayer()
+                    }
 
-                    Text("Coaches: choose “Share My Email” to verify your access.")
-                        .style(.micro)
-                        .foregroundStyle(DS.Colors.Ink.quaternary)
-                        .multilineTextAlignment(.center)
+                    coachSignInButton
 
                     legalConsent
 
-                    StepBar(filled: 2, total: 7)
+                    StepBar(filled: 1, total: OnboardingStep.stepTotal)
                 }
                 .padding(.bottom, DS.Spacing.s24)
             }
@@ -75,33 +76,35 @@ struct OnboardingSignInView: View {
         }
     }
 
-    private var appleButton: some View {
+    /// Coach-only entry point. Uses Google so the email matches the coaches table.
+    private var coachSignInButton: some View {
         Button {
             Task {
-                await auth.signInWithApple()
+                await auth.signInWithGoogle()
                 if auth.isAuthenticated { onAuthenticated() }
             }
         } label: {
             HStack(spacing: DS.Spacing.s8) {
                 if auth.isSigningIn {
                     ProgressView()
-                        .tint(DS.Colors.Ground.primary)
+                        .tint(DS.Colors.Ink.primary)
                 } else {
-                    Image(systemName: "apple.logo")
-                        .font(.system(size: 18, weight: .medium))
-                    Text("Sign in with Apple")
-                        .font(.system(size: 18, weight: .semibold))
+                    Image(systemName: "shield.lefthalf.filled")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("MF Elite Coach? Sign in")
+                        .font(.system(size: 15, weight: .semibold))
                 }
             }
-            .foregroundStyle(DS.Colors.Ground.primary)
+            .foregroundStyle(DS.Colors.Ink.secondary)
             .frame(maxWidth: .infinity)
-            .frame(height: 56)
-            .background(Color.white)
-            .clipShape(Capsule())
+            .frame(height: 50)
+            .overlay(
+                Capsule().stroke(DS.Colors.Line.subtle, lineWidth: 1)
+            )
         }
         .buttonStyle(PressableButtonStyle())
         .disabled(auth.isSigningIn)
-        .accessibilityLabel("Sign in with Apple")
+        .accessibilityLabel("MF Elite coach sign in with Google")
     }
 
     private var legalConsent: some View {
@@ -128,6 +131,6 @@ struct OnboardingSignInView: View {
 }
 
 #Preview {
-    OnboardingSignInView(state: OnboardingState(), onAuthenticated: {})
+    OnboardingSignInView(state: OnboardingState(), onContinueAsPlayer: {}, onAuthenticated: {})
         .preferredColorScheme(.dark)
 }

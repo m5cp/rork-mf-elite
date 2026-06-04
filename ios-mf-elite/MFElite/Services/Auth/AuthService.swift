@@ -87,6 +87,12 @@ final class AuthService {
         await signIn(provider: "apple")
     }
 
+    /// Sign in with Google via Rork Auth. Used for coach access so the
+    /// resolved email matches the Gmail addresses in the `coaches` table.
+    func signInWithGoogle() async {
+        await signIn(provider: "google")
+    }
+
     func signIn(provider: String) async {
         isSigningIn = true
         defer { isSigningIn = false }

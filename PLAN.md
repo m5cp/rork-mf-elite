@@ -1,41 +1,42 @@
-# Fix sign-in, splash flash, fake streak, free tier value, and remove film
+# Remove forced sign-in for players, coach-only Google login, and zero out all fake data
 
-## What I'll fix
+## What changes
 
-### 1. Splash flash on launch
+### 1. Players never have to sign in
 
-Right now the home screen briefly appears before the splash/onboarding shows. I'll make the splash appear instantly on every launch and hold it until the app has finished checking whether you're signed in — so new users see a clean splash → The Code → sign-in, and returning users see the splash then go straight home. No more home-then-splash flicker.
+- Right after "The Code" screen, players go **straight into building their profile** — name, position, pledge, kit number, passport. No Apple ID, no email, no password.
+- A player's profile and progress live on their device. Creating a profile is instant and frictionless.
 
-### 2. The fake 14-day streak
+### 2. Coaches are the only ones who sign in
 
-New users are currently seeded with a "demo" player that pretends they already have a 14-day streak and a pile of completed drills. I'll change this so a brand-new player starts at zero — 0-day streak, no XP, nothing marked complete. The full curriculum still loads; only the fake progress is removed. Anything that hardcodes "14-day streak" in copy (e.g. the parent report sample text) will be made dynamic or neutral.
+- The sign-in step becomes **optional**, not forced. The screen will show a clear primary action to **"Continue as a player"** and a smaller secondary option: **"MF Elite Coach? Sign in."**
+- Coaches sign in with **Google (Gmail)** so their email matches the authorized coaches list. If their email is on the list, they're recognized as a coach and taken straight to the home screen with full access — skipping all the player setup steps.
+- If someone who isn't on the coaches list signs in, they're simply treated as a regular player (no coach powers).
 
-### 3. Sign in with Apple not working
+### 3. New onboarding flow
 
-I'll harden the sign-in so it can't silently stall: clear loading feedback on the button, a visible error if Apple auth fails or times out, and a reliable retry. This makes the "Sign in with Apple" button actually complete and move you into the app.
+- **Player sees:** Splash → The Code → Continue as player → Identify → Position → Pledge → Number → Passport → Home.
+- **Coach sees:** Splash → The Code → Coach sign in → Home.
+- The progress bar at the bottom of each step updates to reflect the player's steps (no longer counts a sign-in step).
 
-### 4. Free tier — real, enticing value
+### 4. Everything starts at zero — no fake data
 
-Today the messaging makes free look like "Level 1 only." The app already unlocks **Level 1 of every discipline and category** for free — a real taste of the whole academy. I'll fix the paywall and comparison copy to clearly sell this: free users explore Technical, Physical, Tactical, and Psychological pathways at Level 1, and Elite unlocks every level beyond. This makes the freemium split honest and compelling.
+Across the entire app, nothing is pre-filled with made-up numbers or sample people:
 
-### 5. Remove all "film" features and mentions
+- **Streaks, XP, levels, and stats** all start at zero for a brand-new profile.
+- Any leftover "14-day streak" sample text and example stat values are removed or shown as real zeros/empty states.
+- **Coach roster** no longer shows a fake example athlete — it starts empty until real players exist.
+- **Family / multiple athletes** starts empty.
+- **Parent report and progress screens** show clean empty states instead of placeholder data.
+- The fixed "Coach Matteo Finazzi" placeholder name is no longer hard-coded into a new player's profile.
 
-There is no film study or film vault, so I'll remove every reference to it:
+### Design / feel
 
-- Remove "Tactical film library" / "Intro film session" / "Full tactical film library" from the paywall and comparison screens.
-- Remove "Film Library" from the post-purchase welcome perks.
-- Replace the "Daily film — watched" daily goal on the home screen with a real goal (a technical drill focus).
-- Relabel the drill detail's "DEMO film" header to simply a demo preview, so no "film" wording remains anywhere.
+- The new "Continue as a player" screen keeps the same cinematic dark MF Elite styling — bold MF mark, the same typography and diagonal-stripe backdrop — so it feels like a natural part of the admission flow, not a barrier.
+- Empty states (no streak yet, no athletes yet, no progress yet) get short, encouraging copy rather than blank space, so the app still feels intentional on day one.
 
-## Design
+### Notes
 
-Everything stays in the existing black, mono-accent MF Elite aesthetic. The free-vs-Elite comparison will read cleanly with the film rows replaced by genuine pathway value, and the welcome perks will reflect what users actually get.
-
-## After this
-
-- Clean splash with no flicker on launch
-- New players start at zero (no fake streak or fake completed drills)
-- Sign in with Apple completes reliably with proper feedback
-- Free tier clearly offers Level 1 across every discipline
-- No mention of film anywhere in the app
+- Because players no longer have accounts, their data stays on-device and won't sync to the cloud. Coaches (who do sign in) keep full cloud access to manage curriculum and content.
+- After the changes I'll run a full build check to make sure everything compiles cleanly.
 

@@ -19,20 +19,21 @@ enum OnboardingStep: Int, CaseIterable {
     case number
     case passport
 
-    /// Total filled segments for the StepBar (players see 7 chapters; splash excluded).
-    static let stepTotal = 7
+    /// Total filled segments for the StepBar. Players see 6 chapters; the
+    /// gateway (continue-as-player / coach sign-in) screen is not a counted step.
+    static let stepTotal = 6
 
-    /// 1-of-7 progress index for the StepBar (splash excluded).
+    /// 1-of-6 progress index for the StepBar (splash + gateway excluded).
     var stepIndex: Int {
         switch self {
         case .splash:   return 0
         case .code:     return 1
-        case .signIn:   return 2
-        case .identify: return 3
-        case .position: return 4
-        case .pledge:   return 5
-        case .number:   return 6
-        case .passport: return 7
+        case .signIn:   return 1
+        case .identify: return 2
+        case .position: return 3
+        case .pledge:   return 4
+        case .number:   return 5
+        case .passport: return 6
         }
     }
 }
@@ -108,8 +109,6 @@ final class OnboardingState {
     /// Member number issued on the passport — a stable random 4-digit ID.
     let memberNumber: Int = Int.random(in: 1000...9999)
 
-    /// Coach is fixed for the academy.
-    static let coachName = "Coach Matteo Finazzi"
 
     /// Defaults to the upcoming graduation year (next year after July).
     static var defaultClassYear: Int {
@@ -129,7 +128,7 @@ final class OnboardingState {
             .split(separator: " ")
             .map { String($0) }
             .filter { !$0.isEmpty }
-        guard let first = parts.first?.first else { return "P1" }
+        guard let first = parts.first?.first else { return "P" }
         if parts.count >= 2, let second = parts[1].first {
             return "\(first)\(second)".uppercased()
         }
@@ -157,12 +156,10 @@ final class OnboardingState {
             playerName = "Player"
         }
         if selectedPosition == nil {
-            skippedPositionName = "Midfielder"
+            skippedPositionName = "No preference"
         }
-        if kitNumber.isEmpty {
-            kitNumber = "00"
-        }
-        // pledgeTier defaults to .standard and foot defaults to "Right".
+        // kit number stays empty if not chosen; pledgeTier defaults to
+        // .standard and foot defaults to "Right".
     }
 
     /// Position name override used only when onboarding is skipped without a

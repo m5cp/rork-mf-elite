@@ -49,7 +49,7 @@ struct OnboardingCodeView: View {
                         Spacer()
                         ArrowCTA(label: "I'm in") { state.advance() }
                     }
-                    StepBar(filled: 1, total: 7)
+                    StepBar(filled: 1, total: OnboardingStep.stepTotal)
                 }
                 .padding(.bottom, DS.Spacing.s32)
             }

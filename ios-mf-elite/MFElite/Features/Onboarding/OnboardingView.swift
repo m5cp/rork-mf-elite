@@ -30,9 +30,11 @@ struct OnboardingView: View {
                 case .code:
                     OnboardingCodeView(state: state)
                 case .signIn:
-                    OnboardingSignInView(state: state) {
-                        handleAuthenticated()
-                    }
+                    OnboardingSignInView(
+                        state: state,
+                        onContinueAsPlayer: { state.advance() },
+                        onAuthenticated: { handleAuthenticated() }
+                    )
                 case .identify:
                     OnboardingIdentifyView(state: state)
                 case .position:
@@ -88,8 +90,9 @@ struct OnboardingView: View {
         .padding(.top, DS.Spacing.s12)
     }
 
-    /// After Sign in with Apple: coaches skip the player setup entirely and go
-    /// straight to the academy; players continue the cinematic flow.
+    /// After a coach sign-in: recognized coaches skip the player setup entirely
+    /// and go straight to the academy. Anyone not on the coaches list simply
+    /// continues as a regular player.
     private func handleAuthenticated() {
         if AuthService.shared.isCoach {
             finishAsCoach()
@@ -128,11 +131,12 @@ struct OnboardingView: View {
 
         if skipped { state.applySkipDefaults() }
 
-        // 1. Persist locally — instant, offline-first source of truth.
+        // 1. Persist locally — instant, offline-first source of truth. Players
+        //    have no account; their profile and progress live on the device.
         PlayerProfileStore.shared.complete(
-            name: state.playerName.isEmpty ? "Player One" : state.playerName,
+            name: state.playerName.isEmpty ? "Player" : state.playerName,
             username: state.generatedUsername,
-            kit: state.kitNumber.isEmpty ? "10" : state.kitNumber,
+            kit: state.kitNumber,
             position: state.positionName,
             skipped: skipped
         )
@@ -140,12 +144,9 @@ struct OnboardingView: View {
         // 2. Ensure a local PlayerState exists at zero.
         ensurePlayerState()
 
-        // 3. Remote profile creation. The player already authenticated at the
-        //    Sign in step; if they skipped past it, fall back to a sign-in here.
+        // 3. Remote mirror only if a coach happened to sign in but continued as
+        //    a player. Regular players never create a remote account.
         Task {
-            if !AuthService.shared.isAuthenticated {
-                await AuthService.shared.signInWithApple()
-            }
             if AuthService.shared.isAuthenticated {
                 await createRemoteProfile()
                 await CurriculumSyncService.shared.syncCurriculum(context: modelContext)
@@ -162,7 +163,7 @@ struct OnboardingView: View {
                 userID: userID,
                 username: state.generatedUsername,
                 name: state.playerName,
-                kit: state.kitNumber.isEmpty ? "10" : state.kitNumber,
+                kit: state.kitNumber,
                 position: state.positionName,
                 pledgeTier: state.pledgeTier.rawValue,
                 foot: state.foot,

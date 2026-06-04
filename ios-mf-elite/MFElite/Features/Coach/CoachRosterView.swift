@@ -19,9 +19,6 @@ struct CoachRosterView: View {
             VStack(alignment: .leading, spacing: 0) {
                 header
 
-                // Example reference — coach-only, hidden from players.
-                exampleSection
-
                 if vm.players.isEmpty {
                     emptyState
                 } else {
@@ -60,22 +57,6 @@ struct CoachRosterView: View {
             Text("Training info only · no personal or billing data")
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.tertiary)
-        }
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s24)
-    }
-
-    // MARK: - Example
-
-    private var exampleSection: some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-            Eyebrow(text: "Example · Hidden from players")
-            playerRow(vm.example, isExample: true)
-                .opacity(0.7)
-                .overlay(
-                    RoundedRectangle(cornerRadius: DS.Radius.md)
-                        .stroke(DS.Colors.Line.hairline, style: StrokeStyle(lineWidth: 1, dash: [4, 4]))
-                )
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s24)

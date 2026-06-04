@@ -98,16 +98,16 @@ struct OnboardingPassportView: View {
 
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("COACH")
+                    Text("ACADEMY")
                         .font(.system(size: 8, weight: .medium, design: .monospaced))
                         .tracking(1.2)
                         .foregroundStyle(DS.Colors.Ground.tertiary)
-                    Text(OnboardingState.coachName)
+                    Text("MF Elite")
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(DS.Colors.Ground.primary)
                 }
                 Spacer()
-                Text("01 / 06")
+                Text("№ \(state.memberNumber)")
                     .font(DS.Typography.num(size: 14))
                     .foregroundStyle(DS.Colors.Ground.primary)
             }
@@ -133,7 +133,7 @@ struct OnboardingPassportView: View {
                     .font(.system(size: 8, weight: .medium, design: .monospaced))
                     .tracking(1.2)
                     .foregroundStyle(DS.Colors.Ground.tertiary)
-                Text(state.playerName.isEmpty ? "Player One" : state.playerName)
+                Text(state.playerName.isEmpty ? "Player" : state.playerName)
                     .font(.system(size: 20, weight: .bold))
                     .foregroundStyle(DS.Colors.Ground.primary)
                     .lineLimit(1)
@@ -145,7 +145,7 @@ struct OnboardingPassportView: View {
             }
             HStack(spacing: 0) {
                 fieldCell("FOOT", state.foot)
-                fieldCell("COACH", "Finazzi")
+                fieldCell("CLASS", String(classYear))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -190,7 +190,7 @@ struct OnboardingPassportView: View {
             }
             .disabled(isFinishing)
             legalConsent
-            StepBar(filled: 7, total: 7)
+            StepBar(filled: OnboardingStep.stepTotal, total: OnboardingStep.stepTotal)
         }
         .padding(.bottom, DS.Spacing.s24)
     }

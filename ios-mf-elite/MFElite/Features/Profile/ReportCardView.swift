@@ -112,7 +112,7 @@ struct ReportCardView: View {
 /// can be rendered directly to a PDF via `ImageRenderer`.
 struct ReportCardContent: View {
     let vm: ParentReportViewModel
-    var playerName: String = "Player One"
+    var playerName: String = "Player"
 
     /// Hairline tuned for the white card.
     private let inkLine = Color.black.opacity(0.12)
@@ -239,14 +239,14 @@ struct ReportCardContent: View {
     private var signature: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center) {
-                Text("Coach Williams")
+                Text("MF Elite")
                     .font(.system(size: 22, weight: .bold))
                     .italic()
                     .foregroundStyle(Color.black)
                 Spacer()
                 CertSeal(size: 40, earned: true, dark: true)
             }
-            Text("Head Coach · MF Elite Academy")
+            Text("MF Elite Academy")
                 .font(.system(size: 10, weight: .medium, design: .monospaced))
                 .tracking(1.2)
                 .textCase(.uppercase)

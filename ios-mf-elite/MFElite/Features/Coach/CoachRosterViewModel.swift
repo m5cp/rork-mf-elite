@@ -18,21 +18,6 @@ final class CoachRosterViewModel {
     var isLoading = false
     var errorMessage: String?
 
-    /// The single placeholder shown only to the coach for input reference. It is
-    /// flagged `is_example` so it can never leak into the player experience or
-    /// real reports.
-    let example = PlayerProfileRow(
-        id: "example",
-        accountId: nil,
-        username: "example.athlete",
-        displayName: "Example Athlete",
-        initials: "EA",
-        kitNumber: "07",
-        position: "Midfielder",
-        managed: false,
-        isExample: true
-    )
-
     private var coachID: String? { AuthService.shared.user?.id }
 
     func load() async {
