@@ -9,6 +9,8 @@ import Foundation
 import Observation
 import SwiftData
 import UserNotifications
+import AudioToolbox
+import UIKit
 
 /// The phase of a live drill session.
 enum PlayerPhase: Equatable {
@@ -42,7 +44,7 @@ final class DrillPlayerViewModel {
     /// Injected from the view so the VM can persist progress.
     var context: ModelContext?
 
-    private static let restDuration: TimeInterval = 5
+    private static let restDuration: TimeInterval = 15
 
     init(drill: Drill, level: MasteryLevel, category: Category, discipline: Discipline) {
         self.drill = drill
@@ -84,6 +86,21 @@ final class DrillPlayerViewModel {
     // MARK: - Timer
 
     private var timer: Timer?
+    private var setStartDate: Date?
+    private var pauseAccumulated: TimeInterval = 0
+    private var pauseStartDate: Date?
+
+    private func playCountdownBeep() {
+        AudioServicesPlaySystemSound(1057)
+    }
+
+    private func playSetCompleteSound() {
+        AudioServicesPlaySystemSound(1025)
+    }
+
+    private func playSessionCompleteSound() {
+        AudioServicesPlaySystemSound(1335)
+    }
 
     private func invalidateTimer() {
         timer?.invalidate()
@@ -94,11 +111,27 @@ final class DrillPlayerViewModel {
         invalidateTimer()
         timeRemaining = duration
         isPaused = false
+        setStartDate = Date()
+        pauseAccumulated = 0
+        pauseStartDate = nil
+
         let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                guard let self else { return }
+                guard let self, let start = self.setStartDate else { return }
                 guard !self.isPaused else { return }
-                self.timeRemaining = max(0, self.timeRemaining - 0.1)
+
+                let elapsed = Date().timeIntervalSince(start) - self.pauseAccumulated
+                self.timeRemaining = max(0, duration - elapsed)
+
+                // Countdown beeps at 3, 2, 1 seconds
+                let secondsLeft = Int(ceil(self.timeRemaining))
+                if secondsLeft <= 3 && secondsLeft >= 1 {
+                    let fraction = self.timeRemaining - Double(secondsLeft - 1)
+                    if fraction >= 0.9 && fraction < 1.0 {
+                        self.playCountdownBeep()
+                    }
+                }
+
                 if self.timeRemaining <= 0 {
                     self.invalidateTimer()
                     onZero()
@@ -120,6 +153,16 @@ final class DrillPlayerViewModel {
     }
 
     func pauseResume() {
+        if isPaused {
+            // Resuming — add pause duration to accumulated
+            if let pauseStart = pauseStartDate {
+                pauseAccumulated += Date().timeIntervalSince(pauseStart)
+            }
+            pauseStartDate = nil
+        } else {
+            // Pausing — record when pause started
+            pauseStartDate = Date()
+        }
         isPaused.toggle()
     }
 
@@ -132,6 +175,8 @@ final class DrillPlayerViewModel {
         if currentSetIndex < drill.sets {
             let next = currentSetIndex + 1
             phase = .resting(nextSetIndex: next)
+            playSetCompleteSound()
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             startTicking(from: Self.restDuration) { [weak self] in
                 guard let self else { return }
                 self.currentSetIndex = next
@@ -150,6 +195,7 @@ final class DrillPlayerViewModel {
     // MARK: - Logging
 
     func logDrill() {
+        playSessionCompleteSound()
         guard let context else { return }
 
         // Find or create progress for this drill.

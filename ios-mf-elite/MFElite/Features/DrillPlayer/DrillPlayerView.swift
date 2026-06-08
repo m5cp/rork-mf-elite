@@ -69,7 +69,13 @@ struct DrillPlayerView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear { viewModel.context = modelContext }
+        .onAppear {
+            viewModel.context = modelContext
+            UIApplication.shared.isIdleTimerDisabled = true
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+        }
         .alert("End session early?", isPresented: $showStopConfirm) {
             Button("Keep training", role: .cancel) {}
             Button("End session", role: .destructive) {
@@ -243,7 +249,7 @@ struct DrillPlayerView: View {
                 )
             }
 
-            Text(isResting ? "Breathe — next set incoming" : viewModel.currentCoachingCue)
+            Text(isResting ? "Rest — next set in \(Int(ceil(viewModel.timeRemaining)))s" : viewModel.currentCoachingCue)
                 .style(.title2)
                 .foregroundStyle(DS.Colors.Ink.primary)
                 .multilineTextAlignment(.center)
