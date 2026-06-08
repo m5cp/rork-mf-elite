@@ -145,7 +145,7 @@ struct DrillPlayerView: View {
 
                     HStack(spacing: DS.Spacing.s8) {
                         infoPill("\(drill.sets) Sets")
-                        infoPill("1:00 Each")
+                        infoPill("\(Int(viewModel.setDuration))s Each")
                         infoPill("+\(ProgressionRules.xpPerDrill) XP")
                     }
                     .padding(.top, DS.Spacing.s20)

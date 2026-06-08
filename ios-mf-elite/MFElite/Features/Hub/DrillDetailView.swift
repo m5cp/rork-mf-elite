@@ -76,7 +76,7 @@ struct DrillDetailView: View {
     // MARK: - 1. Hero Demo Preview
 
     private func heroDemo(_ vm: DrillDetailViewModel) -> some View {
-        PhotoPlaceholder(height: 300, label: "DEMO · \(vm.clockDuration)")
+        PhotoPlaceholder(height: 300, label: "DRILL · \(vm.clockDuration)")
             .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 18, bottomTrailingRadius: 18))
             .overlay(alignment: .topLeading) {
                 IconButton(systemName: "chevron.left", size: 36) {
@@ -86,7 +86,7 @@ struct DrillDetailView: View {
                 .padding(.top, 56)
             }
             .overlay(alignment: .topTrailing) {
-                Text("DEMO · \(vm.clockDuration)")
+                Text("DRILL · \(vm.clockDuration)")
                     .style(.micro)
                     .foregroundStyle(DS.Colors.Ink.primary)
                     .padding(.vertical, 6)
@@ -121,6 +121,19 @@ struct DrillDetailView: View {
         .padding(.top, DS.Spacing.s20)
     }
 
+    private var setDurationLabel: String {
+        let totalSec = drill.durationSec
+        let sets = max(1, drill.sets)
+        let perSet = totalSec / sets
+        let minutes = perSet / 60
+        let seconds = perSet % 60
+        if seconds == 0 {
+            return "\(minutes):00"
+        } else {
+            return String(format: "%d:%02d", minutes, seconds)
+        }
+    }
+
     // MARK: - 3. Stat Strip
 
     private func statStrip(_ vm: DrillDetailViewModel) -> some View {
@@ -129,7 +142,7 @@ struct DrillDetailView: View {
             HStack(spacing: 0) {
                 statCell(value: vm.formattedDuration, label: "Duration")
                 statDivider
-                statCell(value: "\(drill.sets) × 1:00", label: "Sets")
+                statCell(value: "\(drill.sets) × \(setDurationLabel)", label: "Sets")
                 statDivider
                 statCell(value: "+\(ProgressionRules.xpPerDrill) XP", label: "Earns")
             }
@@ -216,7 +229,7 @@ struct DrillDetailView: View {
 
                 HStack(spacing: DS.Spacing.s8) {
                     challengeTag("\(drill.sets) Sets")
-                    challengeTag("1:00 Each")
+                    challengeTag("\(setDurationLabel) Each")
                     challengeTag("No Loss")
                 }
                 .padding(.top, DS.Spacing.s12 - 2)

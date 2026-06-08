@@ -64,6 +64,9 @@ struct AcademyHubView: View {
             .navigationDestination(for: RoutinesRoute.self) { _ in
                 RoutinesView()
             }
+            .navigationDestination(for: RankDetailRoute.self) { _ in
+                RankDetailView()
+            }
         }
     }
 
@@ -120,39 +123,42 @@ struct AcademyHubView: View {
 
     private func standingStrip(_ vm: AcademyHubViewModel) -> some View {
         let rank = vm.currentRank
-        return HStack(spacing: DS.Spacing.s16) {
-            Monogram(size: 56, initials: rank.numeral, kit: kitNumber)
+        return NavigationLink(value: RankDetailRoute()) {
+            HStack(spacing: DS.Spacing.s16) {
+                Monogram(size: 56, initials: rank.numeral, kit: kitNumber)
 
-            VStack(alignment: .leading, spacing: DS.Spacing.s4) {
-                Eyebrow(text: "Academy Rank · \(rank.numeral)")
-                Text(rank.title)
-                    .style(.title3)
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                HStack(spacing: DS.Spacing.s8) {
-                    Text("\(vm.xp.formatted()) XP")
-                        .style(.micro)
-                        .foregroundStyle(DS.Colors.Ink.tertiary)
-                    Sep()
-                    Text("\(vm.streak)-Day Streak")
-                        .style(.micro)
-                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                    Eyebrow(text: "Academy Rank · \(rank.numeral)")
+                    Text(rank.title)
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    HStack(spacing: DS.Spacing.s8) {
+                        Text("\(vm.xp.formatted()) XP")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                        Sep()
+                        Text("\(vm.streak)-Day Streak")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
                 }
+
+                Spacer(minLength: DS.Spacing.s8)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
             }
-
-            Spacer(minLength: DS.Spacing.s8)
-
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(DS.Colors.Ink.quaternary)
+            .padding(.vertical, DS.Spacing.s16)
+            .padding(.horizontal, 18)
+            .background(DS.Colors.Bg.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+            )
         }
-        .padding(.vertical, DS.Spacing.s16)
-        .padding(.horizontal, 18)
-        .background(DS.Colors.Bg.elevated)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18)
-                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
-        )
+        .buttonStyle(PressableButtonStyle())
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s20)
     }
@@ -223,7 +229,7 @@ struct AcademyHubView: View {
                 Hairline()
             }
 
-            Text("New drills added by your coach every week.")
+            Text("Train through every drill. Master every level.")
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.tertiary)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -277,18 +283,6 @@ private struct PathwayRow: View {
                         Text(discipline.name)
                             .style(.title2)
                             .foregroundStyle(DS.Colors.Ink.primary)
-                        if discipline.media == "video" {
-                            Text("FILM")
-                                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                                .tracking(1.2)
-                                .foregroundStyle(DS.Colors.Ink.tertiary)
-                                .padding(.vertical, 3)
-                                .padding(.horizontal, 7)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: DS.Radius.pill)
-                                        .stroke(DS.Colors.Line.subtle, lineWidth: 1)
-                                )
-                        }
                     }
 
                     Text(discipline.tagline)
