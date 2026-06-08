@@ -177,6 +177,27 @@ struct DrillPlayerView: View {
                         }
                     }
                     .padding(.top, DS.Spacing.s16)
+
+                    if !drill.instructions.isEmpty {
+                        Eyebrow(text: "How To Do It")
+                            .padding(.top, DS.Spacing.s24)
+
+                        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                            ForEach(Array(drill.instructions.enumerated()), id: \.offset) { index, step in
+                                HStack(alignment: .top, spacing: DS.Spacing.s12) {
+                                    Text("\(index + 1).")
+                                        .style(.foot)
+                                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                                        .frame(width: 20, alignment: .leading)
+                                    Text(step)
+                                        .style(.callout)
+                                        .foregroundStyle(DS.Colors.Ink.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                }
+                            }
+                        }
+                        .padding(.top, DS.Spacing.s12)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, DS.Spacing.s20)

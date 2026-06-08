@@ -51,6 +51,9 @@ struct DrillDetailView: View {
                 titleBlock(vm)
                 statStrip(vm)
                 purposeSection
+                if !drill.instructions.isEmpty {
+                    instructionsSection
+                }
                 coachingSection
                 challengeSection
                 accountabilitySection(vm)
@@ -174,7 +177,7 @@ struct DrillDetailView: View {
 
     private var purposeSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(text: "01 Purpose · What This Improves")
+            Eyebrow(text: "PURPOSE")
             Text(drill.how)
                 .style(.body)
                 .foregroundStyle(DS.Colors.Ink.secondary)
@@ -185,11 +188,41 @@ struct DrillDetailView: View {
         .padding(.top, DS.Spacing.s24 + 4)
     }
 
+    // MARK: - Instructions
+
+    private var instructionsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "HOW TO DO IT")
+
+            VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+                ForEach(Array(drill.instructions.enumerated()), id: \.offset) { index, step in
+                    HStack(alignment: .top, spacing: DS.Spacing.s12) {
+                        Text("\(index + 1)")
+                            .font(DS.Typography.num(size: 16))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                            .frame(width: 28, height: 28)
+                            .background(Color.white.opacity(0.15))
+                            .clipShape(Circle())
+
+                        Text(step)
+                            .style(.body)
+                            .foregroundStyle(DS.Colors.Ink.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            .padding(.top, DS.Spacing.s16)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s24 + 4)
+    }
+
     // MARK: - 5. Section 02 — Coaching Points
 
     private var coachingSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(text: "02 Coaching Points · \(String(format: "%02d", drill.coachingPoints.count))")
+            Eyebrow(text: "COACHING POINTS")
 
             VStack(alignment: .leading, spacing: DS.Spacing.s12) {
                 ForEach(Array(drill.coachingPoints.enumerated()), id: \.offset) { index, point in
@@ -220,7 +253,7 @@ struct DrillDetailView: View {
 
     private var challengeSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(text: "03 The Challenge")
+            Eyebrow(text: "THE CHALLENGE")
 
             VStack(alignment: .leading, spacing: 0) {
                 Text(drill.focus)
@@ -259,7 +292,7 @@ struct DrillDetailView: View {
 
     private func accountabilitySection(_ vm: DrillDetailViewModel) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(text: "04 Accountability · Log Your Reps")
+            Eyebrow(text: "ACCOUNTABILITY")
 
             Card {
                 VStack(alignment: .leading, spacing: DS.Spacing.s12) {

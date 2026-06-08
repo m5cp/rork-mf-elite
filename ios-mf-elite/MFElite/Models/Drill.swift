@@ -17,6 +17,7 @@ final class Drill {
     var durationSec: Int
     var sets: Int
     var coachingPoints: [String]
+    var instructions: [String]
     var sortIndex: Int
 
     init(
@@ -28,6 +29,7 @@ final class Drill {
         durationSec: Int,
         sets: Int,
         coachingPoints: [String],
+        instructions: [String] = [],
         sortIndex: Int
     ) {
         self.id = id
@@ -38,6 +40,7 @@ final class Drill {
         self.durationSec = durationSec
         self.sets = sets
         self.coachingPoints = coachingPoints
+        self.instructions = instructions
         self.sortIndex = sortIndex
     }
 }
