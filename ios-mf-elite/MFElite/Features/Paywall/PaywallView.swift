@@ -20,12 +20,14 @@ struct PaywallView: View {
     private let supportEmail = "joe@m5cairio.com"
 
     private let features: [(label: String, free: Bool, elite: Bool)] = [
-        ("Level 1 of every discipline", true, true),
-        ("Daily training & streaks", true, true),
-        ("Levels 2–5 everywhere", false, true),
-        ("Certifications", false, true),
-        ("Player reports", false, true),
-        ("Streak freezes", false, true)
+        ("4 disciplines, Level 1 drills", true, true),
+        ("Train daily & track streaks", true, true),
+        ("All 216 drills, every level", false, true),
+        ("Full academy curriculum", false, true),
+        ("Earn certifications & rank up", false, true),
+        ("Streak freeze protection", false, true),
+        ("Achievement badges", false, true),
+        ("10 curated training routines", false, true),
     ]
 
     private var packages: [Package] {
@@ -43,6 +45,8 @@ struct PaywallView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     header
+                    if packages.isEmpty { pricingPreview }
+                    savingsCallout
                     comparison
                     pricing
                     subscribeCTA
@@ -106,12 +110,12 @@ struct PaywallView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
             Eyebrow(text: "MF Elite")
-            Text("Unlock the\nfull academy")
+            Text("Go Elite.\nTrain like a pro.")
                 .style(.hero)
                 .foregroundStyle(DS.Colors.Ink.primary)
                 .lineSpacing(-6)
                 .padding(.top, DS.Spacing.s8)
-            Text("You’ve unlocked Level 1 of every discipline. Go Elite for every level, certification, and player report.")
+            Text("You have access to Level 1. Go Elite to unlock all 216 drills, every level, certifications, achievement badges, and curated training routines.")
                 .style(.body)
                 .foregroundStyle(DS.Colors.Ink.secondary)
                 .frame(maxWidth: 320, alignment: .leading)
@@ -122,6 +126,53 @@ struct PaywallView: View {
         .padding(.top, DS.Spacing.s48 + DS.Spacing.s4)
     }
 
+    // MARK: - Pricing preview
+
+    private var pricingPreview: some View {
+        HStack(spacing: DS.Spacing.s16) {
+            pricingChip(period: "YEAR", price: "$299.99", note: "Best value", highlight: true)
+            pricingChip(period: "MONTH", price: "$39.99", note: "", highlight: false)
+            pricingChip(period: "WEEK", price: "$12.99", note: "", highlight: false)
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s20)
+    }
+
+    private func pricingChip(period: String, price: String, note: String, highlight: Bool) -> some View {
+        VStack(spacing: DS.Spacing.s4) {
+            Text(period)
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .tracking(1.2)
+                .foregroundStyle(highlight ? DS.Colors.Ground.primary : DS.Colors.Ink.tertiary)
+            Text(price)
+                .font(DS.Typography.num(size: 18))
+                .tracking(-0.5)
+                .foregroundStyle(highlight ? DS.Colors.Ground.primary : DS.Colors.Ink.primary)
+            if !note.isEmpty {
+                Text(note)
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(highlight ? DS.Colors.Ground.secondary : DS.Colors.Ink.quaternary)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, DS.Spacing.s12)
+        .background(highlight ? Color.white : DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.md)
+                .stroke(highlight ? Color.white : DS.Colors.Line.hairline, lineWidth: highlight ? 2 : 1)
+        )
+    }
+
+    private var savingsCallout: some View {
+        Text("Annual saves over 60% vs monthly")
+            .style(.foot)
+            .foregroundStyle(DS.Colors.Ink.tertiary)
+            .frame(maxWidth: .infinity)
+            .padding(.top, DS.Spacing.s8)
+            .padding(.horizontal, DS.Spacing.s20)
+    }
+
     // MARK: - Feature comparison
 
     private var comparison: some View {
@@ -130,7 +181,7 @@ struct PaywallView: View {
                 Spacer()
                 Text("Free")
                     .style(.micro)
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .foregroundStyle(DS.Colors.Ink.secondary)
                     .frame(width: 52)
                 Text("Elite")
                     .style(.micro)
@@ -162,8 +213,8 @@ struct PaywallView: View {
 
     private func marker(_ included: Bool) -> some View {
         Image(systemName: included ? "checkmark" : "xmark")
-            .font(.system(size: 13, weight: .bold))
-            .foregroundStyle(included ? DS.Colors.Ink.primary : DS.Colors.Ink.disabled)
+            .font(.system(size: 14, weight: .heavy))
+            .foregroundStyle(included ? DS.Colors.Ink.primary : Color.white.opacity(0.25))
     }
 
     // MARK: - Pricing
@@ -204,7 +255,7 @@ struct PaywallView: View {
     private var subscribeCTA: some View {
         VStack(spacing: 0) {
             FloatingButton(
-                label: subscription.isPurchasing ? "Processing…" : "Start training",
+                label: subscription.isPurchasing ? "Processing…" : "Go Elite",
                 hint: trialHint
             ) {
                 guard let package = selectedPackage else { return }
@@ -253,7 +304,7 @@ struct PaywallView: View {
     /// Auto-renewal terms built from the selected package's live RevenueCat pricing.
     private var autoRenewalTerms: String {
         guard let package = selectedPackage else {
-            return "Subscription auto-renews unless canceled at least 24 hours before the end of the current period. Payment is charged to your Apple ID at confirmation. Manage or cancel anytime in your App Store account settings. See Terms & Privacy Policy."
+            return "Plans start at $299.99/year (best value), $39.99/month, or $12.99/week. Payment is charged to your Apple ID at confirmation of purchase. Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Manage or cancel anytime in your App Store account settings."
         }
         let price = package.storeProduct.localizedPriceString
         let period = periodWord(for: package)
