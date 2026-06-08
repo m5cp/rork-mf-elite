@@ -10,32 +10,70 @@ import SwiftData
 /// by loading the bundled `curriculum.json` (158 drills across 19 categories).
 enum SeedData {
 
-    /// Inserts curriculum, player state, and progress only if the store is empty.
+    private static let seededCountKey = "MF_SEEDED_DRILL_COUNT"
+
+    /// Inserts curriculum on first launch, and re-seeds the curriculum when the
+    /// bundled drill count grows (an app update). Player progress is preserved
+    /// because `DrillProgress` records are keyed by `drillID`, independent of the
+    /// discipline graph that gets rebuilt.
     static func seedIfNeeded(context: ModelContext) {
         let existing = (try? context.fetch(FetchDescriptor<Discipline>())) ?? []
-        guard existing.isEmpty else { return }
 
         guard let bundle = loadBundle() else {
             assertionFailure("curriculum.json missing or failed to decode")
             return
         }
 
+        let bundleDrillCount = drillCount(in: bundle)
+
+        if existing.isEmpty {
+            // First launch — full seed.
+            for discipline in bundle.disciplines.sorted(by: { $0.sortIndex < $1.sortIndex }) {
+                context.insert(buildDiscipline(discipline))
+            }
+
+            // Brand-new players start at zero — no streak, no XP, nothing mastered.
+            // The bundled `demoPlayer` / `masteredDrillIDs` are intentionally ignored
+            // so the app never ships pre-filled fake progress.
+            let player = PlayerState(
+                xp: 0,
+                streak: 0,
+                freezesRemaining: 0,
+                lastTrainedDate: nil
+            )
+            context.insert(player)
+
+            UserDefaults.standard.set(bundleDrillCount, forKey: seededCountKey)
+            try? context.save()
+            return
+        }
+
+        // Existing install — re-seed only if the curriculum has grown.
+        let seededCount = UserDefaults.standard.integer(forKey: seededCountKey)
+        guard bundleDrillCount > seededCount, seededCount > 0 else { return }
+
+        // Curriculum expanded — replace the curriculum graph. Player progress
+        // (DrillProgress, PlayerState) is preserved since it is stored separately.
+        for discipline in existing {
+            context.delete(discipline)
+        }
+        try? context.save()
+
         for discipline in bundle.disciplines.sorted(by: { $0.sortIndex < $1.sortIndex }) {
             context.insert(buildDiscipline(discipline))
         }
 
-        // Brand-new players start at zero — no streak, no XP, nothing mastered.
-        // The bundled `demoPlayer` / `masteredDrillIDs` are intentionally ignored
-        // so the app never ships pre-filled fake progress.
-        let player = PlayerState(
-            xp: 0,
-            streak: 0,
-            freezesRemaining: 0,
-            lastTrainedDate: nil
-        )
-        context.insert(player)
-
+        UserDefaults.standard.set(bundleDrillCount, forKey: seededCountKey)
         try? context.save()
+    }
+
+    /// Total number of drills across the bundled curriculum.
+    private static func drillCount(in bundle: CurriculumBundle) -> Int {
+        bundle.disciplines.reduce(0) { partial, discipline in
+            partial + discipline.categories.reduce(0) { sub, category in
+                sub + category.levels.reduce(0) { $0 + $1.drills.count }
+            }
+        }
     }
 
     // MARK: - Loading
