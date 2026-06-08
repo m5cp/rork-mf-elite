@@ -297,7 +297,7 @@ struct AcademyTodayView: View {
         let done = vm.masteredDrillCount(in: focus.level)
         return Card(padding: 0, raised: true) {
             VStack(alignment: .leading, spacing: 0) {
-                PhotoPlaceholder(height: 140, label: focus.discipline.name)
+                DisciplineHero(height: 140, disciplineName: focus.discipline.name, label: focus.discipline.name)
                     .overlay(alignment: .topLeading) {
                         DisciplineMark(kind: focus.discipline.mark, size: 28)
                             .padding(DS.Spacing.s12)

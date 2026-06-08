@@ -45,13 +45,13 @@ struct CustomTabBar: View {
             VStack(spacing: DS.Spacing.s4) {
                 TabBarIcon(
                     tab: tab,
-                    color: isActive ? .white : Color.white.opacity(0.50)
+                    color: isActive ? .white : Color.white.opacity(0.62)
                 )
                 Text(tab.label)
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
                     .tracking(1.2)
                     .textCase(.uppercase)
-                    .foregroundStyle(isActive ? .white : Color.white.opacity(0.50))
+                    .foregroundStyle(isActive ? .white : Color.white.opacity(0.62))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())

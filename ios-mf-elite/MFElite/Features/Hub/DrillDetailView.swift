@@ -76,7 +76,7 @@ struct DrillDetailView: View {
     // MARK: - 1. Hero Demo Preview
 
     private func heroDemo(_ vm: DrillDetailViewModel) -> some View {
-        PhotoPlaceholder(height: 300, label: "DRILL · \(vm.clockDuration)")
+        DisciplineHero(height: 300, disciplineName: discipline.name, label: "DRILL · \(vm.clockDuration)")
             .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 18, bottomTrailingRadius: 18))
             .overlay(alignment: .topLeading) {
                 IconButton(systemName: "chevron.left", size: 36) {

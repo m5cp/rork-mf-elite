@@ -47,7 +47,7 @@ enum DS {
         }
 
         enum Line {
-            static let hairline = Color.white.opacity(0.12)
+            static let hairline = Color.white.opacity(0.15)
             static let subtle = Color.white.opacity(0.20)
             static let strong = Color.white.opacity(0.34)
         }
