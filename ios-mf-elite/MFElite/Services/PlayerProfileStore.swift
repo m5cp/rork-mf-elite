@@ -26,7 +26,11 @@ final class PlayerProfileStore {
     static let shared = PlayerProfileStore()
 
     /// Identifiers for the built-in MF avatar set rendered by `AvatarView`.
-    static let builtinAvatarIDs: [String] = ["crest", "slash", "flame", "shield", "target", "bolt"]
+    static let builtinAvatarIDs: [String] = [
+        "crest", "slash", "flame", "shield", "target", "bolt",
+        "star", "crown", "trophy", "diamond", "globe", "moon",
+        "flag", "heart", "leaf", "sun", "mountain", "lion"
+    ]
 
     private enum Keys {
         static let completed = "MF_ONBOARDING_COMPLETE"

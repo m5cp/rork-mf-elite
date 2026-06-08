@@ -24,6 +24,18 @@ enum BuiltinAvatar {
         case "shield": return "shield.lefthalf.filled"
         case "target": return "scope"
         case "bolt": return "bolt.fill"
+        case "star": return "star.fill"
+        case "crown": return "crown.fill"
+        case "trophy": return "trophy.fill"
+        case "diamond": return "diamond.fill"
+        case "globe": return "globe"
+        case "moon": return "moon.fill"
+        case "flag": return "flag.fill"
+        case "heart": return "heart.fill"
+        case "leaf": return "leaf.fill"
+        case "sun": return "sun.max.fill"
+        case "mountain": return "mountain.2.fill"
+        case "lion": return "pawprint.fill"
         default: return "seal.fill"
         }
     }
