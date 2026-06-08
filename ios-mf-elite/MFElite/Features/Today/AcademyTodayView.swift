@@ -241,7 +241,19 @@ struct AcademyTodayView: View {
 
                     VStack(alignment: .leading, spacing: DS.Spacing.s8) {
                         ForEach(vm.goalStates) { goal in
-                            goalRow(goal)
+                            if let route = goal.drillRoute {
+                                NavigationLink(value: route) {
+                                    goalRow(goal)
+                                }
+                                .buttonStyle(PressableButtonStyle())
+                            } else if let levelRoute = goal.levelRoute {
+                                NavigationLink(value: levelRoute) {
+                                    goalRow(goal)
+                                }
+                                .buttonStyle(PressableButtonStyle())
+                            } else {
+                                goalRow(goal)
+                            }
                         }
                     }
                     .padding(.top, DS.Spacing.s8 + 2)
@@ -272,7 +284,14 @@ struct AcademyTodayView: View {
             Text(goal.label)
                 .style(.foot)
                 .foregroundStyle(goal.done ? DS.Colors.Ink.primary : DS.Colors.Ink.tertiary)
+
+            Spacer(minLength: DS.Spacing.s4)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(DS.Colors.Ink.quaternary)
         }
+        .contentShape(Rectangle())
     }
 
     // MARK: - 5. Continue Your Pathway

@@ -1,23 +1,23 @@
-# Add player avatars (photo or built-in) and remove the swipe-typing popup
+# Drill UX fixes: cleaner drill page, tappable goals, skip & log-anytime
 
-## Avatars on the player card & profile
+Four improvements to make training smoother and remove wasted space.
 
-**What you'll be able to do**
-- On your player card (the white passport during onboarding) and the profile header, the plain photo box / initials badge becomes a tappable avatar.
-- Tapping it opens a chooser where you can **upload a photo from your library** or **pick from a set of built-in MF avatars**.
-- Your chosen avatar is saved on your device and shown on both the passport card and the profile screen.
+**1. Cleaner drill detail page**
+- Remove the large placeholder image block at the top of each drill page (it showed a generic running figure and took up the top third of the screen).
+- Replace it with a simple back button at the top, so the page jumps straight into the drill title, breadcrumb, and stats — no wasted space.
 
-**Editing your profile**
-- In the profile screen you'll be able to **change your avatar, edit your name, and edit your kit number** in one place (a simple "Edit profile" sheet), with changes saved instantly.
+**2. Tappable daily goals on the Today tab**
+- The daily goal rows ("Ball Mastery — 1 drill", "Physical — 1 drill", "Mind — 1 exercise") become tappable.
+- Tapping a goal takes the player to the next drill they haven't completed yet in that area, so they can act on the goal immediately.
+- Each goal row gets a small chevron arrow on the right to show it's tappable.
 
-**Design**
-- The avatar sits in the same spot as today's photo placeholder — a clean rounded square on the passport card and a circular avatar on the profile header, matching the app's black-and-white editorial style.
-- Built-in MF avatars will be simple, on-brand monogram/crest style tiles so they look intentional, not generic.
-- A small camera/edit glyph overlays the avatar so it's clear it can be changed; tapping gives haptic feedback.
+**3. Skip button on the drill timer**
+- During a set, the current "restart" control is replaced with a "skip forward" button.
+- Tapping it ends the current set's timer and moves straight to the next set (or to logging if it was the last set), with a light haptic tap.
 
-## Remove the "Speed up your typing" popup
-- The popup is an iOS system tutorial that appears the first time the keyboard opens (on the name screen). I'll quietly trigger and dismiss it in the background at app launch so you never see it interrupt onboarding.
+**4. Log a drill at any time**
+- Players no longer have to wait for the full timer to finish to log a drill.
+- The "end session" prompt now offers three choices: keep training, log and finish, or quit without logging. Logging this way awards the same XP, streak, mastery, and badges as a normal completion.
+- During the rest period between sets, a "Log and finish" button also appears so players can log without waiting for the next set.
 
-## Screens affected
-- **Onboarding passport card** — photo box becomes the chosen avatar.
-- **Profile header** — initials badge becomes the chosen avatar, plus a new "Edit profile" sheet for avatar, name, and number.
+All changes will be verified with a build check before finishing.

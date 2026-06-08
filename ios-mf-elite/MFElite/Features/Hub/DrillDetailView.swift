@@ -47,7 +47,7 @@ struct DrillDetailView: View {
         let vm = viewModel
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                heroDemo(vm)
+                topBar
                 titleBlock(vm)
                 statStrip(vm)
                 purposeSection
@@ -64,7 +64,6 @@ struct DrillDetailView: View {
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)
         .navigationBarHidden(true)
-        .ignoresSafeArea(edges: .top)
         .fullScreenCover(item: $activePlayerRoute) { route in
             DrillPlayerView(
                 drill: route.drill,
@@ -76,29 +75,17 @@ struct DrillDetailView: View {
         }
     }
 
-    // MARK: - 1. Hero Demo Preview
+    // MARK: - 1. Top Bar
 
-    private func heroDemo(_ vm: DrillDetailViewModel) -> some View {
-        DisciplineHero(height: 300, disciplineName: discipline.name, label: "DRILL · \(vm.clockDuration)")
-            .clipShape(UnevenRoundedRectangle(bottomLeadingRadius: 18, bottomTrailingRadius: 18))
-            .overlay(alignment: .topLeading) {
-                IconButton(systemName: "chevron.left", size: 36) {
-                    dismiss()
-                }
-                .padding(.leading, DS.Spacing.s20)
-                .padding(.top, 56)
+    private var topBar: some View {
+        HStack {
+            IconButton(systemName: "chevron.left", size: 36) {
+                dismiss()
             }
-            .overlay(alignment: .topTrailing) {
-                Text("DRILL · \(vm.clockDuration)")
-                    .style(.micro)
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                    .padding(.vertical, 6)
-                    .padding(.horizontal, DS.Spacing.s12)
-                    .background(DS.Colors.Bg.raised)
-                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
-                    .padding(.trailing, DS.Spacing.s20)
-                    .padding(.top, 56)
-            }
+            Spacer()
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s12)
     }
 
     // MARK: - 2. Title Block

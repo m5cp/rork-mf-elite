@@ -170,6 +170,20 @@ final class DrillPlayerViewModel {
         invalidateTimer()
     }
 
+    /// Skip the current set's timer and move to the next set (or log if final set).
+    func skipSet() {
+        invalidateTimer()
+        completeSet()
+    }
+
+    /// Log the drill immediately regardless of how many sets were completed.
+    /// Awards XP and updates progress just like a normal completion.
+    func logDrillEarly() {
+        invalidateTimer()
+        logDrill()
+        phase = .logged
+    }
+
     /// Called when a set's countdown reaches zero.
     func completeSet() {
         if currentSetIndex < drill.sets {

@@ -78,12 +78,15 @@ struct DrillPlayerView: View {
         }
         .alert("End session early?", isPresented: $showStopConfirm) {
             Button("Keep training", role: .cancel) {}
-            Button("End session", role: .destructive) {
+            Button("Log and finish") {
+                viewModel.logDrillEarly()
+            }
+            Button("Quit without logging", role: .destructive) {
                 viewModel.stopSession()
                 dismiss()
             }
         } message: {
-            Text("Your progress for this drill won't be logged.")
+            Text("You can log this drill now or quit without logging.")
         }
         .sheet(isPresented: $showNotificationPrompt) {
             NotificationPromptSheet()
@@ -284,8 +287,9 @@ struct DrillPlayerView: View {
 
             if !isResting {
                 HStack(spacing: DS.Spacing.s32) {
-                    IconButton(systemName: "backward.end.fill", size: 48) {
-                        viewModel.timeRemaining = viewModel.setDuration
+                    IconButton(systemName: "forward.end.fill", size: 48) {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        viewModel.skipSet()
                     }
 
                     Button {
@@ -311,7 +315,25 @@ struct DrillPlayerView: View {
                 }
                 .padding(.bottom, DS.Spacing.s48 + DS.Spacing.s12)
             } else {
-                Color.clear.frame(height: 84 + DS.Spacing.s48 + DS.Spacing.s12)
+                VStack(spacing: DS.Spacing.s16) {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        viewModel.logDrillEarly()
+                    } label: {
+                        Text("Log and finish")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DS.Radius.pill)
+                                    .stroke(DS.Colors.Line.subtle, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .padding(.horizontal, DS.Spacing.s20)
+                }
+                .padding(.bottom, DS.Spacing.s48 + DS.Spacing.s12)
             }
         }
     }

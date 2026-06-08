@@ -13,6 +13,8 @@ struct GoalState: Identifiable {
     let id: Int
     let label: String
     let done: Bool
+    var drillRoute: DrillRoute? = nil
+    var levelRoute: LevelRoute? = nil
 }
 
 /// The player's current in-progress level plus its parent context.
@@ -193,10 +195,34 @@ final class AcademyTodayViewModel {
         let physicalToday = drillsLoggedToday.contains { disciplineNameByDrill[$0] == "Physical" }
         let mindToday = drillsLoggedToday.contains { disciplineNameByDrill[$0] == "Psychological" }
         return [
-            GoalState(id: 0, label: "Ball Mastery — 1 drill", done: ballMasteryToday),
-            GoalState(id: 1, label: "Physical — 1 drill", done: physicalToday),
-            GoalState(id: 2, label: "Mind — 1 exercise", done: mindToday)
+            GoalState(
+                id: 0, label: "Ball Mastery — 1 drill", done: ballMasteryToday,
+                drillRoute: firstUnmasteredDrill { _, category in category.name == "Ball Mastery" }
+            ),
+            GoalState(
+                id: 1, label: "Physical — 1 drill", done: physicalToday,
+                drillRoute: firstUnmasteredDrill { discipline, _ in discipline.name == "Physical" }
+            ),
+            GoalState(
+                id: 2, label: "Mind — 1 exercise", done: mindToday,
+                drillRoute: firstUnmasteredDrill { discipline, _ in discipline.name == "Psychological" }
+            )
         ]
+    }
+
+    /// First not-yet-mastered drill matching a discipline/category predicate,
+    /// for navigating directly to a goal's next actionable drill.
+    private func firstUnmasteredDrill(matching: (Discipline, Category) -> Bool) -> DrillRoute? {
+        for discipline in disciplines {
+            for category in sortedCategories(discipline) where matching(discipline, category) {
+                for level in sortedLevels(category) {
+                    if let drill = sortedDrills(level).first(where: { !masteredDrillIDs.contains($0.id) }) {
+                        return DrillRoute(discipline: discipline, category: category, level: level, drill: drill)
+                    }
+                }
+            }
+        }
+        return nil
     }
 
     var dailyGoalsTotal: Int { goalStates.count }
