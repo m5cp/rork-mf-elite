@@ -62,6 +62,49 @@ struct RoutinesView: View {
             duration: "MIXED · 25 MIN",
             blurb: "Sharpen technique, fire the legs, and lock in the mind.",
             drillIDs: ["tech-a-1-1", "tech-c-1-2", "phys-a-1-1", "psy-a-1-1"]
+        ),
+
+        Routine(
+            id: "first-touch-clinic",
+            title: "First Touch Clinic",
+            duration: "TECHNICAL · 20 MIN",
+            blurb: "Five drills focused purely on your first touch under pressure.",
+            drillIDs: ["tech-b-1-1", "tech-b-1-2", "tech-b-1-3", "tech-b-1-4", "tech-b-2-1"]
+        ),
+        Routine(
+            id: "finishing-school",
+            title: "Finishing School",
+            duration: "TECHNICAL · 25 MIN",
+            blurb: "Finishing drills — placement, power, and composure in front of goal.",
+            drillIDs: ["tech-e-1-1", "tech-e-1-2", "tech-e-1-3", "tech-e-2-1", "tech-e-2-2"]
+        ),
+        Routine(
+            id: "mental-edge",
+            title: "Mental Edge",
+            duration: "PSYCHOLOGICAL · 15 MIN",
+            blurb: "Build your mind. Self-talk, focus, and composure drills.",
+            drillIDs: ["psy-a-1-1", "psy-b-1-1", "psy-d-1-1", "psy-e-1-1"]
+        ),
+        Routine(
+            id: "dribbling-gauntlet",
+            title: "Dribbling Gauntlet",
+            duration: "TECHNICAL · 25 MIN",
+            blurb: "Take on defenders. Close control, feints, and 1v1 moves.",
+            drillIDs: ["tech-d-1-1", "tech-d-1-2", "tech-d-1-3", "tech-d-2-1", "tech-d-2-2"]
+        ),
+        Routine(
+            id: "conditioning-blast",
+            title: "Conditioning Blast",
+            duration: "PHYSICAL · 20 MIN",
+            blurb: "Endurance and conditioning to outlast every opponent.",
+            drillIDs: ["phys-d-1-1", "phys-d-1-2", "phys-d-1-3", "phys-d-1-4"]
+        ),
+        Routine(
+            id: "complete-player",
+            title: "The Complete Player",
+            duration: "MIXED · 40 MIN",
+            blurb: "Every discipline. One session. The full MF Elite experience.",
+            drillIDs: ["tech-a-1-1", "tech-b-1-1", "tech-d-1-1", "phys-a-1-1", "phys-c-1-1", "tact-a-1-1", "tact-b-1-1", "psy-a-1-1", "psy-c-1-1"]
         )
     ]
 
