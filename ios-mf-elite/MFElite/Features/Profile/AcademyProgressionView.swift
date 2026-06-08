@@ -16,6 +16,10 @@ struct AcademyProgressionView: View {
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
 
+    private var totalCategories: Int {
+        disciplines.reduce(0) { $0 + $1.categories.count }
+    }
+
     private var viewModel: AcademyProgressionViewModel {
         AcademyProgressionViewModel(
             disciplines: disciplines,
@@ -49,7 +53,7 @@ struct AcademyProgressionView: View {
     private func header(_ vm: AcademyProgressionViewModel) -> some View {
         let rank = vm.currentRank
         return VStack(spacing: 0) {
-            Monogram(size: 72, initials: rank.numeral, kit: "09")
+            Monogram(size: 72, initials: rank.numeral, kit: PlayerProfileStore.shared.kitNumber)
 
             Text(rank.title)
                 .style(.hero)
@@ -171,9 +175,9 @@ struct AcademyProgressionView: View {
     private func milestonesSection(_ vm: AcademyProgressionViewModel) -> some View {
         let rows: [(String, String)] = [
             ("Streak personal best", "\(vm.streak) days"),
-            ("Certifications earned", "\(vm.certCount) of 19"),
+            ("Certifications earned", "\(vm.certCount) of \(totalCategories)"),
             ("Drills logged", "\(vm.totalDrillsLogged)"),
-            ("Weekly consistency", "\(vm.weeklyConsistencyPercent)%")
+            ("This week", "\(vm.weeklyConsistencyPercent)%")
         ]
         return VStack(alignment: .leading, spacing: 0) {
             Eyebrow(text: "Development Milestones")
@@ -310,7 +314,7 @@ private struct ElevenNode: View {
                     .stroke(DS.Colors.Line.subtle, lineWidth: 1)
                     .frame(width: 44, height: 44)
                     .overlay(
-                        Image(systemName: "star.fill")
+                        Image(systemName: "trophy.fill")
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(DS.Colors.Ink.disabled)
                     )
@@ -318,11 +322,11 @@ private struct ElevenNode: View {
             .frame(width: 44)
 
             VStack(alignment: .leading, spacing: DS.Spacing.s4) {
-                Eyebrow(text: "The Eleven")
-                Text("The Eleven")
+                Eyebrow(text: "Ballon d'Or")
+                Text("Ballon d'Or")
                     .style(.title3)
                     .foregroundStyle(DS.Colors.Ink.primary)
-                Text("Invite only · Coach-selected")
+                Text("Coach MF Approved · Invite Only")
                     .style(.micro)
                     .foregroundStyle(DS.Colors.Ink.quaternary)
             }

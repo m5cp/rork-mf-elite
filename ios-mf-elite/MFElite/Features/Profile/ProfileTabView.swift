@@ -47,15 +47,6 @@ struct ProfileTabView: View {
             .navigationDestination(for: BadgesRoute.self) { _ in
                 BadgesLockerView()
             }
-            .navigationDestination(for: StreakRoute.self) { _ in
-                StreakDetailView()
-            }
-            .navigationDestination(for: FamilyRoute.self) { _ in
-                FamilyManagementView()
-            }
-            .navigationDestination(for: ParentReportRoute.self) { _ in
-                ParentReportView()
-            }
             .navigationDestination(for: SettingsRoute.self) { _ in
                 SettingsView()
             }
@@ -148,17 +139,8 @@ struct ProfileTabView: View {
             menuRow(icon: "shield.lefthalf.filled", label: "Badges",
                     route: BadgesRoute())
             Hairline()
-            menuRow(icon: "flame", label: "Streak",
-                    route: StreakRoute())
-            Hairline()
-            menuRow(icon: "person.2", label: "Family",
-                    route: FamilyRoute())
-            Hairline()
             menuRow(icon: "gearshape", label: "Settings",
                     route: SettingsRoute())
-            Hairline()
-            menuRow(icon: "doc.text", label: "Player Report",
-                    route: ParentReportRoute())
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32)

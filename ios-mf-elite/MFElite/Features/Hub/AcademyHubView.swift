@@ -15,6 +15,13 @@ struct AcademyHubView: View {
 
     private var kitNumber: String { PlayerProfileStore.shared.kitNumber }
 
+    private var currentSeasonLabel: String {
+        let year = Calendar.current.component(.year, from: Date())
+        let shortYear = year % 100
+        let nextShort = (year + 1) % 100
+        return "\(shortYear) — \(nextShort)"
+    }
+
     private var masteredDrillIDs: Set<String> {
         Set(progress.filter { $0.isMastered }.map { $0.drillID })
     }
@@ -75,7 +82,7 @@ struct AcademyHubView: View {
     private var masthead: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: DS.Spacing.s12) {
-                Eyebrow(text: "Season 25 — 26")
+                Eyebrow(text: "Season \(currentSeasonLabel)")
                 Spacer()
                 Eyebrow(text: "MF · Academy")
                 NavigationLink(value: SearchRoute()) {
@@ -170,7 +177,7 @@ struct AcademyHubView: View {
             HStack {
                 Eyebrow(text: "Development Pathways")
                 Spacer()
-                Eyebrow(text: "04")
+                Eyebrow(text: String(format: "%02d", vm.disciplines.count))
             }
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.bottom, DS.Spacing.s4 + 2)
@@ -272,11 +279,6 @@ private struct PathwayRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: DS.Spacing.s16) {
-                Text(discipline.number)
-                    .font(.system(size: 36, weight: .heavy).italic())
-                    .foregroundStyle(Color.white.opacity(0.72))
-                    .frame(width: 44, alignment: .leading)
-
                 VStack(alignment: .leading, spacing: DS.Spacing.s8) {
                     HStack(spacing: DS.Spacing.s8) {
                         DisciplineMark(kind: discipline.mark, size: 22)

@@ -37,7 +37,6 @@ struct ProgressTabView: View {
             .scrollIndicators(.hidden)
             .navigationBarHidden(true)
             .navigationDestination(for: WeeklyRoute.self) { _ in WeeklyView() }
-            .navigationDestination(for: StreakRoute.self) { _ in StreakDetailView() }
             .navigationDestination(for: AcademyProgressionRoute.self) { _ in AcademyProgressionView() }
         }
     }
@@ -245,11 +244,6 @@ struct ProgressTabView: View {
         VStack(spacing: 0) {
             NavigationLink(value: WeeklyRoute()) {
                 QuickLinkRow(icon: "calendar", label: "Weekly breakdown", isLast: false)
-            }
-            .buttonStyle(PressableButtonStyle())
-
-            NavigationLink(value: StreakRoute()) {
-                QuickLinkRow(icon: "flame", label: "Streak", isLast: false)
             }
             .buttonStyle(PressableButtonStyle())
 

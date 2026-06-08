@@ -210,19 +210,19 @@ private struct ElevenBadgeRow: View {
                 .stroke(DS.Colors.Line.subtle, lineWidth: 1)
                 .frame(width: 56, height: 56)
                 .overlay(
-                    Image(systemName: "star.fill")
+                    Image(systemName: "trophy.fill")
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundStyle(DS.Colors.Ink.disabled)
                 )
 
             VStack(alignment: .leading, spacing: DS.Spacing.s4) {
-                Text("The Eleven")
+                Text("Ballon d'Or")
                     .style(.title3)
                     .foregroundStyle(DS.Colors.Ink.primary)
-                Text("Invite only")
+                Text("Coach MF Approved")
                     .style(.micro)
                     .foregroundStyle(DS.Colors.Ink.quaternary)
-                Text("Invite Only · Coach-Selected")
+                Text("Coach MF Approved · Invite Only")
                     .style(.micro)
                     .foregroundStyle(DS.Colors.Ink.disabled)
             }

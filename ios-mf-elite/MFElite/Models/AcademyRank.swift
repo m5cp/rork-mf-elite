@@ -27,10 +27,10 @@ enum AcademyRank: Int, CaseIterable, Sendable {
     /// Display title for the rank.
     var title: String {
         switch self {
-        case .trialist: return "Trialist"
-        case .cadet: return "Cadet"
+        case .trialist: return "New Talent"
+        case .cadet: return "Academy"
         case .prospect: return "Prospect"
-        case .starter: return "Starter"
+        case .starter: return "First Eleven"
         case .captain: return "Captain"
         }
     }
