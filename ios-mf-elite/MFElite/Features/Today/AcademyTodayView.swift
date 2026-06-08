@@ -124,7 +124,7 @@ struct AcademyTodayView: View {
 
                 NavigationLink(value: StreakRoute()) {
                     HStack(spacing: DS.Spacing.s4 + 2) {
-                        Image(systemName: "chart.bar.fill")
+                        Image(systemName: "flame.fill")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(DS.Colors.Ink.primary)
                         Text("\(vm.streak)")

@@ -277,7 +277,7 @@ private struct DrillRow: View {
                     .frame(width: 8, height: 8)
                     .overlay(
                         Circle()
-                            .stroke(index < passesLogged ? Color.clear : DS.Colors.Line.subtle, lineWidth: 1)
+                            .stroke(index < passesLogged ? Color.clear : Color.white.opacity(0.25), lineWidth: 1)
                     )
             }
         }

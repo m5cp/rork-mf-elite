@@ -330,5 +330,6 @@ struct DrillDetailView: View {
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32)
+        .padding(.bottom, DS.Spacing.s48)
     }
 }

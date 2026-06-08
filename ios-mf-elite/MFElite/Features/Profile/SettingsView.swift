@@ -210,7 +210,7 @@ struct SettingsView: View {
                 .padding(.horizontal, DS.Spacing.s12)
 
             VStack(spacing: DS.Spacing.s4) {
-                Text("MF ELITE v1.0.0")
+                Text("MF ELITE v\(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")")
                     .style(.microSm)
                     .foregroundStyle(DS.Colors.Ink.quaternary)
                 Text("BUILT BY M5CAIRIO")
