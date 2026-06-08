@@ -1,0 +1,156 @@
+//
+//  AchievementBadge.swift
+//  MFElite
+//
+//  Achievement badges awarded for training milestones, mastery, streaks, and
+//  special moments. Earned state is persisted in UserDefaults via AchievementStore.
+//
+
+import Foundation
+
+enum AchievementBadge: String, CaseIterable, Identifiable {
+    // Training milestones
+    case firstDrill = "first_drill"
+    case tenDrills = "ten_drills"
+    case fiftyDrills = "fifty_drills"
+    case hundredDrills = "hundred_drills"
+
+    // Mastery milestones
+    case firstMastery = "first_mastery"
+    case tenMastered = "ten_mastered"
+    case fiftyMastered = "fifty_mastered"
+
+    // Streak milestones
+    case weekStreak = "week_streak"
+    case monthStreak = "month_streak"
+    case fiftyDayStreak = "fifty_day_streak"
+    case hundredDayStreak = "hundred_day_streak"
+
+    // Special
+    case perfectWeek = "perfect_week"
+    case firstCert = "first_cert"
+    case earlyBird = "early_bird"
+    case nightOwl = "night_owl"
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .firstDrill: return "First Rep"
+        case .tenDrills: return "Getting Started"
+        case .fiftyDrills: return "Committed"
+        case .hundredDrills: return "Century"
+        case .firstMastery: return "First Mastery"
+        case .tenMastered: return "Sharpening"
+        case .fiftyMastered: return "Elite Form"
+        case .weekStreak: return "Week One"
+        case .monthStreak: return "The Month"
+        case .fiftyDayStreak: return "Fifty"
+        case .hundredDayStreak: return "Centurion"
+        case .perfectWeek: return "Perfect Week"
+        case .firstCert: return "Certified"
+        case .earlyBird: return "Early Bird"
+        case .nightOwl: return "Night Owl"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .firstDrill: return "Complete your first drill"
+        case .tenDrills: return "Complete 10 drills"
+        case .fiftyDrills: return "Complete 50 drills"
+        case .hundredDrills: return "Complete 100 drills"
+        case .firstMastery: return "Master your first drill"
+        case .tenMastered: return "Master 10 drills"
+        case .fiftyMastered: return "Master 50 drills"
+        case .weekStreak: return "7-day training streak"
+        case .monthStreak: return "30-day training streak"
+        case .fiftyDayStreak: return "50-day training streak"
+        case .hundredDayStreak: return "100-day training streak"
+        case .perfectWeek: return "Train every day for a full week"
+        case .firstCert: return "Earn your first certification"
+        case .earlyBird: return "Train before 7:00 AM"
+        case .nightOwl: return "Train after 9:00 PM"
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .firstDrill: return "play.circle"
+        case .tenDrills: return "10.circle"
+        case .fiftyDrills: return "star.circle"
+        case .hundredDrills: return "crown"
+        case .firstMastery: return "checkmark.seal"
+        case .tenMastered: return "checkmark.seal.fill"
+        case .fiftyMastered: return "trophy"
+        case .weekStreak: return "flame"
+        case .monthStreak: return "flame.fill"
+        case .fiftyDayStreak: return "bolt.circle"
+        case .hundredDayStreak: return "bolt.circle.fill"
+        case .perfectWeek: return "calendar.badge.checkmark"
+        case .firstCert: return "rosette"
+        case .earlyBird: return "sunrise"
+        case .nightOwl: return "moon.stars"
+        }
+    }
+
+    /// Check threshold for drill-count badges
+    static func drillCountBadges(for count: Int) -> [AchievementBadge] {
+        var earned: [AchievementBadge] = []
+        if count >= 1 { earned.append(.firstDrill) }
+        if count >= 10 { earned.append(.tenDrills) }
+        if count >= 50 { earned.append(.fiftyDrills) }
+        if count >= 100 { earned.append(.hundredDrills) }
+        return earned
+    }
+
+    /// Check threshold for mastery badges
+    static func masteryBadges(for count: Int) -> [AchievementBadge] {
+        var earned: [AchievementBadge] = []
+        if count >= 1 { earned.append(.firstMastery) }
+        if count >= 10 { earned.append(.tenMastered) }
+        if count >= 50 { earned.append(.fiftyMastered) }
+        return earned
+    }
+
+    /// Check threshold for streak badges
+    static func streakBadges(for streak: Int) -> [AchievementBadge] {
+        var earned: [AchievementBadge] = []
+        if streak >= 7 { earned.append(.weekStreak) }
+        if streak >= 30 { earned.append(.monthStreak) }
+        if streak >= 50 { earned.append(.fiftyDayStreak) }
+        if streak >= 100 { earned.append(.hundredDayStreak) }
+        return earned
+    }
+}
+
+/// Persists earned achievement badge IDs in UserDefaults.
+enum AchievementStore {
+    private static let key = "MF_EARNED_BADGES"
+
+    static var earnedIDs: Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+    }
+
+    static func isEarned(_ badge: AchievementBadge) -> Bool {
+        earnedIDs.contains(badge.rawValue)
+    }
+
+    static func earn(_ badge: AchievementBadge) {
+        var ids = earnedIDs
+        ids.insert(badge.rawValue)
+        UserDefaults.standard.set(Array(ids), forKey: key)
+    }
+
+    static func earnAll(_ badges: [AchievementBadge]) {
+        var ids = earnedIDs
+        for badge in badges {
+            ids.insert(badge.rawValue)
+        }
+        UserDefaults.standard.set(Array(ids), forKey: key)
+    }
+
+    static var earnedCount: Int {
+        earnedIDs.count
+    }
+}

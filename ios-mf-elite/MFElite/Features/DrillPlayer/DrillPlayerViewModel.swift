@@ -233,6 +233,17 @@ final class DrillPlayerViewModel {
             player.lastTrainedDate = Date()
             newStreak = player.streak
 
+            // Award streak freezes at milestones.
+            if player.streak == 7 && player.freezesRemaining < 1 {
+                player.freezesRemaining += 1
+            }
+            if player.streak == 30 && player.freezesRemaining < 2 {
+                player.freezesRemaining = 2
+            }
+            if player.streak == 50 {
+                player.freezesRemaining += 1
+            }
+
             // Logged today — cancel tonight's streak-risk warning.
             NotificationService.shared.cancelStreakRisk()
             // Fire a milestone notification if this run hit a milestone.
@@ -249,6 +260,30 @@ final class DrillPlayerViewModel {
                 categoryJustCertified = true
                 player?.xp += ProgressionRules.xpCategoryCert
             }
+        }
+
+        // Award achievement badges.
+        let totalCompleted = EngagementTracker.shared.drillsCompleted + 1
+        AchievementStore.earnAll(AchievementBadge.drillCountBadges(for: totalCompleted))
+
+        let masteredTotal = masteredIDs(context: context).count
+        AchievementStore.earnAll(AchievementBadge.masteryBadges(for: masteredTotal))
+
+        if let player {
+            AchievementStore.earnAll(AchievementBadge.streakBadges(for: player.streak))
+        }
+
+        if categoryJustCertified {
+            AchievementStore.earn(.firstCert)
+        }
+
+        // Time-based badges.
+        let hour = Calendar.current.component(.hour, from: Date())
+        if hour < 7 {
+            AchievementStore.earn(.earlyBird)
+        }
+        if hour >= 21 {
+            AchievementStore.earn(.nightOwl)
         }
 
         try? context.save()

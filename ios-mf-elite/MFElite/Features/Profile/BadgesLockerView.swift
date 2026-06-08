@@ -20,19 +20,22 @@ struct BadgesLockerView: View {
     private var currentRank: AcademyRank { AcademyRank.rank(for: xp) }
     private var nextRank: AcademyRank? { AcademyRank.nextRank(for: xp) }
 
-    /// All rank badges (earned when xp clears the threshold).
+    /// All rank badges (earned when xp clears the threshold) plus achievements.
     private var earnedCount: Int {
-        AcademyRank.allCases.filter { xp >= $0.rawValue }.count
+        AcademyRank.allCases.filter { xp >= $0.rawValue }.count + AchievementStore.earnedCount
     }
 
-    /// Rank badges + The Eleven.
-    private var totalCount: Int { AcademyRank.allCases.count + 1 }
+    /// Rank badges + The Eleven + achievement badges.
+    private var totalCount: Int {
+        AcademyRank.allCases.count + 1 + AchievementBadge.allCases.count
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 header
                 ladder
+                achievementSection
             }
             .padding(.bottom, 120)
         }
@@ -73,6 +76,24 @@ struct BadgesLockerView: View {
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s24)
+    }
+
+    // MARK: - Achievements
+
+    private var achievementSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "Achievements")
+                .padding(.horizontal, DS.Spacing.s20)
+                .padding(.top, DS.Spacing.s32)
+                .padding(.bottom, DS.Spacing.s8)
+
+            ForEach(AchievementBadge.allCases) { badge in
+                let earned = AchievementStore.isEarned(badge)
+                AchievementRow(badge: badge, isEarned: earned)
+                Hairline()
+                    .padding(.horizontal, DS.Spacing.s20)
+            }
+        }
     }
 
     // MARK: - State logic
@@ -209,6 +230,51 @@ private struct ElevenBadgeRow: View {
         }
         .padding(.vertical, DS.Spacing.s16 + 2)
         .opacity(0.5)
+    }
+}
+
+// MARK: - Achievement Row
+
+private struct AchievementRow: View {
+    let badge: AchievementBadge
+    let isEarned: Bool
+
+    var body: some View {
+        HStack(spacing: DS.Spacing.s16) {
+            Circle()
+                .fill(isEarned ? Color.white : Color.clear)
+                .frame(width: 48, height: 48)
+                .overlay(
+                    Image(systemName: badge.icon)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(isEarned ? DS.Colors.Ground.primary : DS.Colors.Ink.disabled)
+                )
+                .overlay(
+                    Circle().stroke(isEarned ? Color.clear : DS.Colors.Line.subtle, lineWidth: 1)
+                )
+
+            VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                Text(badge.title)
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Text(badge.detail)
+                    .style(.micro)
+                    .foregroundStyle(isEarned ? DS.Colors.Ink.tertiary : DS.Colors.Ink.disabled)
+                if isEarned {
+                    HStack(spacing: DS.Spacing.s4) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 9, weight: .bold))
+                        Text("Earned")
+                            .style(.micro)
+                    }
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, DS.Spacing.s12)
+        .padding(.horizontal, DS.Spacing.s20)
+        .opacity(isEarned ? 1 : 0.5)
     }
 }
 

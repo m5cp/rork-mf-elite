@@ -151,7 +151,7 @@ struct StreakDetailView: View {
                 }
                 .padding(.top, DS.Spacing.s12)
 
-                Text("Auto-protects one missed day · earn more by ranking up")
+                Text("Auto-protects one missed day · earned at 7-day, 30-day, and 50-day milestones")
                     .style(.foot)
                     .foregroundStyle(DS.Colors.Ink.tertiary)
                     .padding(.top, DS.Spacing.s12 - 2)
