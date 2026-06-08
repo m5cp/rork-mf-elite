@@ -9,65 +9,15 @@
   },
   "dailyQuotes": [
     "Do it when you don't feel like it. That's the edge.",
-    "The ball doesn't care about yesterday. Neither should you.",
-    "Touch the ball every single day. No exceptions.",
-    "Discipline is doing the boring work after the excitement fades.",
-    "You are what you repeat.",
-    "Small sessions, done daily, beat long sessions done occasionally.",
-    "The best players in the world were once where you are now.",
-    "Your weak foot is not optional. It is a weapon waiting to be built.",
-    "Speed without control is just chaos.",
-    "Every rep matters. Even the ones nobody sees.",
-    "Train like you play. Play like you train.",
-    "Focus is a skill. Practice it.",
-    "The player who works hardest in the off-season wins in the season.",
-    "Master the basics. Then master them again.",
-    "Composure under pressure is trained, not given.",
-    "Your body follows your mind. Think sharp, move sharp.",
-    "Nobody remembers the excuses. They remember the results.",
-    "There is no substitute for ball time.",
-    "Be the player that coaches trust in the big moments.",
-    "The difference between good and great is one more rep.",
-    "You control two things: your effort and your attitude.",
-    "Your first touch determines everything that follows.",
-    "Champions are built in the dark. Keep training.",
-    "Talent is common. Discipline is rare.",
-    "You don't rise to the occasion. You fall to the level of your training.",
-    "Play with purpose. Every touch has intention.",
-    "Rest is part of the process. Recover well.",
-    "Mental strength is the most underrated skill in football.",
-    "Be coachable. The best players always are.",
-    "Consistency beats intensity. Show up every day.",
-    "Play the game in your head before you play it on the pitch.",
-    "Your position is earned. Never stop earning it.",
-    "The ball moves faster than your feet. Think ahead.",
-    "Pressure is a privilege. Embrace it.",
-    "Make the simple pass. Make it perfectly.",
-    "Watch the game. Study the game. Live the game.",
-    "Your body is your tool. Respect it. Fuel it. Train it.",
-    "The difference between a pass and a great pass is timing.",
-    "Football is a thinking game played with your feet.",
-    "Today's session is tomorrow's instinct.",
-    "You miss 100% of the reps you skip.",
-    "A strong mind controls a tired body.",
-    "The pitch doesn't owe you anything. Earn every yard.",
-    "Confidence comes from preparation. Prepare.",
-    "Vision is seeing what others don't. Scan more.",
-    "Movement off the ball is where games are won.",
-    "Every champion was once a beginner who refused to quit.",
-    "The players who last are the ones who love the process.",
-    "Mistakes are data. Learn from every one.",
-    "Be the hardest worker on the pitch. Every single time.",
-    "Your opponent is training right now. Are you?",
-    "Practice doesn't make perfect. Perfect practice makes perfect.",
-    "Speed of thought beats speed of feet.",
-    "Stay hungry. Stay humble. Stay sharp.",
-    "The ball is your best friend. Spend time with it.",
-    "Own your development. Nobody else will do it for you.",
-    "When you feel like stopping, think about why you started.",
-    "Great players make everyone around them better.",
-    "Train with purpose. Rest with purpose. Everything with purpose.",
-    "The grind is the glory. Love the work."
+    "Next action. Always the next action.",
+    "I don't lose the ball.",
+    "The first touch is the rep.",
+    "Train the day most players skip.",
+    "Slow the moment down \u2014 then strike.",
+    "I win this.",
+    "Full effort is the only standard.",
+    "Quality over speed. The touch is everything.",
+    "The extra ten reps are where you separate."
   ],
   "demoPlayer": {
     "xp": 3620,
@@ -157,7 +107,7 @@
                   "coachingPoints": [
                     "Coordination, rhythm",
                     "Alternate feet tapping the top of the ball quickly.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -172,7 +122,7 @@
                   "coachingPoints": [
                     "Soft touch",
                     "Pass the ball between feet using only the inside.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -187,7 +137,7 @@
                   "coachingPoints": [
                     "Sole control",
                     "Roll ball across body using the sole, alternating feet.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -202,7 +152,7 @@
                   "coachingPoints": [
                     "Ball manipulation",
                     "Pull ball back with sole, push forward with laces.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -217,7 +167,7 @@
               "drills": [
                 {
                   "id": "tech-a-2-1",
-                  "title": "Inside-Outside · Right",
+                  "title": "Inside-Outside \u00b7 Right",
                   "focus": "Foot coordination",
                   "how": "Small touches forward using inside/outside of the same foot.",
                   "videoURL": null,
@@ -226,13 +176,13 @@
                   "coachingPoints": [
                     "Foot coordination",
                     "Small touches forward using inside/outside of the same foot.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
                 {
                   "id": "tech-a-2-2",
-                  "title": "Inside-Outside · Left",
+                  "title": "Inside-Outside \u00b7 Left",
                   "focus": "Weak foot development",
                   "how": "Same as above, opposite foot.",
                   "videoURL": null,
@@ -241,7 +191,7 @@
                   "coachingPoints": [
                     "Weak foot development",
                     "Same as above, opposite foot.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -256,7 +206,7 @@
                   "coachingPoints": [
                     "Coordination + movement",
                     "Roll ball across body and step forward into space.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -271,7 +221,7 @@
                   "coachingPoints": [
                     "Direction change",
                     "Pull ball back diagonally, push forward with inside.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -295,7 +245,7 @@
                   "coachingPoints": [
                     "Control while moving",
                     "Dribble in a square using tight touches.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -310,7 +260,7 @@
                   "coachingPoints": [
                     "Tight turns",
                     "Dribble around two cones in a figure-8 pattern.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -318,14 +268,14 @@
                   "id": "tech-a-3-3",
                   "title": "Quick Tap + Burst",
                   "focus": "Transition",
-                  "how": "3–5 quick toe taps, then explode forward with the ball.",
+                  "how": "3\u20135 quick toe taps, then explode forward with the ball.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Transition",
-                    "3–5 quick toe taps, then explode forward with the ball.",
-                    "Quality over speed — make every rep count."
+                    "3\u20135 quick toe taps, then explode forward with the ball.",
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -340,7 +290,7 @@
                   "coachingPoints": [
                     "Sharp control",
                     "Drag ball back with sole, push sideways with inside.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -364,7 +314,7 @@
                   "coachingPoints": [
                     "Weak foot confidence",
                     "Dribble through cones using only the weak foot.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -379,7 +329,7 @@
                   "coachingPoints": [
                     "Coordination",
                     "Switch feet every rep while doing V-pulls.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -394,7 +344,7 @@
                   "coachingPoints": [
                     "Rhythm + balance",
                     "Roll ball right-left continuously using both soles.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -409,7 +359,7 @@
                   "coachingPoints": [
                     "Skill coordination",
                     "Inside touch, step over, repeat opposite side.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -426,14 +376,14 @@
                   "id": "tech-a-5-1",
                   "title": "Cone Call Reaction",
                   "focus": "Awareness + reaction",
-                  "how": "Set 4 cones — call one, player dribbles to it.",
+                  "how": "Set 4 cones \u2014 call one, player dribbles to it.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Awareness + reaction",
-                    "Set 4 cones — call one, player dribbles to it.",
-                    "Quality over speed — make every rep count."
+                    "Set 4 cones \u2014 call one, player dribbles to it.",
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -448,7 +398,7 @@
                   "coachingPoints": [
                     "Control under pressure",
                     "One leads, one mirrors movements in a small grid.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -456,14 +406,14 @@
                   "id": "tech-a-5-3",
                   "title": "Timed Tight Space",
                   "focus": "Game pressure",
-                  "how": "Stay inside a small grid 30–45 sec without losing control.",
+                  "how": "Stay inside a small grid 30\u201345 sec without losing control.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Game pressure",
-                    "Stay inside a small grid 30–45 sec without losing control.",
-                    "Quality over speed — make every rep count."
+                    "Stay inside a small grid 30\u201345 sec without losing control.",
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -471,14 +421,14 @@
                   "id": "tech-a-5-4",
                   "title": "Combo Flow",
                   "focus": "Creativity + flow",
-                  "how": "Freestyle: sole rolls, V-pulls, inside/outside — continuous.",
+                  "how": "Freestyle: sole rolls, V-pulls, inside/outside \u2014 continuous.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Creativity + flow",
-                    "Freestyle: sole rolls, V-pulls, inside/outside — continuous.",
-                    "Quality over speed — make every rep count."
+                    "Freestyle: sole rolls, V-pulls, inside/outside \u2014 continuous.",
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -503,7 +453,7 @@
               "drills": [
                 {
                   "id": "tech-b-1-1",
-                  "title": "Wall Pass · Inside",
+                  "title": "Wall Pass \u00b7 Inside",
                   "focus": "Soft first touch",
                   "how": "Pass against wall, control with inside, stop ball.",
                   "videoURL": null,
@@ -512,13 +462,13 @@
                   "coachingPoints": [
                     "Soft first touch",
                     "Pass against wall, control with inside, stop ball.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
                 {
                   "id": "tech-b-1-2",
-                  "title": "Wall Pass · Right",
+                  "title": "Wall Pass \u00b7 Right",
                   "focus": "Dominant foot",
                   "how": "Pass and receive using only the right foot.",
                   "videoURL": null,
@@ -527,13 +477,13 @@
                   "coachingPoints": [
                     "Dominant foot",
                     "Pass and receive using only the right foot.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
                 {
                   "id": "tech-b-1-3",
-                  "title": "Wall Pass · Left",
+                  "title": "Wall Pass \u00b7 Left",
                   "focus": "Weak foot",
                   "how": "Same as above, opposite foot.",
                   "videoURL": null,
@@ -542,7 +492,7 @@
                   "coachingPoints": [
                     "Weak foot",
                     "Same as above, opposite foot.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -550,14 +500,14 @@
                   "id": "tech-b-1-4",
                   "title": "Dead-Stop Control",
                   "focus": "Cushioning",
-                  "how": "Wall passes the ball — player kills it completely.",
+                  "how": "Wall passes the ball \u2014 player kills it completely.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Cushioning",
-                    "Wall passes the ball — player kills it completely.",
-                    "Quality over speed — make every rep count."
+                    "Wall passes the ball \u2014 player kills it completely.",
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -581,7 +531,7 @@
                   "coachingPoints": [
                     "Touch away from pressure",
                     "Receive and push ball left or right with first touch.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -596,7 +546,7 @@
                   "coachingPoints": [
                     "Game-realistic receiving",
                     "Receive across body using the back foot and open up.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -611,7 +561,7 @@
                   "coachingPoints": [
                     "Attacking intent",
                     "Receive and push the ball forward into space.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -626,7 +576,7 @@
                   "coachingPoints": [
                     "Fluid movement",
                     "Control across body, then immediate pass.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -641,7 +591,7 @@
               "drills": [
                 {
                   "id": "tech-b-3-1",
-                  "title": "Check Away → To Ball",
+                  "title": "Check Away \u2192 To Ball",
                   "focus": "Movement before touch",
                   "how": "Move away, come to the ball, control clean.",
                   "videoURL": null,
@@ -650,7 +600,7 @@
                   "coachingPoints": [
                     "Movement before touch",
                     "Move away, come to the ball, control clean.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -665,7 +615,7 @@
                   "coachingPoints": [
                     "Game awareness",
                     "Open body before receiving, turn with first touch.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -680,7 +630,7 @@
                   "coachingPoints": [
                     "Avoiding a defender",
                     "Receive and take first touch around a cone.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -688,14 +638,14 @@
                   "id": "tech-b-3-4",
                   "title": "One-Touch Prep",
                   "focus": "Preparation touch",
-                  "how": "Touch sets up the next pass — never random.",
+                  "how": "Touch sets up the next pass \u2014 never random.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Preparation touch",
-                    "Touch sets up the next pass — never random.",
-                    "Quality over speed — make every rep count."
+                    "Touch sets up the next pass \u2014 never random.",
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -710,7 +660,7 @@
               "drills": [
                 {
                   "id": "tech-b-4-1",
-                  "title": "Juggle → Control → Pass",
+                  "title": "Juggle \u2192 Control \u2192 Pass",
                   "focus": "Air control",
                   "how": "Juggle once or twice, bring ball down, pass.",
                   "videoURL": null,
@@ -719,7 +669,7 @@
                   "coachingPoints": [
                     "Air control",
                     "Juggle once or twice, bring ball down, pass.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -734,7 +684,7 @@
                   "coachingPoints": [
                     "Body coordination",
                     "Control with thigh, drop to feet, pass.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -749,7 +699,7 @@
                   "coachingPoints": [
                     "Upper body control",
                     "Control with chest, play quickly.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -764,7 +714,7 @@
                   "coachingPoints": [
                     "Timing",
                     "Receive a bouncing ball, control clean.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -781,14 +731,14 @@
                   "id": "tech-b-5-1",
                   "title": "First Touch + Pressure",
                   "focus": "Game realism",
-                  "how": "Partner applies light pressure — control away.",
+                  "how": "Partner applies light pressure \u2014 control away.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Game realism",
-                    "Partner applies light pressure — control away.",
-                    "Quality over speed — make every rep count."
+                    "Partner applies light pressure \u2014 control away.",
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -803,7 +753,7 @@
                   "coachingPoints": [
                     "Reaction + awareness",
                     "Coach calls direction, player adjusts first touch.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -818,7 +768,7 @@
                   "coachingPoints": [
                     "Speed of play",
                     "Control, pass quickly under a touch restriction.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -833,7 +783,7 @@
                   "coachingPoints": [
                     "End product",
                     "Receive, first touch sets up the shot, finish.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -867,7 +817,7 @@
                   "coachingPoints": [
                     "Clean technique",
                     "Pass back and forth focusing on form.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -882,7 +832,7 @@
                   "coachingPoints": [
                     "Passing rhythm",
                     "Pass against the wall using one touch only.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -897,7 +847,7 @@
                   "coachingPoints": [
                     "Consistency",
                     "All passes with the right foot.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -912,7 +862,7 @@
                   "coachingPoints": [
                     "Weak foot",
                     "All passes with the left foot.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -936,7 +886,7 @@
                   "coachingPoints": [
                     "Accuracy",
                     "Pass through small cone gates.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -951,7 +901,7 @@
                   "coachingPoints": [
                     "Movement habits",
                     "Pass, move to a new position, receive again.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -966,7 +916,7 @@
                   "coachingPoints": [
                     "Angles",
                     "Pass in a triangle shape, keep the ball moving.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -981,7 +931,7 @@
                   "coachingPoints": [
                     "Weight of pass",
                     "Pass so the ball stops inside a marked zone.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -996,7 +946,7 @@
               "drills": [
                 {
                   "id": "tech-c-3-1",
-                  "title": "Check to Ball → Pass",
+                  "title": "Check to Ball \u2192 Pass",
                   "focus": "Game movement",
                   "how": "Move to receive, pass quickly.",
                   "videoURL": null,
@@ -1005,7 +955,7 @@
                   "coachingPoints": [
                     "Game movement",
                     "Move to receive, pass quickly.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -1020,7 +970,7 @@
                   "coachingPoints": [
                     "Body positioning",
                     "Receive, open, pass a different direction.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1035,7 +985,7 @@
                   "coachingPoints": [
                     "Combination play",
                     "Pass, move, receive the return pass.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -1050,7 +1000,7 @@
                   "coachingPoints": [
                     "Game tempo",
                     "Control, pass quickly in rhythm.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -1074,7 +1024,7 @@
                   "coachingPoints": [
                     "Speed of play",
                     "All passes one-touch in a triangle.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -1082,14 +1032,14 @@
                   "id": "tech-c-4-2",
                   "title": "Long Passing Technique",
                   "focus": "Distance + form",
-                  "how": "Driven passes over 20–40 yards.",
+                  "how": "Driven passes over 20\u201340 yards.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Distance + form",
-                    "Driven passes over 20–40 yards.",
-                    "Quality over speed — make every rep count."
+                    "Driven passes over 20\u201340 yards.",
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1104,7 +1054,7 @@
                   "coachingPoints": [
                     "Penetration",
                     "Pass firmly through a line or between cones.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -1119,7 +1069,7 @@
                   "coachingPoints": [
                     "Variation",
                     "Lift the ball over an obstacle into a target area.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -1143,13 +1093,13 @@
                   "coachingPoints": [
                     "Composure",
                     "Partner applies pressure, pass clean.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
                 {
                   "id": "tech-c-5-2",
-                  "title": "Scan → Pass",
+                  "title": "Scan \u2192 Pass",
                   "focus": "Awareness",
                   "how": "Coach calls direction, player adjusts the pass.",
                   "videoURL": null,
@@ -1158,7 +1108,7 @@
                   "coachingPoints": [
                     "Awareness",
                     "Coach calls direction, player adjusts the pass.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 }
@@ -1192,13 +1142,13 @@
                   "coachingPoints": [
                     "Tight control",
                     "Dribble in a line using small touches.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
                 {
                   "id": "tech-d-1-2",
-                  "title": "Inside-Outside · Alternating",
+                  "title": "Inside-Outside \u00b7 Alternating",
                   "focus": "Coordination",
                   "how": "Alternate feet while moving forward.",
                   "videoURL": null,
@@ -1207,7 +1157,7 @@
                   "coachingPoints": [
                     "Coordination",
                     "Alternate feet while moving forward.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1222,7 +1172,7 @@
                   "coachingPoints": [
                     "Speed with control",
                     "Push ball forward with laces over distance.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -1237,7 +1187,7 @@
                   "coachingPoints": [
                     "Change of pace",
                     "Dribble, stop, explode forward again.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -1261,7 +1211,7 @@
                   "coachingPoints": [
                     "Direction change",
                     "Dribble through cones using inside/outside.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -1276,7 +1226,7 @@
                   "coachingPoints": [
                     "Quick direction shift",
                     "Push ball with outside of foot to change direction.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1291,7 +1241,7 @@
                   "coachingPoints": [
                     "Control under change",
                     "Cut ball across body using the inside.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -1306,7 +1256,7 @@
                   "coachingPoints": [
                     "Turning under control",
                     "Drag ball back and turn direction.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -1315,7 +1265,7 @@
             {
               "id": "tech-d-3",
               "number": 3,
-              "name": "Moves · Unopposed",
+              "name": "Moves \u00b7 Unopposed",
               "theme": "Skills",
               "sortIndex": 2,
               "drills": [
@@ -1330,7 +1280,7 @@
                   "coachingPoints": [
                     "Basic skill move",
                     "Perform a step over and explode past a cone.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -1345,7 +1295,7 @@
                   "coachingPoints": [
                     "Deception",
                     "Fake one direction, go the opposite.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1360,7 +1310,7 @@
                   "coachingPoints": [
                     "Selling the fake",
                     "Shift body weight, accelerate away.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -1375,7 +1325,7 @@
                   "coachingPoints": [
                     "Creativity",
                     "Combine two moves before accelerating.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -1399,7 +1349,7 @@
                   "coachingPoints": [
                     "Game speed",
                     "Control, accelerate into open space.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -1407,14 +1357,14 @@
                   "id": "tech-d-4-2",
                   "title": "1v1 Passive Defender",
                   "focus": "Timing",
-                  "how": "Light pressure — attacker beats the defender.",
+                  "how": "Light pressure \u2014 attacker beats the defender.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Timing",
-                    "Light pressure — attacker beats the defender.",
-                    "Quality over speed — make every rep count."
+                    "Light pressure \u2014 attacker beats the defender.",
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1429,7 +1379,7 @@
                   "coachingPoints": [
                     "Tight pressure control",
                     "Dribble a narrow channel without losing the ball.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -1444,7 +1394,7 @@
                   "coachingPoints": [
                     "Protecting the ball",
                     "Dribble while a defender chases from behind.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -1468,7 +1418,7 @@
                   "coachingPoints": [
                     "Real attacking",
                     "Beat the defender and score or reach a target.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -1483,7 +1433,7 @@
                   "coachingPoints": [
                     "Direct play",
                     "Beat the defender and cross a line with control.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1498,7 +1448,7 @@
                   "coachingPoints": [
                     "Awareness",
                     "Coach calls a side, attacker reacts and beats them.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 }
@@ -1532,7 +1482,7 @@
                   "coachingPoints": [
                     "Accuracy",
                     "Pass into the corner using the inside foot.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -1547,7 +1497,7 @@
                   "coachingPoints": [
                     "Power + technique",
                     "Strike through the ball with the laces.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1562,7 +1512,7 @@
                   "coachingPoints": [
                     "Balance",
                     "Same as above, weak foot only.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -1570,14 +1520,14 @@
                   "id": "tech-e-1-4",
                   "title": "Close-Range Finishing",
                   "focus": "Quick execution",
-                  "how": "Receive near goal, finish in 1–2 touches.",
+                  "how": "Receive near goal, finish in 1\u20132 touches.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Quick execution",
-                    "Receive near goal, finish in 1–2 touches.",
-                    "Quality over speed — make every rep count."
+                    "Receive near goal, finish in 1\u20132 touches.",
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -1592,7 +1542,7 @@
               "drills": [
                 {
                   "id": "tech-e-2-1",
-                  "title": "Pass → Run → Finish",
+                  "title": "Pass \u2192 Run \u2192 Finish",
                   "focus": "Timing",
                   "how": "Pass, move, receive, finish.",
                   "videoURL": null,
@@ -1601,7 +1551,7 @@
                   "coachingPoints": [
                     "Timing",
                     "Pass, move, receive, finish.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -1616,7 +1566,7 @@
                   "coachingPoints": [
                     "Preparation touch",
                     "First touch sets up, second touch finishes.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1631,13 +1581,13 @@
                   "coachingPoints": [
                     "Body positioning",
                     "Finish from different angles of the goal.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
                 {
                   "id": "tech-e-2-4",
-                  "title": "Cut Inside → Shoot",
+                  "title": "Cut Inside \u2192 Shoot",
                   "focus": "Game move",
                   "how": "Dribble wide, cut inside, finish.",
                   "videoURL": null,
@@ -1646,7 +1596,7 @@
                   "coachingPoints": [
                     "Game move",
                     "Dribble wide, cut inside, finish.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -1661,7 +1611,7 @@
               "drills": [
                 {
                   "id": "tech-e-3-1",
-                  "title": "One-Touch · Ground Cross",
+                  "title": "One-Touch \u00b7 Ground Cross",
                   "focus": "Timing",
                   "how": "Finish first-time from a pass across goal.",
                   "videoURL": null,
@@ -1670,13 +1620,13 @@
                   "coachingPoints": [
                     "Timing",
                     "Finish first-time from a pass across goal.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
                 {
                   "id": "tech-e-3-2",
-                  "title": "One-Touch · Cutback",
+                  "title": "One-Touch \u00b7 Cutback",
                   "focus": "Awareness",
                   "how": "Ball pulled back, finish first time.",
                   "videoURL": null,
@@ -1685,7 +1635,7 @@
                   "coachingPoints": [
                     "Awareness",
                     "Ball pulled back, finish first time.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1700,7 +1650,7 @@
                   "coachingPoints": [
                     "Technique",
                     "Strike the ball before it hits the ground.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -1715,7 +1665,7 @@
                   "coachingPoints": [
                     "Timing + control",
                     "Strike the ball as it bounces.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -1739,7 +1689,7 @@
                   "coachingPoints": [
                     "Composure",
                     "Finish with light defender pressure.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -1754,7 +1704,7 @@
                   "coachingPoints": [
                     "Decision making",
                     "Choose: early finish, dribble, or placement.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1769,7 +1719,7 @@
                   "coachingPoints": [
                     "Speed",
                     "Control and shoot quickly.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -1784,7 +1734,7 @@
                   "coachingPoints": [
                     "Reaction",
                     "Shoot, react to the rebound, finish again.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -1808,7 +1758,7 @@
                   "coachingPoints": [
                     "Match condition",
                     "Sprint or do work, then immediately finish.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -1823,7 +1773,7 @@
                   "coachingPoints": [
                     "Adaptability",
                     "Coach serves unpredictable balls, finish.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1838,7 +1788,7 @@
                   "coachingPoints": [
                     "Mental pressure",
                     "Score vs a partner with limited chances.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 }
@@ -1854,7 +1804,7 @@
       "name": "Physical",
       "mark": "triangle",
       "tagline": "The athlete, built",
-      "blurb": "Age-appropriate athleticism — speed, agility, strength and conditioning that transfers to the pitch.",
+      "blurb": "Age-appropriate athleticism \u2014 speed, agility, strength and conditioning that transfers to the pitch.",
       "media": "drill",
       "sortIndex": 1,
       "categories": [
@@ -1884,7 +1834,7 @@
                   "coachingPoints": [
                     "Running mechanics",
                     "Drive knees up with rhythm and arm movement.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -1899,7 +1849,7 @@
                   "coachingPoints": [
                     "Coordination",
                     "Quick feet, controlled posture.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1914,7 +1864,7 @@
                   "coachingPoints": [
                     "Hamstring activation",
                     "Heel to glutes, light and quick.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -1929,7 +1879,7 @@
                   "coachingPoints": [
                     "Stability",
                     "Stand on one leg, hold position.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 3
                 }
@@ -1953,7 +1903,7 @@
                   "coachingPoints": [
                     "Explosive start",
                     "Short burst from a standing position.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -1968,7 +1918,7 @@
                   "coachingPoints": [
                     "Reaction + acceleration",
                     "Lean forward, explode into a sprint.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -1983,7 +1933,7 @@
                   "coachingPoints": [
                     "Game transfer",
                     "Sprint while pushing the ball ahead.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -1991,14 +1941,209 @@
                   "id": "phys-a-2-4",
                   "title": "Reaction Sprint",
                   "focus": "Reaction time",
-                  "how": "Sprint on a signal — call or clap.",
+                  "how": "Sprint on a signal \u2014 call or clap.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Reaction time",
-                    "Sprint on a signal — call or clap.",
-                    "Quality over speed — make every rep count."
+                    "Sprint on a signal \u2014 call or clap.",
+                    "Quality over speed \u2014 make every rep count."
+                  ],
+                  "sortIndex": 3
+                }
+              ]
+            },
+            {
+              "id": "phys-a-3",
+              "number": 3,
+              "name": "Shuttle Speed",
+              "theme": "Explosive direction changes under timed pressure",
+              "sortIndex": 2,
+              "drills": [
+                {
+                  "id": "phys-a-3-1",
+                  "title": "T-Drill Sprint",
+                  "focus": "Explosive direction change",
+                  "how": "Set up cones in a T shape. Sprint forward, shuffle left, shuffle right, then backpedal to start. Focus on quick direction changes and low center of gravity.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Stay low through direction changes",
+                    "Push off outside foot",
+                    "Pump arms for acceleration"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "phys-a-3-2",
+                  "title": "5-10-5 Shuttle",
+                  "focus": "Lateral quickness",
+                  "how": "Start at the middle cone. Sprint 5 yards right, touch the line, sprint 10 yards left, touch the line, then sprint 5 yards back to center.",
+                  "durationSec": 300,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Explode out of each turn",
+                    "Drop hips to decelerate",
+                    "Stay on the balls of your feet"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "phys-a-3-3",
+                  "title": "6-18-6 Yard Shuttle Run",
+                  "focus": "Match-pace direction change",
+                  "how": "Sprint 6 yards, change direction, sprint 18 yards, change direction, sprint 6 yards back. Explosive change of direction at each line.",
+                  "durationSec": 300,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Drop hips to change direction",
+                    "Push off outside foot",
+                    "Accelerate immediately after each change"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "phys-a-3-4",
+                  "title": "Four Corners Agility Run",
+                  "focus": "Multi-directional speed",
+                  "how": "Set 4 cones 5 yards apart in a square. Sprint to each cone touching it. Vary the order each rep.",
+                  "durationSec": 300,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Touch each cone firmly",
+                    "Sharp turns not wide arcs",
+                    "Full sprint speed between cones"
+                  ],
+                  "sortIndex": 3
+                }
+              ]
+            },
+            {
+              "id": "phys-a-4",
+              "number": 4,
+              "name": "Agility Circuits",
+              "theme": "Complex footwork patterns at maximum speed",
+              "sortIndex": 3,
+              "drills": [
+                {
+                  "id": "phys-a-4-1",
+                  "title": "Ladder Quick Feet",
+                  "focus": "Fast foot contact",
+                  "how": "Run through an agility ladder using various foot patterns: in-in-out-out, icky shuffle, lateral crossover. Maintain speed through the full ladder.",
+                  "durationSec": 300,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Light feet, quick contact",
+                    "Eyes up, not on feet",
+                    "Arms drive the rhythm"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "phys-a-4-2",
+                  "title": "Cone Weave Sprints",
+                  "focus": "Weaving at pace",
+                  "how": "Set 8 cones in a line 2 yards apart. Weave through at max speed, then sprint 20 yards past the last cone. Jog back and repeat.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Sharp cuts, not wide arcs",
+                    "Lean into each turn",
+                    "Accelerate out of the weave"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "phys-a-4-3",
+                  "title": "Ladder and Cone Circuit",
+                  "focus": "Combined agility",
+                  "how": "16 total reps through an agility ladder or 10 cones one step apart at maximum speed maintaining good form. Vary foot patterns each set.",
+                  "durationSec": 300,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Maximum speed through the course",
+                    "Maintain good form at speed",
+                    "Light and quick foot contact"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "phys-a-4-4",
+                  "title": "T-Shape Agility Run",
+                  "focus": "Full-body direction change",
+                  "how": "Set cones in a T shape with 5 yards between each. Sprint forward, shuffle left, shuffle across, shuffle back, backpedal. Always face forward.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Face forward the entire time",
+                    "Low position through all shuffles",
+                    "Explosive on every direction change"
+                  ],
+                  "sortIndex": 3
+                }
+              ]
+            },
+            {
+              "id": "phys-a-5",
+              "number": 5,
+              "name": "Speed Sessions",
+              "theme": "Structured sprint workouts for match fitness",
+              "sortIndex": 4,
+              "drills": [
+                {
+                  "id": "phys-a-5-1",
+                  "title": "Sprint Progression Workout",
+                  "focus": "Progressive sprint distances",
+                  "how": "Sprint 100% on every rep with explosive starts. Drive knees, lean forward, pump arms. Full rest between every rep. 5x20yd, 5x40yd, 4x60yd, 4x100yd.",
+                  "durationSec": 600,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "100% effort every sprint",
+                    "Explosive start position",
+                    "Full rest between reps"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "phys-a-5-2",
+                  "title": "Speed and Mobility Session",
+                  "focus": "Mixed speed work",
+                  "how": "Stride-outs at 60-70% max, 150-yard shuttles, agility runs, and fast footwork drills combined in one structured session.",
+                  "durationSec": 600,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "60-70% max on stride-outs",
+                    "Full rest between shuttles",
+                    "Stay sharp through all footwork"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "phys-a-5-3",
+                  "title": "Advanced Sprint Session",
+                  "focus": "High volume sprints",
+                  "how": "Higher volume sprint session at 100% effort. Explosive starts, full rest periods. 8x20yd, 8x40yd, 6x60yd, 6x100yd.",
+                  "durationSec": 600,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Maximum effort every sprint",
+                    "Drive knees high",
+                    "Stay low on the first 3 steps"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "phys-a-5-4",
+                  "title": "Short Sprint and Footwork",
+                  "focus": "Short explosive bursts",
+                  "how": "Short stride-outs combined with 20-yard sprints, agility runs, and fast footwork drills in a structured session.",
+                  "durationSec": 600,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "60-70% max on stride-outs",
+                    "Walk back after sprints",
+                    "Stay sharp on all footwork"
                   ],
                   "sortIndex": 3
                 }
@@ -2032,7 +2177,7 @@
                   "coachingPoints": [
                     "Lateral movement",
                     "Quick side steps between cones.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -2047,7 +2192,7 @@
                   "coachingPoints": [
                     "Change of direction",
                     "Sprint, cut, return.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -2062,7 +2207,7 @@
                   "coachingPoints": [
                     "Multi-direction",
                     "Forward, lateral and backward movement.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -2077,7 +2222,137 @@
                   "coachingPoints": [
                     "Control",
                     "Sprint, then stop under control quickly.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
+                  ],
+                  "sortIndex": 3
+                }
+              ]
+            },
+            {
+              "id": "phys-b-2",
+              "number": 2,
+              "name": "Explosive Power",
+              "theme": "Plyometric movements for game-changing acceleration",
+              "sortIndex": 1,
+              "drills": [
+                {
+                  "id": "phys-b-2-1",
+                  "title": "Box Jump Progression",
+                  "focus": "Vertical explosiveness",
+                  "how": "Start with a low box. Jump up with both feet, land softly, step down. Progress height as form improves. Builds explosive power for headers and sprints.",
+                  "durationSec": 300,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Land softly with bent knees",
+                    "Swing arms for momentum",
+                    "Step down, don't jump down"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "phys-b-2-2",
+                  "title": "Lateral Bound Series",
+                  "focus": "Lateral power",
+                  "how": "Stand on one leg, explode laterally to land on the opposite foot. Hold the landing for 2 seconds. Builds lateral power for defending and change of direction.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Push off forcefully",
+                    "Stick each landing",
+                    "Keep hips and knees aligned"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "phys-b-2-3",
+                  "title": "Scissor Lunge Jumps",
+                  "focus": "Dynamic leg power",
+                  "how": "From a lunge position, jump and switch legs in the air landing in a lunge with the opposite leg forward. Continuous alternating explosive movement.",
+                  "durationSec": 300,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Push off forcefully from both legs",
+                    "Switch legs cleanly in the air",
+                    "Soft landing before the next push"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "phys-b-2-4",
+                  "title": "Single-Leg Power Hops",
+                  "focus": "Unilateral explosiveness",
+                  "how": "Hop forward on one leg for 10 yards driving the opposite knee up high on each hop. Then switch legs. Develops single-leg power critical for shooting and sprinting.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Drive knee up explosively",
+                    "Use arms for balance and power",
+                    "Land on the ball of your foot"
+                  ],
+                  "sortIndex": 3
+                }
+              ]
+            },
+            {
+              "id": "phys-b-3",
+              "number": 3,
+              "name": "Advanced Plyometrics",
+              "theme": "High-intensity explosive training for elite movement",
+              "sortIndex": 2,
+              "drills": [
+                {
+                  "id": "phys-b-3-1",
+                  "title": "Tuck Jumps",
+                  "focus": "Maximum vertical power",
+                  "how": "Jump as high as possible, bringing knees to chest at the peak. Land softly and immediately jump again. Builds the explosive power needed for aerial duels.",
+                  "durationSec": 300,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Maximum height each jump",
+                    "Quick ground contact time",
+                    "Absorb landing through full body"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "phys-b-3-2",
+                  "title": "Hurdle Jump Series",
+                  "focus": "Reactive jumping",
+                  "how": "Using 4-5 low hurdles complete broad jumps, side jumps, quick jumps, quarter turn jumps, and single foot hops with stick landings.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Stick each landing before jumping again",
+                    "Maximum height on every jump",
+                    "Land softly \u2014 absorb through legs"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "phys-b-3-3",
+                  "title": "Explosive Leg Circuit",
+                  "focus": "Full lower body power",
+                  "how": "Diagonal lunges, backward lunges, tuck jumps, bounding, high knee skips, lateral ice skaters, broad jumps, and explosive step-ups.",
+                  "durationSec": 300,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Maximum effort on each rep",
+                    "Stick each landing firmly",
+                    "Quality over quantity"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "phys-b-3-4",
+                  "title": "Sprint and Bound Combos",
+                  "focus": "Speed-power integration",
+                  "how": "Alternate between bounding for height and sprinting for speed over 30 yards. Develops the transition between power and speed movements.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Bound high then sprint fast",
+                    "Smooth transition between modes",
+                    "Full effort on every phase"
                   ],
                   "sortIndex": 3
                 }
@@ -2111,7 +2386,7 @@
                   "coachingPoints": [
                     "Lower body strength",
                     "Controlled reps with good form.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -2126,7 +2401,7 @@
                   "coachingPoints": [
                     "Balance + strength",
                     "Step forward into a controlled lunge.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -2141,7 +2416,7 @@
                   "coachingPoints": [
                     "Core stability",
                     "Hold a strong body position.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -2156,7 +2431,137 @@
                   "coachingPoints": [
                     "Explosiveness",
                     "Jump forward with power, land controlled.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
+                  ],
+                  "sortIndex": 3
+                }
+              ]
+            },
+            {
+              "id": "phys-c-2",
+              "number": 2,
+              "name": "Functional Strength",
+              "theme": "Soccer-specific strength for power on the pitch",
+              "sortIndex": 1,
+              "drills": [
+                {
+                  "id": "phys-c-2-1",
+                  "title": "Bodyweight Circuit",
+                  "focus": "Full body strength",
+                  "how": "Perform 10 push-ups, 15 squats, 10 lunges per leg, and a 30-second plank. Rest 30 seconds between rounds. Builds the base strength every player needs.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Full range of motion on each rep",
+                    "Engage core throughout",
+                    "Control the tempo, no rushing"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "phys-c-2-2",
+                  "title": "Single-Leg Squat Holds",
+                  "focus": "Balance and leg strength",
+                  "how": "Stand on one leg, lower into a quarter squat, and hold for 20 seconds. Builds the leg strength needed for shooting, jumping, and change of direction.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Keep knee aligned over toes",
+                    "Engage glutes for stability",
+                    "Build up hold time gradually"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "phys-c-2-3",
+                  "title": "Single-Leg Lunge Series",
+                  "focus": "Unilateral leg power",
+                  "how": "Three lunge variations for unilateral leg strength. Forward lunge, lateral side lunge, and scissors lunge. Builds strength for shooting, jumping, and turns.",
+                  "durationSec": 360,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Knee tracks over middle toe",
+                    "Full range of motion each rep",
+                    "Control the lowering phase"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "phys-c-2-4",
+                  "title": "Parallel Squat Holds",
+                  "focus": "Lower body endurance",
+                  "how": "Stand with feet shoulder-width apart. Lower into a parallel squat position pausing at the bottom of each rep. Use good form with knee over foot.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Knee over foot throughout",
+                    "Pause at the bottom",
+                    "Drive through heels to stand"
+                  ],
+                  "sortIndex": 3
+                }
+              ]
+            },
+            {
+              "id": "phys-c-3",
+              "number": 3,
+              "name": "Advanced Strength",
+              "theme": "Heavy-load training for physical dominance",
+              "sortIndex": 2,
+              "drills": [
+                {
+                  "id": "phys-c-3-1",
+                  "title": "Nordic Hamstring Curl",
+                  "focus": "Hamstring injury prevention",
+                  "how": "Kneel with a partner holding your ankles. Slowly lower your body forward, using hamstrings to control the descent. Push back up with hands if needed. Critical for injury prevention.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Control the lowering phase",
+                    "Keep hips extended",
+                    "Use hands to push back only as needed"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "phys-c-3-2",
+                  "title": "Standard Strength Circuit",
+                  "focus": "Push-pull-leg pattern",
+                  "how": "Two rounds of push-pull-leg pattern. Push-ups, chin-ups, walking lunges, shoulder press, dumbbell rows, step-up knee to chest. Finish with 5 core exercises.",
+                  "durationSec": 600,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Full range of motion every rep",
+                    "No momentum \u2014 controlled movement",
+                    "Rest 15-30 seconds between exercises"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "phys-c-3-3",
+                  "title": "Explosive Strength Circuit",
+                  "focus": "Power-focused strength",
+                  "how": "Two rounds of explosive push-pull-leg pattern. Curl to shoulder press, pull-up knee to chest, box jumps, explosive push-ups, dumbbell rows, diagonal lunges. Finish with core.",
+                  "durationSec": 600,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Explosive on every power movement",
+                    "Control the landing on jumps",
+                    "Maintain form even when fatigued"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "phys-c-3-4",
+                  "title": "12 Station Circuit",
+                  "focus": "Total body conditioning",
+                  "how": "30 seconds work and 30 seconds rest per station. Complete twice through all 12 stations combining upper body, lower body, core, and agility movements.",
+                  "durationSec": 600,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Work hard for the full 30 seconds",
+                    "Rest fully during the rest period",
+                    "Complete the second round even when tired"
                   ],
                   "sortIndex": 3
                 }
@@ -2183,14 +2588,14 @@
                   "id": "phys-d-1-1",
                   "title": "Sprint Intervals",
                   "focus": "Repeat-sprint ability",
-                  "how": "Sprint, rest, repeat — 10–20 sec efforts.",
+                  "how": "Sprint, rest, repeat \u2014 10\u201320 sec efforts.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Repeat-sprint ability",
-                    "Sprint, rest, repeat — 10–20 sec efforts.",
-                    "Quality over speed — make every rep count."
+                    "Sprint, rest, repeat \u2014 10\u201320 sec efforts.",
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -2205,7 +2610,7 @@
                   "coachingPoints": [
                     "Soccer conditioning",
                     "Dribble, sprint, recover, repeat.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -2213,14 +2618,14 @@
                   "id": "phys-d-1-3",
                   "title": "Small-Space Work",
                   "focus": "High intensity",
-                  "how": "Continuous movement in a tight area, 30–45 sec.",
+                  "how": "Continuous movement in a tight area, 30\u201345 sec.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "High intensity",
-                    "Continuous movement in a tight area, 30–45 sec.",
-                    "Quality over speed — make every rep count."
+                    "Continuous movement in a tight area, 30\u201345 sec.",
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 2
                 },
@@ -2228,14 +2633,144 @@
                   "id": "phys-d-1-4",
                   "title": "Fatigue Circuit",
                   "focus": "Game realism",
-                  "how": "Sprint, jump, dribble, finish — combined.",
+                  "how": "Sprint, jump, dribble, finish \u2014 combined.",
                   "videoURL": null,
                   "durationSec": 300,
                   "sets": 3,
                   "coachingPoints": [
                     "Game realism",
-                    "Sprint, jump, dribble, finish — combined.",
-                    "Quality over speed — make every rep count."
+                    "Sprint, jump, dribble, finish \u2014 combined.",
+                    "Quality over speed \u2014 make every rep count."
+                  ],
+                  "sortIndex": 3
+                }
+              ]
+            },
+            {
+              "id": "phys-d-2",
+              "number": 2,
+              "name": "Interval Training",
+              "theme": "Structured intervals that mirror match demands",
+              "sortIndex": 1,
+              "drills": [
+                {
+                  "id": "phys-d-2-1",
+                  "title": "Fartlek Run",
+                  "focus": "Variable pace endurance",
+                  "how": "Alternate between 30 seconds of hard running and 60 seconds of easy jogging for the full duration. Simulates the stop-start nature of a match.",
+                  "durationSec": 600,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Push hard during fast intervals",
+                    "Use jog phase to recover breathing",
+                    "Maintain good running form even when tired"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "phys-d-2-2",
+                  "title": "Yo-Yo Intermittent Recovery",
+                  "focus": "Progressive pace challenge",
+                  "how": "Run 20 meters to a cone, turn and run back, then rest 10 seconds. Each round the pace increases. Continue until you cannot maintain the pace.",
+                  "durationSec": 600,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Pace yourself early",
+                    "Use the 10-second rest fully",
+                    "Stay light on your feet during turns"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "phys-d-2-3",
+                  "title": "Ball-at-Feet Endurance",
+                  "focus": "Technical endurance",
+                  "how": "Dribble continuously around a large area at moderate pace. Every 60 seconds increase speed for 15 seconds. Keep the ball within playing distance even when tired.",
+                  "durationSec": 480,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Close control even when fatigued",
+                    "Change direction frequently",
+                    "Simulate match movement patterns"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "phys-d-2-4",
+                  "title": "Pulse Run Workout",
+                  "focus": "Sustained effort with bursts",
+                  "how": "40-minute run with short hard efforts every 2-3 minutes. Sprint or run hard for 20-30 seconds during each pulse. Last 3-5 minutes slow and easy. Finish with a full stretch.",
+                  "durationSec": 600,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Commit fully on each pulse",
+                    "Use steady phase to recover breathing",
+                    "Gradual wind down at the end"
+                  ],
+                  "sortIndex": 3
+                }
+              ]
+            },
+            {
+              "id": "phys-d-3",
+              "number": 3,
+              "name": "Match Conditioning",
+              "theme": "Game-intensity sessions that build competitive stamina",
+              "sortIndex": 2,
+              "drills": [
+                {
+                  "id": "phys-d-3-1",
+                  "title": "120s Interval Runs",
+                  "focus": "Sprint-recovery cycles",
+                  "how": "Sprint 120 yards in under 20 seconds. Walk back in 40 seconds. Simulates match-intensity running with incomplete recovery. 8-10 reps.",
+                  "durationSec": 600,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Maintain pace across all reps",
+                    "Drive knees and pump arms",
+                    "Focus on breathing pattern"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "phys-d-3-2",
+                  "title": "10-Yard Shuttle Conditioning",
+                  "focus": "Short shuttle repeats",
+                  "how": "Two markers 40 yards apart. Run up and back 3 times for 240 yards total with ball. Rest 30 seconds between sets.",
+                  "durationSec": 600,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Ball stays close throughout",
+                    "Consistent pace across all sets",
+                    "Rest exactly 30 seconds between sets"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "phys-d-3-3",
+                  "title": "50-Yard Shuttle Conditioning",
+                  "focus": "Progressive shuttle ladder",
+                  "how": "6 markers at 10-yard intervals. Run 10-and-back, 20-and-back, 30-and-back, 40-and-back, 50-and-back for 300 yards total with ball. Rest 30 seconds.",
+                  "durationSec": 600,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Touch each line cleanly",
+                    "Maintain ball control through the set",
+                    "30 seconds rest exactly"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "phys-d-3-4",
+                  "title": "120-Yard Sprint Super Set",
+                  "focus": "High volume sprint endurance",
+                  "how": "120-yard sprint with ball in under 20 seconds. Jog back to start. Rest 30 seconds. Builds the aerobic and anaerobic base needed for full 90 minutes.",
+                  "durationSec": 600,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Full pace on every sprint",
+                    "Ball stays close during sprint",
+                    "Use jog back as full recovery"
                   ],
                   "sortIndex": 3
                 }
@@ -2269,7 +2804,7 @@
                   "coachingPoints": [
                     "Mobility",
                     "Full pre-session dynamic stretching flow.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 0
                 },
@@ -2284,7 +2819,7 @@
                   "coachingPoints": [
                     "Durability",
                     "Ankle, knee and hip stability work.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
                   ],
                   "sortIndex": 1
                 },
@@ -2299,7 +2834,109 @@
                   "coachingPoints": [
                     "Recovery habits",
                     "Static stretching and breathing after training.",
-                    "Quality over speed — make every rep count."
+                    "Quality over speed \u2014 make every rep count."
+                  ],
+                  "sortIndex": 2
+                }
+              ]
+            },
+            {
+              "id": "phys-e-2",
+              "number": 2,
+              "name": "Dynamic Movement",
+              "theme": "Pre-training movement preparation",
+              "sortIndex": 1,
+              "drills": [
+                {
+                  "id": "phys-e-2-1",
+                  "title": "Dynamic Warm-Up Routine",
+                  "focus": "Full pre-training sequence",
+                  "how": "Backwards skip, backpedal, lateral shuffle, forward skip, high knee skip, walking quad stretch, inchworm, straight-leg skip, knee to armpit walk, bowler lunge walk.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Gradual increase in range of motion",
+                    "Controlled movements throughout",
+                    "Land softly on each step"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "phys-e-2-2",
+                  "title": "Hip Mobility Circuit",
+                  "focus": "Hip range of motion",
+                  "how": "90/90 hip switches 10 per side, hip circles on all fours 8 per direction, pigeon stretch 30 seconds per side, frog stretch 30 seconds. Daily practice yields major results.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Go to tension, not pain",
+                    "Breathe deeply into the stretch",
+                    "Consistent daily practice is the key"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "phys-e-2-3",
+                  "title": "Fast Footwork Drills",
+                  "focus": "Foot speed and coordination",
+                  "how": "Five foot speed exercises: line hop side-to-side, line hop front-to-back, dot drill clockwork, dot drill square single foot, dot drill square both feet. 30 seconds each.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Light fast contact with the ground",
+                    "Stay on the balls of your feet",
+                    "Speed is the goal \u2014 minimize ground contact time"
+                  ],
+                  "sortIndex": 2
+                }
+              ]
+            },
+            {
+              "id": "phys-e-3",
+              "number": 3,
+              "name": "Recovery Protocol",
+              "theme": "Post-training recovery for injury prevention",
+              "sortIndex": 2,
+              "drills": [
+                {
+                  "id": "phys-e-3-1",
+                  "title": "Static Stretching Cooldown",
+                  "focus": "Post-workout flexibility",
+                  "how": "Hold each stretch 15-30 seconds at slight discomfort \u2014 never pain. Cover quads, hamstrings, hip flexors, groin, calves, glutes, lower back, chest, shoulders.",
+                  "durationSec": 360,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Never bounce a static stretch",
+                    "Breathe deeply into each stretch",
+                    "Stretch to tension \u2014 not pain"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "phys-e-3-2",
+                  "title": "Core Endurance Progression",
+                  "focus": "Progressive core stability",
+                  "how": "Progressive core workout. Crunches, V-sit side to side, bicycle kicks, toe touches, hip lifts, superman hold, and plank holds. Build volume over weeks.",
+                  "durationSec": 360,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Control through full range of motion",
+                    "No momentum on crunches",
+                    "Steady breathing throughout"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "phys-e-3-3",
+                  "title": "Post-Training Cooldown",
+                  "focus": "Full recovery routine",
+                  "how": "Slow jog for 2 minutes, then static stretches: quad stretch, hamstring stretch, calf stretch, hip flexor stretch, and seated groin stretch. Hold each 30 seconds.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Never skip the cooldown",
+                    "Hold stretches, don't bounce",
+                    "Breathe deeply and relax into each stretch"
                   ],
                   "sortIndex": 2
                 }
@@ -2315,8 +2952,8 @@
       "name": "Tactical",
       "mark": "diamond",
       "tagline": "The game, understood",
-      "blurb": "Explanatory film and individual drills that build game IQ — where most academies stop, you begin.",
-      "media": "video",
+      "blurb": "Explanatory film and individual drills that build game IQ \u2014 where most academies stop, you begin.",
+      "media": "drill",
       "sortIndex": 2,
       "categories": [
         {
@@ -2339,7 +2976,6 @@
                   "title": "Shoulder Check + Receive",
                   "focus": "Scanning habit",
                   "how": "Check over the shoulder before the ball returns.",
-                  "videoURL": "https://video.mfelite.training/tact-a-1-1.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2354,7 +2990,6 @@
                   "title": "Call Colour Before Touch",
                   "focus": "Awareness",
                   "how": "Call a cone colour before receiving.",
-                  "videoURL": "https://video.mfelite.training/tact-a-1-2.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2369,7 +3004,6 @@
                   "title": "Open-Body Touch",
                   "focus": "Field vision",
                   "how": "Receive and always open up to face the field.",
-                  "videoURL": "https://video.mfelite.training/tact-a-1-3.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2383,14 +3017,78 @@
                   "id": "tact-a-1-4",
                   "title": "Scan Timer",
                   "focus": "Habit building",
-                  "how": "Every 2–3 seconds, scan left and right while dribbling.",
-                  "videoURL": "https://video.mfelite.training/tact-a-1-4.mp4",
+                  "how": "Every 2\u20133 seconds, scan left and right while dribbling.",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
                     "Habit building",
-                    "Every 2–3 seconds, scan left and right while dribbling.",
+                    "Every 2\u20133 seconds, scan left and right while dribbling.",
                     "Watch the detail, then take it to the pitch."
+                  ],
+                  "sortIndex": 3
+                }
+              ]
+            },
+            {
+              "id": "tact-a-2",
+              "number": 2,
+              "name": "Advanced Awareness",
+              "theme": "Reading the game at match speed",
+              "sortIndex": 1,
+              "drills": [
+                {
+                  "id": "tact-a-2-1",
+                  "title": "Shadow Play Positioning",
+                  "focus": "Movement without the ball",
+                  "how": "Move through cones mimicking game situations. Focus on body orientation, open hips, and scanning before receiving.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Open body to the field",
+                    "Check shoulders constantly",
+                    "Stay on toes"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "tact-a-2-2",
+                  "title": "Scanning Frequency Drill",
+                  "focus": "Building the scanning habit",
+                  "how": "Receive passes in a grid. A partner holds up colored cones \u2014 you must call the color before receiving. Builds the habit of scanning before every touch.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Scan before, during, and after receiving",
+                    "Keep head on a swivel",
+                    "Body open to see both ball and field"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "tact-a-2-3",
+                  "title": "Receive and Turn Under Pressure",
+                  "focus": "Decision making on the turn",
+                  "how": "Set up 4 cones in a square. Receive a pass, check your shoulder, then turn toward the open cone. A passive defender applies light pressure.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Check shoulder before the ball arrives",
+                    "Open hips to escape route",
+                    "First touch sets up the turn"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "tact-a-2-4",
+                  "title": "Mirror Movement Drill",
+                  "focus": "Reactive awareness",
+                  "how": "Partner mirrors your movements. Stay low, balanced, and ready to react in any direction. Develops spatial awareness and anticipation.",
+                  "durationSec": 300,
+                  "sets": 3,
+                  "coachingPoints": [
+                    "Low center of gravity",
+                    "Quick feet",
+                    "Eyes on partner's hips"
                   ],
                   "sortIndex": 3
                 }
@@ -2417,13 +3115,12 @@
                   "id": "tact-b-1-1",
                   "title": "Pass & Move to New Angle",
                   "focus": "Support angles",
-                  "how": "Pass, move 2–3 steps to a new angle, receive.",
-                  "videoURL": "https://video.mfelite.training/tact-b-1-1.mp4",
+                  "how": "Pass, move 2\u20133 steps to a new angle, receive.",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
                     "Support angles",
-                    "Pass, move 2–3 steps to a new angle, receive.",
+                    "Pass, move 2\u20133 steps to a new angle, receive.",
                     "Watch the detail, then take it to the pitch."
                   ],
                   "sortIndex": 0
@@ -2433,7 +3130,6 @@
                   "title": "Cone Shadow Escape",
                   "focus": "Finding space",
                   "how": "Use a cone as a defender, adjust before receiving.",
-                  "videoURL": "https://video.mfelite.training/tact-b-1-2.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2448,7 +3144,6 @@
                   "title": "Wide vs Central",
                   "focus": "Spacing",
                   "how": "Dribble central, move wide, receive, return inside.",
-                  "videoURL": "https://video.mfelite.training/tact-b-1-3.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2463,13 +3158,77 @@
                   "title": "4-Cone Movement Pattern",
                   "focus": "Structure",
                   "how": "Move between four cones simulating rotation.",
-                  "videoURL": "https://video.mfelite.training/tact-b-1-4.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
                     "Structure",
                     "Move between four cones simulating rotation.",
                     "Watch the detail, then take it to the pitch."
+                  ],
+                  "sortIndex": 3
+                }
+              ]
+            },
+            {
+              "id": "tact-b-2",
+              "number": 2,
+              "name": "Defensive Shape",
+              "theme": "Team structure and positional discipline",
+              "sortIndex": 1,
+              "drills": [
+                {
+                  "id": "tact-b-2-1",
+                  "title": "Block Shadow Defending",
+                  "focus": "Low block shape",
+                  "how": "Defenders mirror an attacking team that walks through patterns. Hold compact shape. No pressing \u2014 only shifting and maintaining distance.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Distance between defenders",
+                    "Communicate step or hold",
+                    "Cover behind the front line"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "tact-b-2-2",
+                  "title": "Cover and Balance Shadow Play",
+                  "focus": "Pressing shape maintenance",
+                  "how": "Walk-through against a phantom attack moving the ball side to side. Pressing-side defender steps, others slide and cover.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Press, cover, balance",
+                    "Tight when ball is wide",
+                    "Drop on switch"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "tact-b-2-3",
+                  "title": "Defensive Stance Drill",
+                  "focus": "Individual defending posture",
+                  "how": "Practice jockeying, pressing triggers, and recovery runs against a partner with the ball. Stay low, balanced, and patient.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Stay low and balanced",
+                    "Force onto weak foot",
+                    "Don't dive in"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "tact-b-2-4",
+                  "title": "Recovery Run and Tackle",
+                  "focus": "Recovering defensive position",
+                  "how": "Start 5 yards behind an attacker. Sprint to recover, get goal-side, and make a clean challenge. Timing and positioning over speed.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Sprint to get goal-side first",
+                    "Patience once recovered",
+                    "Time the tackle"
                   ],
                   "sortIndex": 3
                 }
@@ -2497,7 +3256,6 @@
                   "title": "Number Call Passing",
                   "focus": "Quick decisions",
                   "how": "Assign numbers to cones, call one, pass immediately.",
-                  "videoURL": "https://video.mfelite.training/tact-c-1-1.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2512,7 +3270,6 @@
                   "title": "Self-Toss Decision",
                   "focus": "Reaction",
                   "how": "Toss the ball up, decide: forward, sideways or one-touch.",
-                  "videoURL": "https://video.mfelite.training/tact-c-1-2.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2526,13 +3283,12 @@
                   "id": "tact-c-1-3",
                   "title": "Two-Goal Decision",
                   "focus": "Choice",
-                  "how": "Two small goals — receive and decide which to attack.",
-                  "videoURL": "https://video.mfelite.training/tact-c-1-3.mp4",
+                  "how": "Two small goals \u2014 receive and decide which to attack.",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
                     "Choice",
-                    "Two small goals — receive and decide which to attack.",
+                    "Two small goals \u2014 receive and decide which to attack.",
                     "Watch the detail, then take it to the pitch."
                   ],
                   "sortIndex": 2
@@ -2542,13 +3298,77 @@
                   "title": "Touch-Limit Challenge",
                   "focus": "Speed of thought",
                   "how": "Control and pass within two touches only.",
-                  "videoURL": "https://video.mfelite.training/tact-c-1-4.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
                     "Speed of thought",
                     "Control and pass within two touches only.",
                     "Watch the detail, then take it to the pitch."
+                  ],
+                  "sortIndex": 3
+                }
+              ]
+            },
+            {
+              "id": "tact-c-2",
+              "number": 2,
+              "name": "Pressured Decisions",
+              "theme": "Making the right choice under pressure",
+              "sortIndex": 1,
+              "drills": [
+                {
+                  "id": "tact-c-2-1",
+                  "title": "Triggered Press Rondo",
+                  "focus": "Reading press cues",
+                  "how": "Possession team in outer square, three pressers in middle. Pressers trigger when ball is played to a back-facing player. Read the cue, react, recover.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Read body shape",
+                    "Press in pairs",
+                    "Cut backward passing lanes"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "tact-c-2-2",
+                  "title": "Counter-Press Urgency",
+                  "focus": "Immediate reaction to loss",
+                  "how": "Standard small-sided game with a 6-second counter-press rule on every loss. If the team doesn't win it back in 6 seconds, possession resets.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Hunt the ball immediately",
+                    "Cut nearest passing option",
+                    "Win it back fast"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "tact-c-2-3",
+                  "title": "Third-Man Combination",
+                  "focus": "Multi-player decision making",
+                  "how": "Three players form a triangle with one passive defender. Player 1 plays into Player 2 who lays off to incoming Player 3. Timing and quality of the lay-off is key.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Timing of third-man run",
+                    "Quality of lay-off",
+                    "Communication before the action"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "tact-c-2-4",
+                  "title": "Recover Shape Game",
+                  "focus": "Transition decision making",
+                  "how": "On loss, defending team has 5 seconds to recover defensive shape before pressing. Develops the decision between chasing the ball and recovering position.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Sprint to recovery line",
+                    "Closest player delays",
+                    "Shape over individual chase"
                   ],
                   "sortIndex": 3
                 }
@@ -2573,10 +3393,9 @@
               "drills": [
                 {
                   "id": "tact-d-1-1",
-                  "title": "Check Away → To Ball",
+                  "title": "Check Away \u2192 To Ball",
                   "focus": "Timing",
                   "how": "Move away from the wall, come back, receive.",
-                  "videoURL": "https://video.mfelite.training/tact-d-1-1.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2591,7 +3410,6 @@
                   "title": "Third-Man Simulation",
                   "focus": "Combination play",
                   "how": "Pass, move, receive at a new angle.",
-                  "videoURL": "https://video.mfelite.training/tact-d-1-2.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2606,7 +3424,6 @@
                   "title": "Overlap Movement",
                   "focus": "Wide movement",
                   "how": "Dribble inside, loop outside a cone, receive forward.",
-                  "videoURL": "https://video.mfelite.training/tact-d-1-3.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2618,10 +3435,9 @@
                 },
                 {
                   "id": "tact-d-1-4",
-                  "title": "Run in Behind · Timing",
+                  "title": "Run in Behind \u00b7 Timing",
                   "focus": "Penetration",
                   "how": "Pass into space, sprint onto it, control.",
-                  "videoURL": "https://video.mfelite.training/tact-d-1-4.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2645,7 +3461,6 @@
                   "title": "Dribble + Scan + Decision",
                   "focus": "Full awareness",
                   "how": "Dribble, scan, decide a direction to attack.",
-                  "videoURL": "https://video.mfelite.training/tact-d-2-1.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2659,13 +3474,12 @@
                   "id": "tact-d-2-2",
                   "title": "Reaction Direction",
                   "focus": "Game reaction",
-                  "how": "Audio cue (left/right) — react and move instantly.",
-                  "videoURL": "https://video.mfelite.training/tact-d-2-2.mp4",
+                  "how": "Audio cue (left/right) \u2014 react and move instantly.",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
                     "Game reaction",
-                    "Audio cue (left/right) — react and move instantly.",
+                    "Audio cue (left/right) \u2014 react and move instantly.",
                     "Watch the detail, then take it to the pitch."
                   ],
                   "sortIndex": 1
@@ -2675,7 +3489,6 @@
                   "title": "Shadow Play",
                   "focus": "Game IQ",
                   "how": "Move as if in a match: check, receive, pass, move again.",
-                  "videoURL": "https://video.mfelite.training/tact-d-2-3.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2684,6 +3497,71 @@
                     "Watch the detail, then take it to the pitch."
                   ],
                   "sortIndex": 2
+                }
+              ]
+            },
+            {
+              "id": "tact-d-3",
+              "number": 3,
+              "name": "Team Movement Patterns",
+              "theme": "Coordinated off-ball runs in units",
+              "sortIndex": 2,
+              "drills": [
+                {
+                  "id": "tact-d-3-1",
+                  "title": "Blindside Run Timing",
+                  "focus": "Curved runs into space",
+                  "how": "Start behind a cone as if behind a defender. On a visual cue, make a curved run into the box to meet a through ball. Timing and angle are everything.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Time the run \u2014 don't go too early",
+                    "Curve the run to stay onside",
+                    "Accelerate into the pass"
+                  ],
+                  "sortIndex": 0
+                },
+                {
+                  "id": "tact-d-3-2",
+                  "title": "Check-Away Runs",
+                  "focus": "Creating separation",
+                  "how": "Practice checking to the ball then spinning away into space. Simulate creating separation from a defender. Sharp change of direction is the key.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Sharp change of direction",
+                    "Accelerate after the turn",
+                    "Communicate with passer"
+                  ],
+                  "sortIndex": 1
+                },
+                {
+                  "id": "tact-d-3-3",
+                  "title": "Switch and Attack Pattern",
+                  "focus": "Wide switching play",
+                  "how": "Field divided into two channels. Teams must switch fields before scoring. Goal only counts if preceded by a successful switch from one channel to the other.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Identify weak side early",
+                    "Quality of the switch pass",
+                    "Attack immediately after the switch"
+                  ],
+                  "sortIndex": 2
+                },
+                {
+                  "id": "tact-d-3-4",
+                  "title": "Build From Back Pattern",
+                  "focus": "Positional build-up",
+                  "how": "3 defenders plus goalkeeper vs 2 strikers with 2 neutral midfielders. Build-up shape under low-pressure. Reach midfielders to score.",
+                  "durationSec": 360,
+                  "sets": 4,
+                  "coachingPoints": [
+                    "Open body shape",
+                    "Travel with the ball when free",
+                    "Find the third man"
+                  ],
+                  "sortIndex": 3
                 }
               ]
             }
@@ -2698,7 +3576,7 @@
       "mark": "circle",
       "tagline": "The mind, trained",
       "blurb": "The 1% most academies ignore. Twenty mental exercises that build discipline, confidence and composure.",
-      "media": "video",
+      "media": "drill",
       "sortIndex": 3,
       "categories": [
         {
@@ -2718,10 +3596,9 @@
               "drills": [
                 {
                   "id": "psy-a-1-1",
-                  "title": "Negative → Positive Switch",
+                  "title": "Negative \u2192 Positive Switch",
                   "focus": "Reframing",
                   "how": "Catch three negative thoughts and replace them.",
-                  "videoURL": "https://video.mfelite.training/psy-a-1-1.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2736,7 +3613,6 @@
                   "title": "Power-Phrase Repetition",
                   "focus": "Identity",
                   "how": "Choose one phrase and repeat it during drills.",
-                  "videoURL": "https://video.mfelite.training/psy-a-1-2.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2750,13 +3626,12 @@
                   "id": "psy-a-1-3",
                   "title": "Mistake Response Script",
                   "focus": "Reset",
-                  "how": "After a mistake, say “next action” and continue.",
-                  "videoURL": "https://video.mfelite.training/psy-a-1-3.mp4",
+                  "how": "After a mistake, say \u201cnext action\u201d and continue.",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
                     "Reset",
-                    "After a mistake, say “next action” and continue.",
+                    "After a mistake, say \u201cnext action\u201d and continue.",
                     "Watch the detail, then take it to the pitch."
                   ],
                   "sortIndex": 2
@@ -2766,7 +3641,6 @@
                   "title": "Mirror Confidence Talk",
                   "focus": "Self-belief",
                   "how": "Say three strong statements about your game.",
-                  "videoURL": "https://video.mfelite.training/psy-a-1-4.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2800,7 +3674,6 @@
                   "title": "10-Minute Focus Block",
                   "focus": "Concentration",
                   "how": "Train with zero distractions, full attention.",
-                  "videoURL": "https://video.mfelite.training/psy-b-1-1.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2814,13 +3687,12 @@
                   "id": "psy-b-1-2",
                   "title": "Trigger-Word Training",
                   "focus": "Reset focus",
-                  "how": "Choose a word — say it when distracted.",
-                  "videoURL": "https://video.mfelite.training/psy-b-1-2.mp4",
+                  "how": "Choose a word \u2014 say it when distracted.",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
                     "Reset focus",
-                    "Choose a word — say it when distracted.",
+                    "Choose a word \u2014 say it when distracted.",
                     "Watch the detail, then take it to the pitch."
                   ],
                   "sortIndex": 1
@@ -2830,7 +3702,6 @@
                   "title": "Eyes-Up Awareness",
                   "focus": "Mental + visual focus",
                   "how": "Force yourself to scan every few seconds.",
-                  "videoURL": "https://video.mfelite.training/psy-b-1-3.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2845,7 +3716,6 @@
                   "title": "Single-Task Mastery",
                   "focus": "Deep focus",
                   "how": "Pick one drill, aim for perfect execution only.",
-                  "videoURL": "https://video.mfelite.training/psy-b-1-4.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2878,13 +3748,12 @@
                   "id": "psy-c-1-1",
                   "title": "Weak-Foot Confidence",
                   "focus": "Growth confidence",
-                  "how": "Train only the weak foot for 10–15 minutes.",
-                  "videoURL": "https://video.mfelite.training/psy-c-1-1.mp4",
+                  "how": "Train only the weak foot for 10\u201315 minutes.",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
                     "Growth confidence",
-                    "Train only the weak foot for 10–15 minutes.",
+                    "Train only the weak foot for 10\u201315 minutes.",
                     "Watch the detail, then take it to the pitch."
                   ],
                   "sortIndex": 0
@@ -2894,7 +3763,6 @@
                   "title": "Success Replay",
                   "focus": "Memory conditioning",
                   "how": "Visualise your best play five times before training.",
-                  "videoURL": "https://video.mfelite.training/psy-c-1-2.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2906,15 +3774,14 @@
                 },
                 {
                   "id": "psy-c-1-3",
-                  "title": "“I Win This” Cue",
+                  "title": "\u201cI Win This\u201d Cue",
                   "focus": "Dominance mindset",
-                  "how": "Before every 1v1, think: “I win this.”",
-                  "videoURL": "https://video.mfelite.training/psy-c-1-3.mp4",
+                  "how": "Before every 1v1, think: \u201cI win this.\u201d",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
                     "Dominance mindset",
-                    "Before every 1v1, think: “I win this.”",
+                    "Before every 1v1, think: \u201cI win this.\u201d",
                     "Watch the detail, then take it to the pitch."
                   ],
                   "sortIndex": 2
@@ -2924,7 +3791,6 @@
                   "title": "Study the Best",
                   "focus": "Reinforcement",
                   "how": "Watch clips of an elite player in your position before training.",
-                  "videoURL": "https://video.mfelite.training/psy-c-1-4.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2958,7 +3824,6 @@
                   "title": "Breathe Before Action",
                   "focus": "Calmness",
                   "how": "Before a drill or shot, take a deep breath, execute.",
-                  "videoURL": "https://video.mfelite.training/psy-d-1-1.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2973,7 +3838,6 @@
                   "title": "Slow Down the Moment",
                   "focus": "Control",
                   "how": "Slow your touch instead of rushing.",
-                  "videoURL": "https://video.mfelite.training/psy-d-1-2.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -2985,10 +3849,9 @@
                 },
                 {
                   "id": "psy-d-1-3",
-                  "title": "Miss → Neutral Reaction",
+                  "title": "Miss \u2192 Neutral Reaction",
                   "focus": "Emotional control",
                   "how": "No visible frustration after a mistake.",
-                  "videoURL": "https://video.mfelite.training/psy-d-1-3.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -3003,7 +3866,6 @@
                   "title": "Pressure Timer",
                   "focus": "Stress control",
                   "how": "Complete a drill within a time limit, staying composed.",
-                  "videoURL": "https://video.mfelite.training/psy-d-1-4.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -3037,7 +3899,6 @@
                   "title": "Daily Standard Rule",
                   "focus": "Identity",
                   "how": "Define how you train every day, then follow it.",
-                  "videoURL": "https://video.mfelite.training/psy-e-1-1.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -3052,7 +3913,6 @@
                   "title": "Do It Anyway",
                   "focus": "Discipline",
                   "how": "Complete training even when motivation is low.",
-                  "videoURL": "https://video.mfelite.training/psy-e-1-2.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -3067,7 +3927,6 @@
                   "title": "The Extra 10",
                   "focus": "Edge",
                   "how": "After a session, do 10 extra reps of something.",
-                  "videoURL": "https://video.mfelite.training/psy-e-1-3.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
@@ -3082,7 +3941,6 @@
                   "title": "End-of-Day Reflection",
                   "focus": "Awareness",
                   "how": "Did I give full effort? Stay focused? Improve tomorrow?",
-                  "videoURL": "https://video.mfelite.training/psy-e-1-4.mp4",
                   "durationSec": 600,
                   "sets": 1,
                   "coachingPoints": [
