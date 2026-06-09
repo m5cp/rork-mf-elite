@@ -25,6 +25,7 @@ struct SettingsView: View {
 
     @AppStorage("MF_NOTIF_DAILY") private var dailyReminder = true
     @AppStorage("MF_NOTIF_STREAK") private var streakAlerts = true
+    @AppStorage("MF_AUTO_ADVANCE") private var autoAdvance = true
 
     @State private var editingField: AccountField?
     @State private var mailRequest: MailRequest?
@@ -40,6 +41,7 @@ struct SettingsView: View {
                 headerView
                 accountSection
                 subscriptionSection
+                trainingSection
                 notificationsSection
                 supportSection
                 footerView
@@ -144,6 +146,19 @@ struct SettingsView: View {
 
     private var planLabel: String {
         subscription.isElite ? "Elite" : "Free (Trialist)"
+    }
+
+    // MARK: - Training
+
+    private var trainingSection: some View {
+        section("Training") {
+            toggleRow(label: "Auto-advance drills", isOn: $autoAdvance)
+            Text("In a routine or workout, the next drill loads automatically a few seconds after you log one. You always tap to start its timer.")
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Spacing.s8)
+        }
     }
 
     // MARK: - Notifications

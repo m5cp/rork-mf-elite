@@ -44,6 +44,8 @@ struct HistoryCalendarView: View {
                 monthGrid
                 if sessions.isEmpty {
                     emptyState
+                } else if monthIsBeforeFirstActivity {
+                    beforeInstallNote
                 }
             }
             .padding(.bottom, 120)
@@ -118,11 +120,12 @@ struct HistoryCalendarView: View {
 
     private var monthGrid: some View {
         let cells = monthCells
+        let ringsByDay = ringsByDayForDisplayedMonth
         let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 7)
         return LazyVGrid(columns: columns, spacing: DS.Spacing.s12) {
             ForEach(cells) { cell in
                 if let date = cell.date {
-                    dayCell(date)
+                    dayCell(date, rings: ringsByDay[calendar.startOfDay(for: date)] ?? DailyRings())
                 } else {
                     Color.clear.frame(height: 48)
                 }
@@ -132,14 +135,31 @@ struct HistoryCalendarView: View {
         .padding(.top, DS.Spacing.s16)
     }
 
-    private func dayCell(_ date: Date) -> some View {
+    /// Buckets the displayed month's sessions by day in a single pass, so each
+    /// day cell reads its rings from a dictionary instead of re-filtering the
+    /// entire session log.
+    private var ringsByDayForDisplayedMonth: [Date: DailyRings] {
+        guard let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: displayedMonth)),
+              let nextMonth = calendar.date(byAdding: .month, value: 1, to: monthStart) else {
+            return [:]
+        }
+        let monthEntries = sessions.filter { $0.completedAt >= monthStart && $0.completedAt < nextMonth }
+        let grouped = Dictionary(grouping: monthEntries) { calendar.startOfDay(for: $0.completedAt) }
+        return grouped.mapValues { entries in
+            let totalSec = entries.reduce(0) { $0 + $1.durationSec }
+            let minutes = Int((Double(totalSec) / 60).rounded())
+            let mind = entries.filter { $0.disciplineName == "Psychological" }.count
+            return DailyRings(trainMinutes: minutes, drillCount: entries.count, mindCount: mind)
+        }
+    }
+
+    private func dayCell(_ date: Date, rings: DailyRings) -> some View {
         let today = calendar.startOfDay(for: Date())
         let isFuture = date > today
         let beforeInstall: Bool = {
             guard let first = firstActivityDay else { return false }
             return date < first
         }()
-        let rings = DailyRings.make(from: sessions, on: date, calendar: calendar)
         let isToday = calendar.isDate(date, inSameDayAs: today)
         let dim = isFuture || beforeInstall
 
@@ -181,6 +201,30 @@ struct HistoryCalendarView: View {
             }
         }
         return cells
+    }
+
+    /// True when every day of the displayed month falls before the first logged
+    /// session — i.e. a month the player wasn't using the app yet.
+    private var monthIsBeforeFirstActivity: Bool {
+        guard let first = firstActivityDay,
+              let monthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: displayedMonth)),
+              let monthEnd = calendar.date(byAdding: DateComponents(month: 1, day: -1), to: monthStart) else {
+            return false
+        }
+        return monthEnd < calendar.startOfDay(for: first)
+    }
+
+    private var beforeInstallNote: some View {
+        VStack(spacing: DS.Spacing.s8) {
+            Text("Before you started training")
+                .style(.callout)
+                .foregroundStyle(DS.Colors.Ink.secondary)
+            Text("Tap the arrow to come back to your active months.")
+                .style(.micro)
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, DS.Spacing.s40)
     }
 
     private var emptyState: some View {

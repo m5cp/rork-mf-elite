@@ -58,6 +58,25 @@ struct DrillPlayerView: View {
         "\(discipline.name) · \(category.name) · Level \(level.number)"
     }
 
+    /// Announces set/rest transitions to VoiceOver so players know where they are
+    /// without looking at the screen.
+    private func announce(_ phase: PlayerPhase) {
+        let message: String?
+        switch phase {
+        case .active(let set):
+            message = "Set \(set) of \(drill.sets)"
+        case .resting(let next):
+            message = next <= drill.sets ? "Rest before set \(next)" : "Rest"
+        case .logged:
+            message = "Drill logged"
+        case .ready:
+            message = nil
+        }
+        if let message {
+            UIAccessibility.post(notification: .announcement, argument: message)
+        }
+    }
+
     var body: some View {
         ZStack {
             DS.Colors.Bg.base.ignoresSafeArea()
@@ -79,6 +98,9 @@ struct DrillPlayerView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onChange(of: viewModel.phase) { _, newPhase in
+            announce(newPhase)
+        }
         .onAppear {
             viewModel.context = modelContext
             UIApplication.shared.isIdleTimerDisabled = true
@@ -143,6 +165,11 @@ struct DrillPlayerView: View {
                         infoPill("+\(ProgressionRules.xpPerDrill) XP")
                     }
                     .padding(.top, DS.Spacing.s20)
+
+                    if let setup = drill.setupSummary {
+                        setupLine(setup)
+                            .padding(.top, DS.Spacing.s16)
+                    }
 
                     Eyebrow(text: "Hold These In Mind")
                         .padding(.top, DS.Spacing.s32)
@@ -234,6 +261,26 @@ struct DrillPlayerView: View {
             return "\(label) — \(name)"
         }
         return label
+    }
+
+    /// A compact "SET-UP" row shown on the ready screen when content provides gear/space.
+    private func setupLine(_ summary: String) -> some View {
+        HStack(alignment: .top, spacing: DS.Spacing.s8) {
+            Image(systemName: "shippingbox")
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+            VStack(alignment: .leading, spacing: 2) {
+                Eyebrow(text: "Set-Up")
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                Text(summary)
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Set up: \(summary)")
     }
 
     private func infoPill(_ text: String) -> some View {

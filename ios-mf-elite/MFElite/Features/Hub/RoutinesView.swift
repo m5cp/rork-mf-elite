@@ -29,6 +29,13 @@ private struct ResolvedDrill: Identifiable {
     var id: String { drill.id }
 }
 
+/// Reference-type memo so the drillID→context map is built once and reused across
+/// body evaluations, rebuilding only when the curriculum graph changes.
+private final class DrillIndexCache {
+    var signature: Int = -1
+    var index: [String: ResolvedDrill] = [:]
+}
+
 struct RoutinesView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var sessionLog: [SessionLogEntry]
@@ -37,6 +44,7 @@ struct RoutinesView: View {
     @Environment(\.modelContext) private var context
 
     @State private var expanded: Set<String> = []
+    @State private var indexCache = DrillIndexCache()
     @State private var activeSession: TrainingQueue?
     @State private var showBuilder = false
     @State private var editingWorkout: CustomWorkout?
@@ -121,21 +129,28 @@ struct RoutinesView: View {
         )
     ]
 
-    /// drillID → resolved navigation context, built once from the curriculum.
+    /// drillID → resolved navigation context. Memoized: the dictionary is only
+    /// rebuilt when the discipline graph identity changes (first load / re-seed),
+    /// not on every body evaluation (expand toggles, sheet presentation, etc.).
     private var drillIndex: [String: ResolvedDrill] {
-        var index: [String: ResolvedDrill] = [:]
-        for discipline in disciplines {
-            for category in discipline.categories {
-                for level in category.levels {
-                    for drill in level.drills {
-                        index[drill.id] = ResolvedDrill(
-                            drill: drill, level: level, category: category, discipline: discipline
-                        )
+        let signature = disciplines.map { ObjectIdentifier($0) }.hashValue
+        if indexCache.signature != signature {
+            var index: [String: ResolvedDrill] = [:]
+            for discipline in disciplines {
+                for category in discipline.categories {
+                    for level in category.levels {
+                        for drill in level.drills {
+                            index[drill.id] = ResolvedDrill(
+                                drill: drill, level: level, category: category, discipline: discipline
+                            )
+                        }
                     }
                 }
             }
+            indexCache.index = index
+            indexCache.signature = signature
         }
-        return index
+        return indexCache.index
     }
 
     /// Drill IDs logged at least once today, for the "done" checkmarks.
@@ -522,8 +537,9 @@ private struct WorkoutCard: View {
                                 Image(systemName: "ellipsis")
                                     .font(.system(size: 14, weight: .bold))
                                     .foregroundStyle(DS.Colors.Ink.quaternary)
-                                    .frame(width: 28, height: 28)
+                                    .frame(width: 44, height: 44)
                                     .contentShape(Rectangle())
+                                    .accessibilityLabel("Workout options")
                             }
                             Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                                 .font(.system(size: 12, weight: .semibold))

@@ -35,10 +35,14 @@ struct ProgressTabView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     header
                     todayRings(vm)
-                    weekOverview(vm)
-                    monthlyTrend(vm)
-                    intensity(vm)
-                    disciplineBreakdown(vm)
+                    if sessions.isEmpty {
+                        emptyState
+                    } else {
+                        weekOverview(vm)
+                        monthlyTrend(vm)
+                        intensity(vm)
+                        disciplineBreakdown(vm)
+                    }
                     quickLinks
                 }
                 .padding(.bottom, 120)
@@ -90,6 +94,23 @@ struct ProgressTabView: View {
                 .style(.micro)
                 .foregroundStyle(DS.Colors.Ink.quaternary)
         }
+    }
+
+    // MARK: - Empty state
+
+    private var emptyState: some View {
+        Card {
+            VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                Eyebrow(text: "No training yet")
+                Text("Log your first drill and your weekly stats, trends, and rings will start filling in here.")
+                    .style(.callout)
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s20)
     }
 
     // MARK: - 1. Header

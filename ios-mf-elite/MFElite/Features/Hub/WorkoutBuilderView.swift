@@ -16,6 +16,13 @@ private struct BuilderItem: Identifiable, Equatable {
     let drillID: String
 }
 
+/// Reference-type memo for the drillID→context map so it isn't rebuilt on every
+/// keystroke / reorder while editing a workout.
+private final class BuilderIndexCache {
+    var signature: Int = -1
+    var index: [String: DrillContext] = [:]
+}
+
 struct WorkoutBuilderView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
@@ -27,6 +34,7 @@ struct WorkoutBuilderView: View {
     @State private var title: String
     @State private var items: [BuilderItem]
     @State private var showPicker = false
+    @State private var indexCache = BuilderIndexCache()
 
     private let titleLimit = 30
 
@@ -36,21 +44,27 @@ struct WorkoutBuilderView: View {
         _items = State(initialValue: (editing?.drillIDs ?? []).map { BuilderItem(drillID: $0) })
     }
 
-    /// drillID → resolved context, built once from the curriculum.
+    /// drillID → resolved context. Memoized so it's only rebuilt when the
+    /// curriculum graph identity changes, not on every body evaluation.
     private var index: [String: DrillContext] {
-        var map: [String: DrillContext] = [:]
-        for discipline in disciplines {
-            for category in discipline.categories {
-                for level in category.levels {
-                    for drill in level.drills {
-                        map[drill.id] = DrillContext(
-                            drill: drill, level: level, category: category, discipline: discipline
-                        )
+        let signature = disciplines.map { ObjectIdentifier($0) }.hashValue
+        if indexCache.signature != signature {
+            var map: [String: DrillContext] = [:]
+            for discipline in disciplines {
+                for category in discipline.categories {
+                    for level in category.levels {
+                        for drill in level.drills {
+                            map[drill.id] = DrillContext(
+                                drill: drill, level: level, category: category, discipline: discipline
+                            )
+                        }
                     }
                 }
             }
+            indexCache.index = map
+            indexCache.signature = signature
         }
-        return map
+        return indexCache.index
     }
 
     private var resolvedDrills: [Drill] {

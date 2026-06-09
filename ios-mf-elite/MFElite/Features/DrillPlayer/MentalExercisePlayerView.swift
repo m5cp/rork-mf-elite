@@ -167,6 +167,26 @@ struct MentalExercisePlayerView: View {
                         .foregroundStyle(DS.Colors.Ink.secondary)
                         .padding(.top, DS.Spacing.s16)
 
+                    if let setup = drill.setupSummary {
+                        HStack(alignment: .top, spacing: DS.Spacing.s8) {
+                            Image(systemName: "shippingbox")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(DS.Colors.Ink.tertiary)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Eyebrow(text: "Set-Up")
+                                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                                Text(setup)
+                                    .style(.foot)
+                                    .foregroundStyle(DS.Colors.Ink.secondary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, DS.Spacing.s16)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("Set up: \(setup)")
+                    }
+
                     if !drill.coachingPoints.isEmpty {
                         Eyebrow(text: "Keep In Mind")
                             .padding(.top, DS.Spacing.s32)

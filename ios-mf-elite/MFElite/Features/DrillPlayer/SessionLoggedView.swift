@@ -31,6 +31,12 @@ struct SessionLoggedView: View {
     @State private var didRecordSummary = false
     @State private var showPerfectDay = false
 
+    /// Seconds left before auto-advancing to the next drill, or `nil` when not
+    /// counting down (toggle off, last drill, single drill, or cancelled by a tap).
+    @State private var autoAdvanceCountdown: Int?
+    @State private var autoAdvanceTimer: Timer?
+    @AppStorage("MF_AUTO_ADVANCE") private var autoAdvanceEnabled = true
+
     private var drill: Drill { context.drill }
     private var level: MasteryLevel { context.level }
     private var category: Category { context.category }
@@ -92,13 +98,15 @@ struct SessionLoggedView: View {
                 VStack(spacing: DS.Spacing.s12) {
                     if !queue.isLastDrill, let next = queue.upNext {
                         PrimaryButton(
-                            label: "Next — \(queue.position + 1) of \(queue.count)",
+                            label: autoAdvanceCountdown.map { "Next in \($0)\u{2009}s" } ?? "Next — \(queue.position + 1) of \(queue.count)",
                             hint: next.drill.title.uppercased()
                         ) {
+                            cancelAutoAdvance()
                             UIImpactFeedbackGenerator(style: .light).impactOccurred()
                             onAdvance()
                         }
                         SecondaryButton(label: "End session") {
+                            cancelAutoAdvance()
                             onExit()
                         }
                     } else {
@@ -114,6 +122,13 @@ struct SessionLoggedView: View {
             .padding(.bottom, 80)
         }
         .scrollIndicators(.hidden)
+        // Any tap anywhere on the logged screen cancels the auto-advance so the
+        // player can read their stats without being rushed. Buttons still fire.
+        .simultaneousGesture(
+            TapGesture().onEnded {
+                if autoAdvanceCountdown != nil { cancelAutoAdvance() }
+            }
+        )
         .overlay {
             if showPerfectDay {
                 PerfectDayOverlay {
@@ -162,7 +177,48 @@ struct SessionLoggedView: View {
                     activeCelebration = .level
                 }
             }
+            startAutoAdvanceIfNeeded()
         }
+        .onDisappear { cancelAutoAdvance() }
+    }
+
+    // MARK: - Auto-advance
+
+    /// Eligible only inside a routine/workout, when there's a next drill, the
+    /// toggle is on, and no full-screen celebration is taking over the screen.
+    private var canAutoAdvance: Bool {
+        autoAdvanceEnabled
+        && queue.isChained
+        && !queue.isLastDrill
+        && queue.upNext != nil
+        && !viewModel.levelJustMastered
+        && !viewModel.categoryJustCertified
+        && !viewModel.perfectDayJustClosed
+    }
+
+    private func startAutoAdvanceIfNeeded() {
+        guard canAutoAdvance else { return }
+        autoAdvanceCountdown = 6
+        let timer = Timer(timeInterval: 1.0, repeats: true) { _ in
+            Task { @MainActor in
+                guard let current = autoAdvanceCountdown else { return }
+                if current <= 1 {
+                    cancelAutoAdvance()
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onAdvance()
+                } else {
+                    autoAdvanceCountdown = current - 1
+                }
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        autoAdvanceTimer = timer
+    }
+
+    private func cancelAutoAdvance() {
+        autoAdvanceTimer?.invalidate()
+        autoAdvanceTimer = nil
+        autoAdvanceCountdown = nil
     }
 
     /// A celebration to present over the logged screen.

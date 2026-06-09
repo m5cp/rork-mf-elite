@@ -68,8 +68,11 @@ struct DayDetailView: View {
                     .frame(width: 32, height: 32)
                     .background(DS.Colors.Bg.raised)
                     .clipShape(Circle())
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(PressableButtonStyle())
+            .accessibilityLabel("Close")
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s20)

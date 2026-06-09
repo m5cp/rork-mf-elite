@@ -150,7 +150,9 @@ enum SeedData {
             sortIndex: dto.sortIndex,
             exerciseKind: dto.exerciseKind,
             steps: dto.steps ?? [],
-            journalPrompt: dto.journalPrompt
+            journalPrompt: dto.journalPrompt,
+            equipment: dto.equipment ?? [],
+            space: dto.space
         )
     }
 }
@@ -215,5 +217,7 @@ nonisolated struct CurriculumBundle: Codable {
         let exerciseKind: String?
         let steps: [String]?
         let journalPrompt: String?
+        let equipment: [String]?
+        let space: String?
     }
 }

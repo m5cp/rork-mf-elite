@@ -146,6 +146,9 @@ struct IconButton: View {
                     Circle().stroke(DS.Colors.Line.hairline, lineWidth: 1)
                 )
                 .shadow(color: .black.opacity(0.30), radius: 2, y: 1)
+                // Keep a ≥44pt tappable area even when the visible circle is smaller.
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(PressableButtonStyle())
     }

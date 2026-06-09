@@ -14,7 +14,7 @@ Reference for pasting into App Store Connect. Code-side compliance (privacy mani
 ## Keywords (100 char max)
 
 ```
-soccer,football,training,drills,academy,youth,coaching,fitness,skills,mastery,streak,elite,athlete
+soccer,training,drills,academy,youth,coaching,fitness,skills,mastery,streak,elite,athlete,touch
 ```
 
 ## Promotional text (170 char max)
@@ -26,13 +26,13 @@ Train like the elite. Master drills, earn certifications, build streaks, and ris
 ## Description
 
 ```
-MF Elite is the training app for serious young footballers. Built around a structured academy curriculum, it transforms daily practice into measurable development.
+MF Elite is the training app for serious young soccer players. Built around a structured academy curriculum, it transforms daily practice into measurable development.
 
 FOUR DEVELOPMENT PATHWAYS
 Progress through Technical, Physical, Tactical, and Psychological training — the four pillars of elite player development.
 
 STRUCTURED CURRICULUM
-Train through mastery levels, complete drills, and earn certifications. Every drill has coaching points, a timed challenge, and an honour-code accountability system.
+Train through mastery levels, complete drills, and earn certifications. Every drill has coaching points, a timed challenge, and an honor-code accountability system.
 
 STREAK ENGINE
 Build daily training habits. Track your streak, earn freeze tokens, and hit milestones from Week One to Century.
@@ -56,7 +56,7 @@ Train every day. Master every touch. Rise through the academy.
 
 1. **Today** — "Your daily training, structured" / "Daily goals, coaching quotes, and your pathway — all in one place."
 2. **Curriculum** — "Four pathways to elite" / "150+ drills across Technical, Physical, Tactical, and Psychological development."
-3. **Drill Player** — "Train with purpose" / "Timed drills with coaching points and honour-code accountability."
+3. **Drill Player** — "Train with purpose" / "Timed drills with coaching points and honor-code accountability."
 4. **Certifications** — "Earn your certifications" / "Master every level. Get coach-signed certifications on your record."
 5. **Streak** — "Build the habit" / "Daily streaks, freeze tokens, and milestones from Day 1 to Century."
 

@@ -32,9 +32,9 @@ struct DayRingsView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Daily rings")
         .accessibilityValue(
-            "Train ring \(rings.trainMinutes) of \(DailyRings.trainGoalMinutes) minutes. "
-            + "Drills ring \(rings.drillCount) of \(DailyRings.drillGoal). "
-            + "Mind ring \(rings.mindCount) of \(DailyRings.mindGoal)."
+            "Train ring, \(rings.trainMinutes) of \(DailyRings.trainGoalMinutes) minutes. "
+            + "Drills ring, \(rings.drillCount) of \(DailyRings.drillGoal) drills. "
+            + "Mind ring, \(rings.mindCount) of \(DailyRings.mindGoal) exercise."
         )
     }
 

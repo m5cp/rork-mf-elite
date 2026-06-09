@@ -50,6 +50,9 @@ struct DrillDetailView: View {
                 topBar
                 titleBlock(vm)
                 statStrip(vm)
+                if let setup = drill.setupSummary {
+                    setupSection(setup)
+                }
                 purposeSection
                 if drill.isMentalExercise {
                     if !drill.steps.isEmpty {
@@ -182,6 +185,30 @@ struct DrillDetailView: View {
         Rectangle()
             .fill(DS.Colors.Line.hairline)
             .frame(width: 1, height: 40)
+    }
+
+    // MARK: - Set-Up
+
+    private func setupSection(_ summary: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "SET-UP")
+            HStack(alignment: .top, spacing: DS.Spacing.s12) {
+                Image(systemName: "shippingbox")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                Text(summary)
+                    .style(.callout)
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.top, DS.Spacing.s12)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s24 + 4)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Set up: \(summary)")
     }
 
     // MARK: - 4. Section 01 — Purpose
