@@ -34,23 +34,49 @@ final class DrillPlayerViewModel {
     var isPaused: Bool = false
     var isComplete: Bool = false
 
+    /// Where this session originated (single drill, routine, or workout).
+    let source: String
+    let sourceName: String?
+
+    /// Accumulated real training time (excludes rest and pauses) and number of
+    /// sets actually performed — used to write an accurate SessionLogEntry.
+    private var completedSetsTrainingSec: TimeInterval = 0
+    private(set) var setsCompleted: Int = 0
+
+    /// Real training seconds banked for the most recent log (set after logging).
+    var loggedDurationSec: Int { Int(completedSetsTrainingSec.rounded()) }
+
     /// Mastery / progression results, computed once the drill is logged.
     private(set) var newPassesLogged: Int = 0
     private(set) var justMastered: Bool = false
     private(set) var levelJustMastered: Bool = false
     private(set) var categoryJustCertified: Bool = false
     private(set) var newStreak: Int = 0
+    /// True when this completion closed all three daily rings for the first time today.
+    private(set) var perfectDayJustClosed: Bool = false
 
     /// Injected from the view so the VM can persist progress.
     var context: ModelContext?
 
+    /// The player's written journal reflection, captured by mental exercises.
+    private var journalResponse: String?
+
     private static let restDuration: TimeInterval = 15
 
-    init(drill: Drill, level: MasteryLevel, category: Category, discipline: Discipline) {
+    init(
+        drill: Drill,
+        level: MasteryLevel,
+        category: Category,
+        discipline: Discipline,
+        source: String = SessionSource.single.rawValue,
+        sourceName: String? = nil
+    ) {
         self.drill = drill
         self.level = level
         self.category = category
         self.discipline = discipline
+        self.source = source
+        self.sourceName = sourceName
     }
 
     // MARK: - Derived values
@@ -170,6 +196,36 @@ final class DrillPlayerViewModel {
         invalidateTimer()
     }
 
+    /// Complete a step-driven mental exercise. Banks the drill's guide duration as
+    /// training time, stores the optional journal reflection, then logs the drill
+    /// through the same path as a physical drill (XP, streak, mastery, badges).
+    func completeMentalExercise(journal: String?) {
+        let trimmed = journal?.trimmingCharacters(in: .whitespacesAndNewlines)
+        journalResponse = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        completedSetsTrainingSec = TimeInterval(drill.durationSec)
+        setsCompleted = 1
+        logDrill()
+        phase = .logged
+    }
+
+    /// Elapsed time within the currently active set, excluding pauses.
+    private func currentSetElapsed() -> TimeInterval {
+        guard let start = setStartDate else { return 0 }
+        var pauses = pauseAccumulated
+        if isPaused, let pauseStart = pauseStartDate {
+            pauses += Date().timeIntervalSince(pauseStart)
+        }
+        return max(0, Date().timeIntervalSince(start) - pauses)
+    }
+
+    /// If a set is currently active, bank its real training time before ending it.
+    private func recordActiveSetIfNeeded() {
+        if case .active = phase {
+            completedSetsTrainingSec += min(setDuration, currentSetElapsed())
+            setsCompleted += 1
+        }
+    }
+
     /// Skip the current set's timer and move to the next set (or log if final set).
     func skipSet() {
         invalidateTimer()
@@ -180,12 +236,14 @@ final class DrillPlayerViewModel {
     /// Awards XP and updates progress just like a normal completion.
     func logDrillEarly() {
         invalidateTimer()
+        recordActiveSetIfNeeded()
         logDrill()
         phase = .logged
     }
 
     /// Called when a set's countdown reaches zero.
     func completeSet() {
+        recordActiveSetIfNeeded()
         if currentSetIndex < drill.sets {
             let next = currentSetIndex + 1
             phase = .resting(nextSetIndex: next)
@@ -300,8 +358,43 @@ final class DrillPlayerViewModel {
             AchievementStore.earn(.nightOwl)
         }
 
+        // Write a permanent per-completion record for history & analytics.
+        let entry = SessionLogEntry(
+            drillID: drill.id,
+            drillTitle: drill.title,
+            disciplineID: discipline.id,
+            disciplineName: discipline.name,
+            categoryID: category.id,
+            categoryName: category.name,
+            levelNumber: level.number,
+            durationSec: Int(completedSetsTrainingSec.rounded()),
+            setsCompleted: max(1, setsCompleted),
+            source: source,
+            sourceName: sourceName,
+            xpEarned: ProgressionRules.xpPerDrill,
+            journalResponse: journalResponse
+        )
+        context.insert(entry)
+
         try? context.save()
+
+        // Perfect Day: all three daily rings closed for the first time today.
+        evaluatePerfectDay(context: context)
+
         isComplete = true
+    }
+
+    /// After saving, recompute today's rings. If all three just closed for the
+    /// first time today, flag the celebration and award the perfect-day badges.
+    private func evaluatePerfectDay(context: ModelContext) {
+        let today = Date()
+        guard !PerfectDayStore.isRecorded(today) else { return }
+        let allSessions = (try? context.fetch(FetchDescriptor<SessionLogEntry>())) ?? []
+        let rings = DailyRings.make(from: allSessions, on: today)
+        guard rings.allClosed else { return }
+        let total = PerfectDayStore.record(today)
+        AchievementStore.earnAll(AchievementBadge.perfectDayBadges(for: total))
+        perfectDayJustClosed = true
     }
 
     /// Returns the milestone name if `streak` exactly matches a milestone threshold.

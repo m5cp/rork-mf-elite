@@ -11,12 +11,21 @@ import SwiftData
 /// Navigation route to the academy progression overview.
 struct AcademyProgressionRoute: Hashable {}
 
+/// A date wrapped for use as a `.sheet(item:)` selection.
+struct IdentifiableDate: Identifiable {
+    let date: Date
+    var id: TimeInterval { date.timeIntervalSinceReferenceDate }
+}
+
 struct ProgressTabView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var progress: [DrillProgress]
+    @Query private var sessions: [SessionLogEntry]
+
+    @State private var selectedDay: IdentifiableDate?
 
     private var viewModel: ProgressDashboardViewModel {
-        ProgressDashboardViewModel(disciplines: disciplines, progress: progress)
+        ProgressDashboardViewModel(disciplines: disciplines, sessions: sessions, progress: progress)
     }
 
     var body: some View {
@@ -25,6 +34,7 @@ struct ProgressTabView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     header
+                    todayRings(vm)
                     weekOverview(vm)
                     monthlyTrend(vm)
                     intensity(vm)
@@ -36,8 +46,49 @@ struct ProgressTabView: View {
             .background(DS.Colors.Bg.base)
             .scrollIndicators(.hidden)
             .navigationBarHidden(true)
-            .navigationDestination(for: WeeklyRoute.self) { _ in WeeklyView() }
+            .navigationDestination(for: WeeklyRoute.self) { _ in HistoryCalendarView() }
             .navigationDestination(for: AcademyProgressionRoute.self) { _ in AcademyProgressionView() }
+            .sheet(item: $selectedDay) { wrapped in
+                DayDetailView(date: wrapped.date)
+                    .presentationDetents([.large])
+            }
+        }
+    }
+
+    // MARK: - Today's rings
+
+    private func todayRings(_ vm: ProgressDashboardViewModel) -> some View {
+        let rings = vm.todayRings
+        return Card {
+            HStack(spacing: DS.Spacing.s20) {
+                DayRingsView(rings: rings, size: 90)
+
+                VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                    Eyebrow(text: "Today")
+                    ringCountRow(tint: Color.white, label: "Train", value: "\(rings.trainMinutes)", unit: "/ \(DailyRings.trainGoalMinutes) min")
+                    ringCountRow(tint: Color.white.opacity(0.68), label: "Drills", value: "\(rings.drillCount)", unit: "/ \(DailyRings.drillGoal)")
+                    ringCountRow(tint: Color.white.opacity(0.42), label: "Mind", value: "\(rings.mindCount)", unit: "/ \(DailyRings.mindGoal)")
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s20)
+    }
+
+    private func ringCountRow(tint: Color, label: String, value: String, unit: String) -> some View {
+        HStack(spacing: DS.Spacing.s8) {
+            Circle().fill(tint).frame(width: 8, height: 8)
+            Text(label)
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.secondary)
+            Spacer(minLength: DS.Spacing.s8)
+            Text(value)
+                .font(DS.Typography.num(size: 16))
+                .foregroundStyle(DS.Colors.Ink.primary)
+            Text(unit)
+                .style(.micro)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
         }
     }
 
@@ -70,11 +121,41 @@ struct ProgressTabView: View {
                     overviewStat("Mastered", "\(vm.masteredThisWeek)")
                 }
 
-                weekChart(vm)
+                ringStrip(vm)
             }
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s20)
+    }
+
+    /// A 7-day Mon–Sun strip of mini ring clusters; today is outlined and any
+    /// day is tappable to open its detail.
+    private func ringStrip(_ vm: ProgressDashboardViewModel) -> some View {
+        HStack(spacing: 6) {
+            ForEach(vm.ringStripDays) { day in
+                Button {
+                    selectedDay = IdentifiableDate(date: day.date)
+                } label: {
+                    VStack(spacing: DS.Spacing.s8) {
+                        DayRingsView(rings: day.rings, size: 34, showCheckmarks: false)
+                            .opacity(day.isFuture ? 0.35 : 1)
+                            .overlay {
+                                if day.isToday {
+                                    Circle().stroke(DS.Colors.Line.strong, lineWidth: 1.5)
+                                }
+                            }
+                        Text(day.initial)
+                            .style(.microSm)
+                            .foregroundStyle(day.isToday ? DS.Colors.Ink.secondary : DS.Colors.Ink.quaternary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PressableButtonStyle())
+                .disabled(day.isFuture)
+            }
+        }
+        .padding(.top, DS.Spacing.s8)
     }
 
     private func overviewStat(_ label: String, _ value: String) -> some View {
@@ -243,7 +324,7 @@ struct ProgressTabView: View {
     private var quickLinks: some View {
         VStack(spacing: 0) {
             NavigationLink(value: WeeklyRoute()) {
-                QuickLinkRow(icon: "calendar", label: "Weekly breakdown", isLast: false)
+                QuickLinkRow(icon: "calendar", label: "History", isLast: false)
             }
             .buttonStyle(PressableButtonStyle())
 

@@ -147,7 +147,10 @@ enum SeedData {
             sets: dto.sets,
             coachingPoints: dto.coachingPoints,
             instructions: dto.instructions ?? [],
-            sortIndex: dto.sortIndex
+            sortIndex: dto.sortIndex,
+            exerciseKind: dto.exerciseKind,
+            steps: dto.steps ?? [],
+            journalPrompt: dto.journalPrompt
         )
     }
 }
@@ -209,5 +212,8 @@ nonisolated struct CurriculumBundle: Codable {
         let coachingPoints: [String]
         let instructions: [String]?
         let sortIndex: Int
+        let exerciseKind: String?
+        let steps: [String]?
+        let journalPrompt: String?
     }
 }

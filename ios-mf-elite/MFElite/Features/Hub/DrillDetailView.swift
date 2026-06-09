@@ -26,7 +26,7 @@ struct DrillDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Query private var progress: [DrillProgress]
-    @State private var activePlayerRoute: DrillRoute?
+    @State private var activeSession: TrainingQueue?
 
     private var drillProgress: DrillProgress? {
         progress.first { $0.drillID == drill.id }
@@ -51,11 +51,21 @@ struct DrillDetailView: View {
                 titleBlock(vm)
                 statStrip(vm)
                 purposeSection
-                if !drill.instructions.isEmpty {
-                    instructionsSection
+                if drill.isMentalExercise {
+                    if !drill.steps.isEmpty {
+                        stepsSection
+                    }
+                    coachingSection
+                    if let prompt = drill.journalPrompt {
+                        journalPromptSection(prompt)
+                    }
+                } else {
+                    if !drill.instructions.isEmpty {
+                        instructionsSection
+                    }
+                    coachingSection
+                    challengeSection
                 }
-                coachingSection
-                challengeSection
                 accountabilitySection(vm)
                 bottomCTA(vm)
             }
@@ -64,15 +74,21 @@ struct DrillDetailView: View {
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)
         .navigationBarHidden(true)
-        .fullScreenCover(item: $activePlayerRoute) { route in
-            DrillPlayerView(
-                drill: route.drill,
-                level: route.level,
-                category: route.category,
-                discipline: route.discipline,
-                onNextDrill: { next in activePlayerRoute = next }
-            )
+        .fullScreenCover(item: $activeSession) { queue in
+            SessionPlayerView(queue: queue)
         }
+    }
+
+    /// Builds a session queue starting at this drill, followed by the remaining
+    /// drills of the same level in order (so "Next drill" always has somewhere to go).
+    private func makeQueue() -> TrainingQueue {
+        let ordered = level.drills.sorted { $0.sortIndex < $1.sortIndex }
+        let startIndex = ordered.firstIndex { $0.id == drill.id } ?? 0
+        let chain = Array(ordered[startIndex...])
+        let items = chain.map {
+            DrillContext(drill: $0, level: level, category: category, discipline: discipline)
+        }
+        return TrainingQueue(items: items, source: .single, sourceName: nil)
     }
 
     // MARK: - 1. Top Bar
@@ -130,11 +146,19 @@ struct DrillDetailView: View {
         VStack(spacing: 0) {
             Hairline()
             HStack(spacing: 0) {
-                statCell(value: vm.formattedDuration, label: "Duration")
-                statDivider
-                statCell(value: "\(drill.sets) × \(setDurationLabel)", label: "Sets")
-                statDivider
-                statCell(value: "+\(ProgressionRules.xpPerDrill) XP", label: "Earns")
+                if drill.isMentalExercise {
+                    statCell(value: "~\(vm.formattedDuration)", label: "Guide")
+                    statDivider
+                    statCell(value: "\(max(drill.steps.count, 1))", label: "Steps")
+                    statDivider
+                    statCell(value: kindLabel, label: "Type")
+                } else {
+                    statCell(value: vm.formattedDuration, label: "Duration")
+                    statDivider
+                    statCell(value: "\(drill.sets) × \(setDurationLabel)", label: "Sets")
+                    statDivider
+                    statCell(value: "+\(ProgressionRules.xpPerDrill) XP", label: "Earns")
+                }
             }
             Hairline()
         }
@@ -199,6 +223,66 @@ struct DrillDetailView: View {
                 }
             }
             .padding(.top, DS.Spacing.s16)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s24 + 4)
+    }
+
+    private var kindLabel: String {
+        (MentalExerciseKind(rawValue: drill.exerciseKind ?? "") ?? .guided).label
+    }
+
+    // MARK: - Mental: Steps
+
+    private var stepsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "THE EXERCISE")
+
+            VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+                ForEach(Array(drill.steps.enumerated()), id: \.offset) { index, step in
+                    HStack(alignment: .top, spacing: DS.Spacing.s12) {
+                        Text("\(index + 1)")
+                            .font(DS.Typography.num(size: 16))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                            .frame(width: 28, height: 28)
+                            .background(Color.white.opacity(0.15))
+                            .clipShape(Circle())
+
+                        Text(step)
+                            .style(.body)
+                            .foregroundStyle(DS.Colors.Ink.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+            }
+            .padding(.top, DS.Spacing.s16)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s24 + 4)
+    }
+
+    // MARK: - Mental: Journal Prompt
+
+    private func journalPromptSection(_ prompt: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "REFLECT")
+
+            HStack(alignment: .top, spacing: DS.Spacing.s12) {
+                Image(systemName: "square.and.pencil")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Text(prompt)
+                    .style(.callout)
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(DS.Spacing.s20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DS.Colors.Bg.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+            .padding(.top, DS.Spacing.s12 + 2)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, DS.Spacing.s20)
@@ -339,13 +423,11 @@ struct DrillDetailView: View {
 
     private func bottomCTA(_ vm: DrillDetailViewModel) -> some View {
         HStack(spacing: DS.Spacing.s12) {
-            PrimaryButton(label: "Start drill", hint: vm.drill.durationSec.minutesHint) {
-                activePlayerRoute = DrillRoute(
-                    discipline: discipline,
-                    category: category,
-                    level: level,
-                    drill: drill
-                )
+            PrimaryButton(
+                label: drill.isMentalExercise ? "Begin exercise" : "Start drill",
+                hint: vm.drill.durationSec.minutesHint
+            ) {
+                activeSession = makeQueue()
             }
         }
         .padding(.horizontal, DS.Spacing.s20)

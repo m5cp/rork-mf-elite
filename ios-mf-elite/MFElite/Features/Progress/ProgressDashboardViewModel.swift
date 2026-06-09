@@ -3,7 +3,8 @@
 //  MFElite
 //
 //  Derives the Progress tab analytics — weekly/monthly training stats — from
-//  SwiftData drill progress and the curriculum.
+//  the per-session training log (SessionLogEntry). Mastery counts still come
+//  from DrillProgress, which drives certifications.
 //
 
 import Foundation
@@ -40,6 +41,16 @@ struct LoggedDrill: Identifiable {
     let xp: Int
 }
 
+/// One day in the 7-day ring strip.
+struct RingStripDay: Identifiable {
+    let id: Int
+    let date: Date
+    let initial: String
+    let rings: DailyRings
+    let isToday: Bool
+    let isFuture: Bool
+}
+
 /// One day in the weekly breakdown.
 struct WeekDay: Identifiable {
     let id: Int
@@ -56,31 +67,27 @@ struct WeekDay: Identifiable {
 @Observable
 final class ProgressDashboardViewModel {
     private let disciplines: [Discipline]
+    private let sessions: [SessionLogEntry]
     private let progress: [DrillProgress]
     private let calendar: Calendar
 
-    /// drillID → owning discipline (name + mark), resolved once.
-    private let disciplineByDrill: [String: (name: String, mark: String, sort: Int)]
+    /// disciplineID → mark, resolved once.
+    private let markByDiscipline: [String: String]
 
-    init(disciplines: [Discipline], progress: [DrillProgress]) {
+    init(disciplines: [Discipline], sessions: [SessionLogEntry], progress: [DrillProgress]) {
         self.disciplines = disciplines.sorted { $0.sortIndex < $1.sortIndex }
+        self.sessions = sessions
         self.progress = progress
 
         var cal = Calendar.current
         cal.firstWeekday = 2 // Monday
         self.calendar = cal
 
-        var map: [String: (String, String, Int)] = [:]
+        var map: [String: String] = [:]
         for discipline in self.disciplines {
-            for category in discipline.categories {
-                for level in category.levels {
-                    for drill in level.drills {
-                        map[drill.id] = (discipline.name, discipline.mark, discipline.sortIndex)
-                    }
-                }
-            }
+            map[discipline.id] = discipline.mark
         }
-        self.disciplineByDrill = map
+        self.markByDiscipline = map
     }
 
     // MARK: - Week anchors
@@ -97,26 +104,30 @@ final class ProgressDashboardViewModel {
         calendar.date(byAdding: .day, value: -7 * weeksAgo, to: currentMonday) ?? currentMonday
     }
 
-    /// Drills whose last log falls within [start, start+7days).
-    private func loggedDrills(weekStarting start: Date) -> [DrillProgress] {
+    /// Sessions whose completion falls within [start, start+7days).
+    private func sessions(weekStarting start: Date) -> [SessionLogEntry] {
         guard let end = calendar.date(byAdding: .day, value: 7, to: start) else { return [] }
-        return progress.filter { entry in
-            guard let date = entry.lastLoggedAt else { return false }
-            return date >= start && date < end
-        }
+        return sessions.filter { $0.completedAt >= start && $0.completedAt < end }
     }
 
     // MARK: - This week summary
 
-    private var thisWeekDrills: [DrillProgress] {
-        loggedDrills(weekStarting: currentMonday)
+    private var thisWeekSessions: [SessionLogEntry] {
+        sessions(weekStarting: currentMonday)
     }
 
-    var sessionsThisWeek: Int { thisWeekDrills.count }
+    var sessionsThisWeek: Int { thisWeekSessions.count }
 
-    var xpThisWeek: Int { sessionsThisWeek * ProgressionRules.xpPerDrill }
+    var xpThisWeek: Int { thisWeekSessions.reduce(0) { $0 + $1.xpEarned } }
 
-    var masteredThisWeek: Int { thisWeekDrills.filter { $0.isMastered }.count }
+    /// Distinct drills that reached mastery and were last logged this week.
+    var masteredThisWeek: Int {
+        progress.filter { entry in
+            guard entry.isMastered, let date = entry.lastLoggedAt else { return false }
+            let day = calendar.startOfDay(for: date)
+            return day >= currentMonday
+        }.count
+    }
 
     // MARK: - 7-day bar chart
 
@@ -125,9 +136,8 @@ final class ProgressDashboardViewModel {
         let today = calendar.startOfDay(for: Date())
         var counts = Array(repeating: 0, count: 7)
 
-        for entry in thisWeekDrills {
-            guard let date = entry.lastLoggedAt else { continue }
-            let day = calendar.startOfDay(for: date)
+        for entry in thisWeekSessions {
+            let day = calendar.startOfDay(for: entry.completedAt)
             let offset = calendar.dateComponents([.day], from: currentMonday, to: day).day ?? 0
             if offset >= 0 && offset < 7 { counts[offset] += 1 }
         }
@@ -147,8 +157,8 @@ final class ProgressDashboardViewModel {
         (0..<4).map { index in
             // index 0 = oldest (3 weeks ago), index 3 = this week
             let weeksAgo = 3 - index
-            let sessions = loggedDrills(weekStarting: monday(weeksAgo: weeksAgo)).count
-            return WeekBar(id: index, label: "WK \(index + 1)", sessions: sessions)
+            let count = sessions(weekStarting: monday(weeksAgo: weeksAgo)).count
+            return WeekBar(id: index, label: "WK \(index + 1)", sessions: count)
         }
     }
 
@@ -158,10 +168,7 @@ final class ProgressDashboardViewModel {
 
     /// Distinct days trained this week.
     private var trainedDaysThisWeek: Int {
-        let days = Set(thisWeekDrills.compactMap { entry -> Date? in
-            guard let date = entry.lastLoggedAt else { return nil }
-            return calendar.startOfDay(for: date)
-        })
+        let days = Set(thisWeekSessions.map { calendar.startOfDay(for: $0.completedAt) })
         return days.count
     }
 
@@ -199,18 +206,15 @@ final class ProgressDashboardViewModel {
     var disciplineStats: [DisciplineStat] {
         let start = calendar.startOfDay(for: monthStart)
         var counts: [String: Int] = [:]
-        for entry in progress {
-            guard let date = entry.lastLoggedAt, date >= start else { continue }
-            if let info = disciplineByDrill[entry.drillID] {
-                counts[info.name, default: 0] += 1
-            }
+        for entry in sessions where entry.completedAt >= start {
+            counts[entry.disciplineID, default: 0] += 1
         }
         return disciplines.map { discipline in
             DisciplineStat(
                 id: discipline.id,
                 name: discipline.name,
                 mark: discipline.mark,
-                sessions: counts[discipline.name] ?? 0
+                sessions: counts[discipline.id] ?? 0
             )
         }
     }
@@ -238,16 +242,14 @@ final class ProgressDashboardViewModel {
 
         // Map each day to the drills logged that day.
         var drillsByDay: [Date: [LoggedDrill]] = [:]
-        for entry in progress {
-            guard let date = entry.lastLoggedAt else { continue }
-            let day = calendar.startOfDay(for: date)
+        for entry in sessions {
+            let day = calendar.startOfDay(for: entry.completedAt)
             guard day >= currentMonday && day <= today else { continue }
-            let info = disciplineByDrill[entry.drillID]
             let logged = LoggedDrill(
-                id: entry.drillID,
-                title: drillTitle(entry.drillID),
-                mark: info?.mark ?? "square",
-                xp: ProgressionRules.xpPerDrill
+                id: entry.id.uuidString,
+                title: entry.drillTitle,
+                mark: markByDiscipline[entry.disciplineID] ?? "square",
+                xp: entry.xpEarned
             )
             drillsByDay[day, default: []].append(logged)
         }
@@ -269,20 +271,32 @@ final class ProgressDashboardViewModel {
     }
 
     var weeklyTotalSessions: Int { weekDays.reduce(0) { $0 + $1.drills.count } }
-    var weeklyTotalXP: Int { weeklyTotalSessions * ProgressionRules.xpPerDrill }
+    var weeklyTotalXP: Int { weekDays.reduce(0) { $0 + $1.totalXP } }
     var weeklyTotalMastered: Int { masteredThisWeek }
     var weeklyTrainedDays: Int { weekDays.filter { !$0.drills.isEmpty }.count }
 
-    private func drillTitle(_ id: String) -> String {
-        for discipline in disciplines {
-            for category in discipline.categories {
-                for level in category.levels {
-                    if let drill = level.drills.first(where: { $0.id == id }) {
-                        return drill.title
-                    }
-                }
-            }
+    // MARK: - Daily rings
+
+    /// Today's three training rings (Train / Drills / Mind).
+    var todayRings: DailyRings {
+        DailyRings.make(from: sessions, on: Date(), calendar: calendar)
+    }
+
+    /// The current week as a Mon–Sun strip of ring clusters.
+    var ringStripDays: [RingStripDay] {
+        let initials = ["M", "T", "W", "T", "F", "S", "S"]
+        let today = calendar.startOfDay(for: Date())
+        return (0..<7).compactMap { offset in
+            guard let date = calendar.date(byAdding: .day, value: offset, to: currentMonday) else { return nil }
+            let day = calendar.startOfDay(for: date)
+            return RingStripDay(
+                id: offset,
+                date: day,
+                initial: initials[offset],
+                rings: DailyRings.make(from: sessions, on: day, calendar: calendar),
+                isToday: calendar.isDate(day, inSameDayAs: today),
+                isFuture: day > today
+            )
         }
-        return "Drill"
     }
 }

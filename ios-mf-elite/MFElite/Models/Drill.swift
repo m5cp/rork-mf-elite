@@ -20,6 +20,18 @@ final class Drill {
     var instructions: [String]
     var sortIndex: Int
 
+    /// For mental exercises: "guided" | "breathing" | "visualization" | "journal".
+    /// `nil` for physical, timer-based drills.
+    var exerciseKind: String?
+    /// Ordered, step-driven instructions for mental exercises.
+    var steps: [String]
+    /// A reflective question shown at the end of a mental exercise.
+    var journalPrompt: String?
+
+    /// True when this drill is a step-driven mental exercise rather than a
+    /// timer-based physical drill.
+    var isMentalExercise: Bool { exerciseKind != nil }
+
     init(
         id: String,
         title: String,
@@ -30,7 +42,10 @@ final class Drill {
         sets: Int,
         coachingPoints: [String],
         instructions: [String] = [],
-        sortIndex: Int
+        sortIndex: Int,
+        exerciseKind: String? = nil,
+        steps: [String] = [],
+        journalPrompt: String? = nil
     ) {
         self.id = id
         self.title = title
@@ -42,5 +57,8 @@ final class Drill {
         self.coachingPoints = coachingPoints
         self.instructions = instructions
         self.sortIndex = sortIndex
+        self.exerciseKind = exerciseKind
+        self.steps = steps
+        self.journalPrompt = journalPrompt
     }
 }

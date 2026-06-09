@@ -32,6 +32,11 @@ enum AchievementBadge: String, CaseIterable, Identifiable {
     case earlyBird = "early_bird"
     case nightOwl = "night_owl"
 
+    // Perfect days (all three daily rings closed)
+    case perfectDay = "perfect_day"
+    case perfectDay7 = "perfect_day_7"
+    case perfectDay30 = "perfect_day_30"
+
     var id: String { rawValue }
 
     var title: String {
@@ -51,6 +56,9 @@ enum AchievementBadge: String, CaseIterable, Identifiable {
         case .firstCert: return "Certified"
         case .earlyBird: return "Early Bird"
         case .nightOwl: return "Night Owl"
+        case .perfectDay: return "Perfect Day"
+        case .perfectDay7: return "Seven Perfect"
+        case .perfectDay30: return "Thirty Perfect"
         }
     }
 
@@ -71,6 +79,9 @@ enum AchievementBadge: String, CaseIterable, Identifiable {
         case .firstCert: return "Earn your first certification"
         case .earlyBird: return "Train before 7:00 AM"
         case .nightOwl: return "Train after 9:00 PM"
+        case .perfectDay: return "Close all three daily rings"
+        case .perfectDay7: return "Close all rings on 7 days"
+        case .perfectDay30: return "Close all rings on 30 days"
         }
     }
 
@@ -91,6 +102,9 @@ enum AchievementBadge: String, CaseIterable, Identifiable {
         case .firstCert: return "rosette"
         case .earlyBird: return "sunrise"
         case .nightOwl: return "moon.stars"
+        case .perfectDay: return "circle.circle"
+        case .perfectDay7: return "circle.circle.fill"
+        case .perfectDay30: return "circle.hexagongrid.circle.fill"
         }
     }
 
@@ -110,6 +124,15 @@ enum AchievementBadge: String, CaseIterable, Identifiable {
         if count >= 1 { earned.append(.firstMastery) }
         if count >= 10 { earned.append(.tenMastered) }
         if count >= 50 { earned.append(.fiftyMastered) }
+        return earned
+    }
+
+    /// Check threshold for perfect-day count badges (days with all rings closed).
+    static func perfectDayBadges(for count: Int) -> [AchievementBadge] {
+        var earned: [AchievementBadge] = []
+        if count >= 1 { earned.append(.perfectDay) }
+        if count >= 7 { earned.append(.perfectDay7) }
+        if count >= 30 { earned.append(.perfectDay30) }
         return earned
     }
 

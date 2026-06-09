@@ -10,43 +10,46 @@ import SwiftData
 import StoreKit
 
 struct DrillPlayerView: View {
-    let drill: Drill
-    let level: MasteryLevel
-    let category: Category
-    let discipline: Discipline
+    let context: DrillContext
+    let queue: TrainingQueue
 
-    /// Pushes to the next unmastered drill after dismissal.
-    var onNextDrill: ((DrillRoute) -> Void)? = nil
+    /// Advance to the next drill in the queue (swaps in place — never dismisses).
+    var onAdvance: () -> Void
+    /// End the whole session and dismiss the player.
+    var onExit: () -> Void
+    /// The final drill was logged — show the session summary.
+    var onSessionComplete: () -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.requestReview) private var requestReview
 
     @State private var viewModel: DrillPlayerViewModel
     @State private var showStopConfirm = false
-    @State private var celebrate = false
-    @State private var activeCelebration: CelebrationKind?
-    @State private var chainToCert = false
-    @State private var showNotificationPrompt = false
+
+    private var drill: Drill { context.drill }
+    private var level: MasteryLevel { context.level }
+    private var category: Category { context.category }
+    private var discipline: Discipline { context.discipline }
 
     init(
-        drill: Drill,
-        level: MasteryLevel,
-        category: Category,
-        discipline: Discipline,
-        onNextDrill: ((DrillRoute) -> Void)? = nil
+        context: DrillContext,
+        queue: TrainingQueue,
+        onAdvance: @escaping () -> Void,
+        onExit: @escaping () -> Void,
+        onSessionComplete: @escaping () -> Void
     ) {
-        self.drill = drill
-        self.level = level
-        self.category = category
-        self.discipline = discipline
-        self.onNextDrill = onNextDrill
+        self.context = context
+        self.queue = queue
+        self.onAdvance = onAdvance
+        self.onExit = onExit
+        self.onSessionComplete = onSessionComplete
         _viewModel = State(
             initialValue: DrillPlayerViewModel(
-                drill: drill,
-                level: level,
-                category: category,
-                discipline: discipline
+                drill: context.drill,
+                level: context.level,
+                category: context.category,
+                discipline: context.discipline,
+                source: queue.source.rawValue,
+                sourceName: queue.sourceName
             )
         )
     }
@@ -65,7 +68,14 @@ struct DrillPlayerView: View {
             case .active, .resting:
                 activePhase
             case .logged:
-                loggedPhase
+                SessionLoggedView(
+                    context: context,
+                    queue: queue,
+                    viewModel: viewModel,
+                    onAdvance: onAdvance,
+                    onExit: onExit,
+                    onSessionComplete: onSessionComplete
+                )
             }
         }
         .preferredColorScheme(.dark)
@@ -83,49 +93,12 @@ struct DrillPlayerView: View {
             }
             Button("Quit without logging", role: .destructive) {
                 viewModel.stopSession()
-                dismiss()
+                onExit()
             }
         } message: {
-            Text("You can log this drill now or quit without logging.")
-        }
-        .sheet(isPresented: $showNotificationPrompt) {
-            NotificationPromptSheet()
-                .presentationDetents([.medium, .large])
-        }
-        .fullScreenCover(item: $activeCelebration, onDismiss: handleCelebrationDismiss) { kind in
-            switch kind {
-            case .level:
-                LevelMasteredView(
-                    level: level,
-                    category: category,
-                    discipline: discipline,
-                    onClose: { chainToCert = viewModel.categoryJustCertified }
-                )
-            case .cert:
-                CertificationAwardView(
-                    category: category,
-                    discipline: discipline,
-                    onClose: {}
-                )
-            }
-        }
-    }
-
-    /// A celebration to present over the logged screen.
-    enum CelebrationKind: String, Identifiable {
-        case level
-        case cert
-        var id: String { rawValue }
-    }
-
-    /// After a celebration cover closes, chain to the cert award if needed,
-    /// otherwise dismiss the whole player back to the level.
-    private func handleCelebrationDismiss() {
-        if chainToCert {
-            chainToCert = false
-            activeCelebration = .cert
-        } else {
-            dismiss()
+            Text(queue.isChained
+                 ? "Your completed drills are saved. You can log this one now or quit without logging."
+                 : "You can log this drill now or quit without logging.")
         }
     }
 
@@ -134,12 +107,24 @@ struct DrillPlayerView: View {
     private var readyPhase: some View {
         VStack(spacing: 0) {
             HStack {
-                IconButton(systemName: "xmark", size: 36) { dismiss() }
+                IconButton(systemName: "xmark", size: 36) { onExit() }
+                Spacer()
+                if queue.isChained {
+                    Text("Drill \(queue.position) of \(queue.count)")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
                 Spacer()
                 DisciplineMark(kind: discipline.mark, size: 24)
             }
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.top, DS.Spacing.s16)
+
+            if queue.source != .single {
+                routineProgressHeader
+                    .padding(.horizontal, DS.Spacing.s20)
+                    .padding(.top, DS.Spacing.s16)
+            }
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
@@ -218,6 +203,37 @@ struct DrillPlayerView: View {
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.bottom, DS.Spacing.s40)
         }
+    }
+
+    /// Routine/workout progress: source eyebrow, a segmented bar (one segment per
+    /// drill, filled as completed), and the current position.
+    private var routineProgressHeader: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            HStack {
+                Eyebrow(text: routineEyebrow)
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+                Spacer()
+                Text("Drill \(queue.position) of \(queue.count)")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+            HStack(spacing: 4) {
+                ForEach(0..<max(1, queue.count), id: \.self) { idx in
+                    Capsule()
+                        .fill(idx < queue.completed.count ? Color.white : DS.Colors.Line.subtle)
+                        .frame(height: 4)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+        }
+    }
+
+    private var routineEyebrow: String {
+        let label = queue.source == .workout ? "Workout" : "Routine"
+        if let name = queue.sourceName {
+            return "\(label) — \(name)"
+        }
+        return label
     }
 
     private func infoPill(_ text: String) -> some View {
@@ -316,6 +332,16 @@ struct DrillPlayerView: View {
                 .padding(.bottom, DS.Spacing.s48 + DS.Spacing.s12)
             } else {
                 VStack(spacing: DS.Spacing.s16) {
+                    if let upNextLine {
+                        VStack(spacing: DS.Spacing.s4) {
+                            Eyebrow(text: "Up Next")
+                                .foregroundStyle(DS.Colors.Ink.quaternary)
+                            Text(upNextLine)
+                                .style(.callout)
+                                .foregroundStyle(DS.Colors.Ink.secondary)
+                        }
+                    }
+
                     Button {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                         viewModel.logDrillEarly()
@@ -338,179 +364,16 @@ struct DrillPlayerView: View {
         }
     }
 
-    // MARK: - Phase 3: Logged
-
-    private var loggedPhase: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                Circle()
-                    .fill(Color.white)
-                    .frame(width: 100, height: 100)
-                    .overlay(
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 44, weight: .bold))
-                            .foregroundStyle(DS.Colors.Ground.primary)
-                    )
-                    .scaleEffect(celebrate ? 1 : 0)
-                    .padding(.top, DS.Spacing.s64)
-
-                Eyebrow(text: "Set \(drill.sets) Of \(drill.sets) · Logged")
-                    .padding(.top, DS.Spacing.s24)
-
-                Text(drill.title)
-                    .style(.title1)
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, DS.Spacing.s8)
-
-                Text("Logged honestly — clean run, no losses.")
-                    .style(.body)
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
-                    .multilineTextAlignment(.center)
-                    .padding(.top, DS.Spacing.s8)
-
-                masteryCard
-                    .padding(.top, DS.Spacing.s32)
-
-                HStack(spacing: DS.Spacing.s12) {
-                    rewardTile(label: "Earned", value: "+\(ProgressionRules.xpPerDrill) XP")
-                    rewardTile(label: "Streak", value: "\(viewModel.newStreak) DAY", suffix: "+1")
-                }
-                .padding(.top, DS.Spacing.s20)
-
-                VStack(spacing: DS.Spacing.s12) {
-                    PrimaryButton(label: "Next drill", hint: "LEVEL \(level.number)") {
-                        goToNextDrill()
-                    }
-                    SecondaryButton(label: "Back to level") {
-                        dismiss()
-                    }
-                }
-                .padding(.top, DS.Spacing.s32)
-            }
-            .padding(.horizontal, DS.Spacing.s20)
-            .padding(.bottom, 80)
+    /// During rest, surface what comes next: the next set, or — if this was the
+    /// final set and the queue has another drill — the next drill's title.
+    private var upNextLine: String? {
+        guard case let .resting(nextSetIndex) = viewModel.phase else { return nil }
+        if nextSetIndex <= drill.sets {
+            return "Set \(nextSetIndex) of \(drill.sets)"
         }
-        .scrollIndicators(.hidden)
-        .onAppear {
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-            withAnimation(DS.Motion.celebrationSpring) {
-                celebrate = true
-            }
-            handleDrillLogged()
-            if viewModel.levelJustMastered {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                    activeCelebration = .level
-                }
-            }
+        if let next = queue.upNext {
+            return next.drill.title
         }
-    }
-
-    private var masteryCard: some View {
-        Card {
-            VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-                HStack {
-                    Eyebrow(text: "Drill Mastery")
-                    Spacer()
-                    if viewModel.justMastered {
-                        HStack(spacing: DS.Spacing.s4) {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 9, weight: .bold))
-                            Text("Mastered")
-                                .style(.micro)
-                        }
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                    }
-                }
-
-                HStack(spacing: DS.Spacing.s4 + 2) {
-                    ForEach(0..<ProgressionRules.masteryPasses, id: \.self) { index in
-                        RoundedRectangle(cornerRadius: 3)
-                            .fill(index < viewModel.newPassesLogged ? Color.white : DS.Colors.Line.subtle)
-                            .frame(height: 6)
-                            .frame(maxWidth: .infinity)
-                    }
-                }
-
-                Text("\(viewModel.newPassesLogged) of \(ProgressionRules.masteryPasses) complete")
-                    .style(.foot)
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
-            }
-        }
-    }
-
-    private func rewardTile(label: String, value: String, suffix: String? = nil) -> some View {
-        Card {
-            VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-                Eyebrow(text: label)
-                HStack(alignment: .firstTextBaseline, spacing: DS.Spacing.s4) {
-                    Text(value)
-                        .style(.num(size: 28))
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                    if let suffix {
-                        Text(suffix)
-                            .style(.micro)
-                            .foregroundStyle(DS.Colors.Ink.tertiary)
-                    }
-                }
-            }
-        }
-    }
-
-    /// Runs once when the logged screen appears: counts the completion, gates the
-    /// soft notification prompt (first drill) and any positive-moment review ask.
-    private func handleDrillLogged() {
-        EngagementTracker.shared.recordDrillCompleted()
-
-        // Soft notification prompt after the first (and, if deferred, third) drill.
-        EngagementTracker.shared.evaluateNotificationPrompt { show in
-            guard show else { return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                showNotificationPrompt = true
-            }
-        }
-
-        // App review on positive moments — never mid-level celebration.
-        if !viewModel.levelJustMastered {
-            if viewModel.newStreak == 7,
-               EngagementTracker.shared.shouldRequestReview(for: .sevenDayStreak) {
-                requestReviewSoon()
-            } else if masteredCount() == 10,
-                      EngagementTracker.shared.shouldRequestReview(for: .tenthDrillMastered) {
-                requestReviewSoon()
-            }
-        }
-    }
-
-    private func requestReviewSoon() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
-            requestReview()
-        }
-    }
-
-    private func masteredCount() -> Int {
-        let mastered = (try? modelContext.fetch(
-            FetchDescriptor<DrillProgress>(predicate: #Predicate { $0.isMastered })
-        )) ?? []
-        return mastered.count
-    }
-
-    private func goToNextDrill() {
-        // Find the next unmastered drill in the level (excluding the just-logged one).
-        let ordered = level.drills.sorted { $0.sortIndex < $1.sortIndex }
-        let next = ordered.first { candidate in
-            guard candidate.id != drill.id else { return false }
-            let candidateID = candidate.id
-            let mastered = (try? modelContext.fetch(
-                FetchDescriptor<DrillProgress>(predicate: #Predicate { $0.drillID == candidateID })
-            ).first?.isMastered) ?? false
-            return mastered != true
-        }
-
-        dismiss()
-        if let next, let onNextDrill {
-            let route = DrillRoute(discipline: discipline, category: category, level: level, drill: next)
-            onNextDrill(route)
-        }
+        return nil
     }
 }
