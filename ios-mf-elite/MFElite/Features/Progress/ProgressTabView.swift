@@ -39,6 +39,9 @@ struct ProgressTabView: View {
                         emptyState
                     } else {
                         weekOverview(vm)
+                        if vm.hasReflections {
+                            reflections(vm)
+                        }
                         monthlyTrend(vm)
                         intensity(vm)
                         disciplineBreakdown(vm)
@@ -228,6 +231,73 @@ struct ProgressTabView: View {
             }
         }
         .padding(.top, DS.Spacing.s8)
+    }
+
+    // MARK: - Reflections
+
+    private func reflections(_ vm: ProgressDashboardViewModel) -> some View {
+        let notes = vm.recentReflections()
+        return Card {
+            VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+                HStack(alignment: .firstTextBaseline) {
+                    Eyebrow(text: "Reflections")
+                    Spacer()
+                    if let avg = vm.averageFeltRating {
+                        HStack(spacing: DS.Spacing.s4) {
+                            Text(String(format: "%.1f", avg))
+                                .font(DS.Typography.num(size: 16))
+                                .foregroundStyle(DS.Colors.Ink.primary)
+                            Text("/ 5 felt")
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Ink.quaternary)
+                        }
+                    }
+                }
+
+                Text(vm.feltTrendLabel)
+                    .style(.callout)
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+
+                if notes.isEmpty {
+                    Text("Add a note at your next check-in and it’ll show up here.")
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(notes.enumerated()), id: \.element.id) { idx, note in
+                            reflectionRow(note)
+                            if idx != notes.count - 1 { Hairline() }
+                        }
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s20)
+    }
+
+    private func reflectionRow(_ note: ReflectionNote) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+            HStack(spacing: DS.Spacing.s8) {
+                Text(note.drillTitle)
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: DS.Spacing.s8)
+                ForEach(0..<5, id: \.self) { i in
+                    Circle()
+                        .fill(i < note.rating ? Color.white : DS.Colors.Line.subtle)
+                        .frame(width: 5, height: 5)
+                }
+            }
+            Text("“\(note.note)”")
+                .style(.callout)
+                .foregroundStyle(DS.Colors.Ink.primary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.vertical, DS.Spacing.s12)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     // MARK: - 3. Monthly trend

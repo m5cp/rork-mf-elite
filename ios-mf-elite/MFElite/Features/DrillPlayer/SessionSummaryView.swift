@@ -15,6 +15,7 @@ struct SessionSummaryView: View {
     @Query private var players: [PlayerState]
     @Query private var sessionLog: [SessionLogEntry]
     @State private var reveal = false
+    @State private var showCheckIn = false
 
     private var totalMinutes: Int {
         let secs = queue.completed.reduce(0) { $0 + $1.durationSec }
@@ -124,9 +125,15 @@ struct SessionSummaryView: View {
         }
         .scrollIndicators(.hidden)
         .background(DS.Colors.Bg.base)
+        .sessionCheckIn(isPresented: $showCheckIn, drillCount: queue.completed.count)
         .onAppear {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             withAnimation(DS.Motion.celebrationSpring) { reveal = true }
+            if !queue.completed.isEmpty {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    showCheckIn = true
+                }
+            }
         }
     }
 

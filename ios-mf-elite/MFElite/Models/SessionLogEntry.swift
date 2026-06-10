@@ -40,6 +40,10 @@ final class SessionLogEntry {
     var xpEarned: Int
     /// The player's written reflection for a mental exercise's journal prompt.
     var journalResponse: String?
+    /// Post-session self-rating of how the work felt, 1 (tough) – 5 (easy). Nil until rated.
+    var feltRating: Int?
+    /// Optional one-line reflection captured at the post-session check-in.
+    var reflection: String?
 
     init(
         id: UUID = UUID(),
@@ -56,7 +60,9 @@ final class SessionLogEntry {
         source: String = SessionSource.single.rawValue,
         sourceName: String? = nil,
         xpEarned: Int,
-        journalResponse: String? = nil
+        journalResponse: String? = nil,
+        feltRating: Int? = nil,
+        reflection: String? = nil
     ) {
         self.id = id
         self.completedAt = completedAt
@@ -73,5 +79,7 @@ final class SessionLogEntry {
         self.sourceName = sourceName
         self.xpEarned = xpEarned
         self.journalResponse = journalResponse
+        self.feltRating = feltRating
+        self.reflection = reflection
     }
 }

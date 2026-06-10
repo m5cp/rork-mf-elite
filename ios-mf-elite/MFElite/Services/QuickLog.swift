@@ -79,6 +79,29 @@ enum QuickLog {
         )
     }
 
+    /// Attach a post-session check-in (a 1–5 felt rating and optional note) to the
+    /// `drillCount` most recently logged drills — i.e. the session just completed.
+    /// Safe to call once per session from the check-in sheet.
+    static func attachReflection(
+        rating: Int,
+        note: String?,
+        toMostRecent drillCount: Int,
+        context: ModelContext
+    ) {
+        guard drillCount > 0 else { return }
+        var descriptor = FetchDescriptor<SessionLogEntry>(
+            sortBy: [SortDescriptor(\.completedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = drillCount
+        guard let entries = try? context.fetch(descriptor), !entries.isEmpty else { return }
+        let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        for entry in entries {
+            entry.feltRating = rating
+            entry.reflection = (trimmed?.isEmpty ?? true) ? nil : trimmed
+        }
+        try? context.save()
+    }
+
     // MARK: - Per-drill record
 
     private static func logProgressAndHistory(

@@ -41,6 +41,15 @@ struct LoggedDrill: Identifiable {
     let xp: Int
 }
 
+/// One captured reflection note, surfaced on the Progress screen.
+struct ReflectionNote: Identifiable {
+    let id: String
+    let date: Date
+    let drillTitle: String
+    let rating: Int
+    let note: String
+}
+
 /// One day in the 7-day ring strip.
 struct RingStripDay: Identifiable {
     let id: Int
@@ -274,6 +283,56 @@ final class ProgressDashboardViewModel {
     var weeklyTotalXP: Int { weekDays.reduce(0) { $0 + $1.totalXP } }
     var weeklyTotalMastered: Int { masteredThisWeek }
     var weeklyTrainedDays: Int { weekDays.filter { !$0.drills.isEmpty }.count }
+
+    // MARK: - Reflections
+
+    /// All log entries that carry a felt rating, newest first.
+    private var ratedSessions: [SessionLogEntry] {
+        sessions.filter { $0.feltRating != nil }
+            .sorted { $0.completedAt > $1.completedAt }
+    }
+
+    /// True once the player has rated at least one session.
+    var hasReflections: Bool { !ratedSessions.isEmpty }
+
+    /// Average felt rating (1–5) across the last 14 days, rounded to one decimal.
+    var averageFeltRating: Double? {
+        guard let cutoff = calendar.date(byAdding: .day, value: -14, to: Date()) else { return nil }
+        let recent = ratedSessions.filter { $0.completedAt >= cutoff }.compactMap { $0.feltRating }
+        guard !recent.isEmpty else { return nil }
+        let avg = Double(recent.reduce(0, +)) / Double(recent.count)
+        return (avg * 10).rounded() / 10
+    }
+
+    /// Plain-language descriptor for the average felt rating.
+    var feltTrendLabel: String {
+        guard let avg = averageFeltRating else { return "—" }
+        switch avg {
+        case ..<1.8: return "Brutal stretch"
+        case ..<2.6: return "Tough stretch"
+        case ..<3.5: return "Solid groove"
+        case ..<4.3: return "Smooth lately"
+        default:     return "Cruising — time to push"
+        }
+    }
+
+    /// The most recent written reflections (up to `limit`).
+    func recentReflections(limit: Int = 3) -> [ReflectionNote] {
+        ratedSessions.compactMap { entry -> ReflectionNote? in
+            guard let rating = entry.feltRating,
+                  let note = entry.reflection,
+                  !note.isEmpty else { return nil }
+            return ReflectionNote(
+                id: entry.id.uuidString,
+                date: entry.completedAt,
+                drillTitle: entry.drillTitle,
+                rating: rating,
+                note: note
+            )
+        }
+        .prefix(limit)
+        .map { $0 }
+    }
 
     // MARK: - Daily rings
 
