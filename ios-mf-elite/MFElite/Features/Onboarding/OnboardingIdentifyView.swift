@@ -32,7 +32,7 @@ struct OnboardingIdentifyView: View {
                             .font(.system(size: 44, weight: .heavy))
                             .tracking(-1.6)
                             .foregroundStyle(DS.Colors.Ink.primary)
-                            .padding(.top, DS.Spacing.s24)
+                            .padding(.top, DS.Spacing.s16)
 
                         UnderlineField(placeholder: "Your name", text: $name, fontSize: 32, maxLength: 28)
                             .focused($nameFocused)
@@ -80,7 +80,7 @@ struct OnboardingIdentifyView: View {
     }
 
     private var photoHeader: some View {
-        PhotoPlaceholder(height: 300, label: "ATHLETE · ROOM TONE")
+        PhotoPlaceholder(height: 188, label: "ATHLETE · ROOM TONE")
             .clipShape(Rectangle())
             .overlay(
                 LinearGradient(
