@@ -8,10 +8,10 @@ import Foundation
 /// The five academy ranks. Each raw value is the minimum XP threshold to hold the rank.
 enum AcademyRank: Int, CaseIterable, Sendable {
     case trialist = 0
-    case cadet = 1500
-    case prospect = 4000
-    case starter = 9000
-    case captain = 18000
+    case cadet = 6000
+    case prospect = 16000
+    case starter = 30000
+    case captain = 52000
 
     /// Roman numeral for the rank.
     var numeral: String {
