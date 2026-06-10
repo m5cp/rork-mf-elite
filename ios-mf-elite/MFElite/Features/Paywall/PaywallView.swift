@@ -252,12 +252,22 @@ struct PaywallView: View {
             .padding(.horizontal, DS.Spacing.s20)
     }
 
-    /// Savings line computed from live prices when available, else a static fallback.
+    /// Savings line computed entirely from live prices; no hardcoded percentages.
     private var annualSavingsCallout: String {
-        guard let pct = annualSavingsVsMonthlyPercent else {
-            return "Annual saves 44% vs monthly — just $16.66/mo"
+        if let pct = annualSavingsVsMonthlyPercent, let perMonth = annualPerMonthString {
+            return "Annual saves \(pct)% vs paying monthly — just \(perMonth)/mo"
         }
-        return "Annual saves \(pct)% vs paying monthly"
+        if let pct = annualSavingsVsMonthlyPercent {
+            return "Annual saves \(pct)% vs paying monthly"
+        }
+        return "Annual is our best value — one payment for a full year"
+    }
+
+    /// The annual plan's per-month equivalent, formatted from live pricing.
+    private var annualPerMonthString: String? {
+        guard let annual = annualPackage?.storeProduct else { return nil }
+        let perMonth = annual.price / 12
+        return annual.priceFormatter?.string(from: NSDecimalNumber(decimal: perMonth))
     }
 
     // MARK: - Feature comparison
