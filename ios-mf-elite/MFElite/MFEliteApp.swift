@@ -14,6 +14,7 @@ struct MFEliteApp: App {
 
     init() {
         SubscriptionService.shared.configure()
+        GameCenterService.shared.authenticate()
         let schema = Schema([
             Discipline.self,
             Category.self,
@@ -85,6 +86,7 @@ struct MFEliteApp: App {
                     NotificationService.shared.scheduleDailyReminderIfAuthorized()
                     profileStore.incrementSession()
                     KeyboardWarmup.run()
+                    submitTotalXPToGameCenter()
                 }
         }
         .modelContainer(container)
@@ -93,6 +95,14 @@ struct MFEliteApp: App {
                 scheduleStreakRiskIfNeeded()
             }
         }
+    }
+
+    /// Push the player's current total XP to Game Center once authenticated, so
+    /// the leaderboards reflect progress earned while signed out.
+    private func submitTotalXPToGameCenter() {
+        let context = container.mainContext
+        guard let player = try? context.fetch(FetchDescriptor<PlayerState>()).first else { return }
+        GameCenterService.shared.submitXP(player.xp)
     }
 
     /// When backgrounding, warn the player tonight if they haven't trained today.

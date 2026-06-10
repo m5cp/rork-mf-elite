@@ -69,6 +69,11 @@ enum QuickLog {
 
         try? context.save()
 
+        // Submit updated total XP to Game Center leaderboards.
+        if let player {
+            GameCenterService.shared.submitXP(player.xp)
+        }
+
         let perfectDay = evaluatePerfectDay(context: context)
 
         return Result(

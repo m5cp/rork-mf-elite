@@ -389,6 +389,11 @@ final class DrillPlayerViewModel {
 
         try? context.save()
 
+        // Submit updated total XP to Game Center leaderboards.
+        if let player {
+            GameCenterService.shared.submitXP(player.xp)
+        }
+
         // Perfect Day: all three daily rings closed for the first time today.
         evaluatePerfectDay(context: context)
 

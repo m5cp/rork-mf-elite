@@ -108,6 +108,12 @@ enum AchievementBadge: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Game Center achievement identifier for this badge. Must match the IDs
+    /// configured in App Store Connect. Reporting no-ops safely until they exist.
+    var gameCenterID: String {
+        "mf.elite.achievement.\(rawValue)"
+    }
+
     /// Check threshold for drill-count badges
     static func drillCountBadges(for count: Int) -> [AchievementBadge] {
         var earned: [AchievementBadge] = []
@@ -160,17 +166,26 @@ enum AchievementStore {
     }
 
     static func earn(_ badge: AchievementBadge) {
+        let alreadyEarned = earnedIDs.contains(badge.rawValue)
         var ids = earnedIDs
         ids.insert(badge.rawValue)
         UserDefaults.standard.set(Array(ids), forKey: key)
+        if !alreadyEarned {
+            GameCenterService.shared.reportAchievement(badge.gameCenterID)
+        }
     }
 
     static func earnAll(_ badges: [AchievementBadge]) {
-        var ids = earnedIDs
+        let existing = earnedIDs
+        var ids = existing
         for badge in badges {
             ids.insert(badge.rawValue)
         }
         UserDefaults.standard.set(Array(ids), forKey: key)
+        let newlyEarned = badges.filter { !existing.contains($0.rawValue) }
+        if !newlyEarned.isEmpty {
+            GameCenterService.shared.report(newlyEarned.map { ($0.gameCenterID, 100.0) })
+        }
     }
 
     static var earnedCount: Int {

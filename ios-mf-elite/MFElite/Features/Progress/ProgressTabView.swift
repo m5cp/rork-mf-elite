@@ -23,6 +23,7 @@ struct ProgressTabView: View {
     @Query private var sessions: [SessionLogEntry]
 
     @State private var selectedDay: IdentifiableDate?
+    @State private var gameCenter = GameCenterService.shared
 
     private var viewModel: ProgressDashboardViewModel {
         ProgressDashboardViewModel(disciplines: disciplines, sessions: sessions, progress: progress)
@@ -420,7 +421,19 @@ struct ProgressTabView: View {
             .buttonStyle(PressableButtonStyle())
 
             NavigationLink(value: AcademyProgressionRoute()) {
-                QuickLinkRow(icon: "chart.line.uptrend.xyaxis", label: "Academy progression", isLast: true)
+                QuickLinkRow(icon: "chart.line.uptrend.xyaxis", label: "Academy progression", isLast: false)
+            }
+            .buttonStyle(PressableButtonStyle())
+
+            Button {
+                gameCenter.showLeaderboard(GameCenterLeaderboard.allTimeXP)
+            } label: {
+                QuickLinkRow(
+                    icon: "trophy",
+                    label: "Leaderboards",
+                    detail: gameCenter.isAuthenticated ? nil : "Sign in to Game Center",
+                    isLast: true
+                )
             }
             .buttonStyle(PressableButtonStyle())
         }
@@ -434,6 +447,7 @@ struct ProgressTabView: View {
 private struct QuickLinkRow: View {
     let icon: String
     let label: String
+    var detail: String? = nil
     let isLast: Bool
 
     var body: some View {
@@ -446,9 +460,16 @@ private struct QuickLinkRow: View {
                     .background(DS.Colors.Bg.raised)
                     .clipShape(Circle())
 
-                Text(label)
-                    .style(.title3)
-                    .foregroundStyle(DS.Colors.Ink.primary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(label)
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    if let detail {
+                        Text(detail)
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                    }
+                }
 
                 Spacer(minLength: 0)
 
