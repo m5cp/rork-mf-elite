@@ -2,51 +2,27 @@
 //  DrillLibraryView.swift
 //  MFElite
 //
-//  A flat, browsable list of every drill in the curriculum, grouped by
-//  discipline, with discipline + mastery-state filters.
+//  Browse every drill in the curriculum by category. The root shows a hero
+//  card per category (grouped by discipline) with progress at a glance; tapping
+//  one drills into that category's drill list, where each drill opens its full
+//  detail. A mastery filter is scoped inside each category.
 //
 
 import SwiftUI
 import SwiftData
 
-/// Navigation route to the flat drill library.
+/// Navigation route to the drill library.
 struct DrillLibraryRoute: Hashable {}
 
-/// Mastery filter applied to the library.
-private enum LibraryFilter: Hashable {
-    case all
-    case discipline(String) // discipline id
-    case mastered
-    case inProgress
-    case notStarted
-}
-
-/// A resolved drill carrying its full navigation context and progress state.
-private struct LibraryEntry: Identifiable {
-    let drill: Drill
-    let level: MasteryLevel
+/// Pushes the drill list for one category inside the library.
+private struct LibraryCategoryRoute: Hashable {
     let category: Category
     let discipline: Discipline
-    let passes: Int
-    let isMastered: Bool
-
-    var id: String { drill.id }
-    var isInProgress: Bool { passes > 0 && !isMastered }
-    var isNotStarted: Bool { passes == 0 && !isMastered }
-}
-
-/// One discipline section of resolved entries.
-private struct LibrarySection: Identifiable {
-    let discipline: Discipline
-    let entries: [LibraryEntry]
-    var id: String { discipline.id }
 }
 
 struct DrillLibraryView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var progress: [DrillProgress]
-
-    @State private var filter: LibraryFilter = .all
 
     private var passesByDrill: [String: Int] {
         Dictionary(progress.map { ($0.drillID, $0.passesLogged) }, uniquingKeysWith: { a, _ in a })
@@ -56,60 +32,41 @@ struct DrillLibraryView: View {
         Set(progress.filter { $0.isMastered }.map { $0.drillID })
     }
 
-    /// All entries resolved from the curriculum, in canonical order.
-    private var allEntries: [LibraryEntry] {
-        var result: [LibraryEntry] = []
-        for discipline in disciplines.sorted(by: { $0.sortIndex < $1.sortIndex }) {
-            for category in discipline.categories.sorted(by: { $0.sortIndex < $1.sortIndex }) {
-                for level in category.levels.sorted(by: { $0.sortIndex < $1.sortIndex }) {
-                    for drill in level.drills.sorted(by: { $0.sortIndex < $1.sortIndex }) {
-                        result.append(LibraryEntry(
-                            drill: drill,
-                            level: level,
-                            category: category,
-                            discipline: discipline,
-                            passes: passesByDrill[drill.id] ?? 0,
-                            isMastered: masteredIDs.contains(drill.id)
-                        ))
-                    }
-                }
-            }
-        }
-        return result
+    private var sortedDisciplines: [Discipline] {
+        disciplines.sorted(by: { $0.sortIndex < $1.sortIndex })
     }
 
-    private var filteredEntries: [LibraryEntry] {
-        switch filter {
-        case .all:                     return allEntries
-        case .discipline(let id):      return allEntries.filter { $0.discipline.id == id }
-        case .mastered:                return allEntries.filter { $0.isMastered }
-        case .inProgress:              return allEntries.filter { $0.isInProgress }
-        case .notStarted:              return allEntries.filter { $0.isNotStarted }
+    private var totalDrills: Int {
+        disciplines.reduce(0) { acc, d in
+            acc + d.categories.reduce(0) { $0 + $1.levels.reduce(0) { $0 + $1.drills.count } }
         }
     }
 
-    private var sections: [LibrarySection] {
-        let entries = filteredEntries
-        return disciplines.sorted(by: { $0.sortIndex < $1.sortIndex }).compactMap { discipline in
-            let group = entries.filter { $0.discipline.id == discipline.id }
-            guard !group.isEmpty else { return nil }
-            return LibrarySection(discipline: discipline, entries: group)
-        }
+    private var totalCategories: Int {
+        disciplines.reduce(0) { $0 + $1.categories.count }
     }
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
+            LazyVStack(alignment: .leading, spacing: 0) {
                 header
-                filterBar
-                listContent
-                countsFooter
+                ForEach(sortedDisciplines) { discipline in
+                    disciplineSection(discipline)
+                }
             }
             .padding(.bottom, 120)
         }
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)
         .navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(for: LibraryCategoryRoute.self) { route in
+            LibraryCategoryView(
+                category: route.category,
+                discipline: route.discipline,
+                passesByDrill: passesByDrill,
+                masteredIDs: masteredIDs
+            )
+        }
     }
 
     // MARK: - Header
@@ -120,7 +77,7 @@ struct DrillLibraryView: View {
             Text("All Drills")
                 .style(.title1)
                 .foregroundStyle(DS.Colors.Ink.primary)
-            Text("\(allEntries.count) drills across \(totalCategories) categories")
+            Text("\(totalDrills) drills across \(totalCategories) categories")
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.tertiary)
         }
@@ -129,21 +86,216 @@ struct DrillLibraryView: View {
         .padding(.top, DS.Spacing.s20)
     }
 
-    private var totalCategories: Int {
-        disciplines.reduce(0) { $0 + $1.categories.count }
+    // MARK: - Discipline section
+
+    private func disciplineSection(_ discipline: Discipline) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: DS.Spacing.s8) {
+                DisciplineMark(kind: discipline.mark, size: 16)
+                Text(discipline.name)
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s24)
+            .padding(.bottom, DS.Spacing.s12)
+
+            ForEach(discipline.categories.sorted(by: { $0.sortIndex < $1.sortIndex })) { category in
+                let drills = drills(in: category)
+                if !drills.isEmpty {
+                    let mastered = drills.filter { masteredIDs.contains($0.id) }.count
+                    NavigationLink(value: LibraryCategoryRoute(category: category, discipline: discipline)) {
+                        LibraryCategoryCard(
+                            category: category,
+                            drillCount: drills.count,
+                            masteredCount: mastered
+                        )
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .padding(.horizontal, DS.Spacing.s20)
+                    .padding(.bottom, DS.Spacing.s12)
+                }
+            }
+        }
     }
 
-    // MARK: - Filter bar
+    private func drills(in category: Category) -> [Drill] {
+        category.levels
+            .sorted(by: { $0.sortIndex < $1.sortIndex })
+            .flatMap { $0.drills.sorted(by: { $0.sortIndex < $1.sortIndex }) }
+    }
+}
+
+// MARK: - Category hero card
+
+/// A large, tappable card representing one category, showing how many of its
+/// drills are mastered.
+private struct LibraryCategoryCard: View {
+    let category: Category
+    let drillCount: Int
+    let masteredCount: Int
+
+    var body: some View {
+        HStack(alignment: .top, spacing: DS.Spacing.s16) {
+            Text(category.letter)
+                .font(DS.Typography.num(size: 24))
+                .foregroundStyle(DS.Colors.Ink.primary)
+                .frame(width: 48, height: 48)
+                .background(DS.Colors.Bg.raised)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Radius.md)
+                        .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+                )
+
+            VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                Text(category.name)
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(category.focus)
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(masteredCount > 0
+                     ? "\(masteredCount) of \(drillCount) mastered"
+                     : "\(drillCount) \(drillCount == 1 ? "drill" : "drills")")
+                    .style(.microSm)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                    .padding(.top, DS.Spacing.s4)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .padding(.top, DS.Spacing.s16)
+        }
+        .padding(DS.Spacing.s16)
+        .background(DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.lg)
+                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Category drill list (pushed)
+
+/// Mastery filter applied within a single category.
+private enum CategoryMasteryFilter: Hashable {
+    case all, mastered, inProgress, notStarted
+}
+
+/// Lists every drill inside one category, with a scoped mastery filter. Each
+/// row navigates to the full drill detail; an option to back out is provided by
+/// the navigation bar.
+private struct LibraryCategoryView: View {
+    let category: Category
+    let discipline: Discipline
+    let passesByDrill: [String: Int]
+    let masteredIDs: Set<String>
+
+    @State private var filter: CategoryMasteryFilter = .all
+
+    private struct Row: Identifiable {
+        let drill: Drill
+        let level: MasteryLevel
+        let passes: Int
+        let isMastered: Bool
+        var id: String { drill.id }
+        var isInProgress: Bool { passes > 0 && !isMastered }
+        var isNotStarted: Bool { passes == 0 && !isMastered }
+    }
+
+    private var allRows: [Row] {
+        category.levels
+            .sorted(by: { $0.sortIndex < $1.sortIndex })
+            .flatMap { level in
+                level.drills.sorted(by: { $0.sortIndex < $1.sortIndex }).map { drill in
+                    Row(
+                        drill: drill,
+                        level: level,
+                        passes: passesByDrill[drill.id] ?? 0,
+                        isMastered: masteredIDs.contains(drill.id)
+                    )
+                }
+            }
+    }
+
+    private var rows: [Row] {
+        switch filter {
+        case .all:        return allRows
+        case .mastered:   return allRows.filter { $0.isMastered }
+        case .inProgress: return allRows.filter { $0.isInProgress }
+        case .notStarted: return allRows.filter { $0.isNotStarted }
+        }
+    }
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                header
+                filterBar
+                if rows.isEmpty {
+                    Text("No drills match this filter yet.")
+                        .style(.body)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.horizontal, DS.Spacing.s20)
+                        .padding(.top, DS.Spacing.s48)
+                } else {
+                    ForEach(rows) { row in
+                        NavigationLink(value: DrillRoute(
+                            discipline: discipline,
+                            category: category,
+                            level: row.level,
+                            drill: row.drill
+                        )) {
+                            LibraryDrillRow(
+                                drill: row.drill,
+                                passes: row.passes,
+                                isMastered: row.isMastered,
+                                isLast: row.id == rows.last?.id
+                            )
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                    }
+                }
+            }
+            .padding(.bottom, 120)
+        }
+        .background(DS.Colors.Bg.base)
+        .scrollIndicators(.hidden)
+        .navigationTitle(category.name)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            HStack(spacing: DS.Spacing.s8) {
+                DisciplineMark(kind: discipline.mark, size: 14)
+                Text("\(discipline.name) · \(category.letter)")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+            Text(category.focus)
+                .style(.body)
+                .foregroundStyle(DS.Colors.Ink.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s16)
+        .padding(.bottom, DS.Spacing.s8)
+    }
 
     private var filterBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: DS.Spacing.s8) {
                 Chip(label: "All", active: filter == .all) { filter = .all }
-                ForEach(disciplines.sorted(by: { $0.sortIndex < $1.sortIndex })) { discipline in
-                    Chip(label: discipline.name, active: filter == .discipline(discipline.id)) {
-                        filter = .discipline(discipline.id)
-                    }
-                }
                 Chip(label: "Mastered", active: filter == .mastered) { filter = .mastered }
                 Chip(label: "In Progress", active: filter == .inProgress) { filter = .inProgress }
                 Chip(label: "Not Started", active: filter == .notStarted) { filter = .notStarted }
@@ -151,92 +303,31 @@ struct DrillLibraryView: View {
             .padding(.horizontal, DS.Spacing.s20)
         }
         .padding(.top, DS.Spacing.s12)
-    }
-
-    // MARK: - List
-
-    @ViewBuilder
-    private var listContent: some View {
-        if sections.isEmpty {
-            Text("No drills match this filter yet.")
-                .style(.body)
-                .foregroundStyle(DS.Colors.Ink.quaternary)
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.horizontal, DS.Spacing.s20)
-                .padding(.top, DS.Spacing.s48)
-        } else {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(sections) { section in
-                    sectionHeader(section.discipline)
-
-                    ForEach(Array(section.entries.enumerated()), id: \.element.id) { index, entry in
-                        NavigationLink(value: DrillRoute(
-                            discipline: entry.discipline,
-                            category: entry.category,
-                            level: entry.level,
-                            drill: entry.drill
-                        )) {
-                            LibraryDrillRow(entry: entry, isLast: index == section.entries.count - 1)
-                        }
-                        .buttonStyle(PressableButtonStyle())
-                    }
-                }
-            }
-            .padding(.top, DS.Spacing.s16)
-        }
-    }
-
-    private func sectionHeader(_ discipline: Discipline) -> some View {
-        HStack(spacing: DS.Spacing.s8) {
-            DisciplineMark(kind: discipline.mark, size: 16)
-            Text(discipline.name)
-                .style(.micro)
-                .foregroundStyle(DS.Colors.Ink.tertiary)
-            Spacer()
-        }
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s24)
-        .padding(.bottom, DS.Spacing.s8)
-    }
-
-    // MARK: - Counts footer
-
-    private var countsFooter: some View {
-        let mastered = allEntries.filter { $0.isMastered }.count
-        let inProgress = allEntries.filter { $0.isInProgress }.count
-        let notStarted = allEntries.filter { $0.isNotStarted }.count
-        return Text("\(mastered) MASTERED · \(inProgress) IN PROGRESS · \(notStarted) NOT STARTED")
-            .style(.microSm)
-            .foregroundStyle(DS.Colors.Ink.quaternary)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, DS.Spacing.s20)
-            .padding(.top, DS.Spacing.s32)
+        .padding(.bottom, DS.Spacing.s4)
     }
 }
 
-// MARK: - LibraryDrillRow
+// MARK: - Library drill row
 
 private struct LibraryDrillRow: View {
-    let entry: LibraryEntry
+    let drill: Drill
+    let passes: Int
+    let isMastered: Bool
     let isLast: Bool
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(alignment: .center, spacing: DS.Spacing.s16) {
                 VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-                    Text(entry.drill.title)
+                    Text(drill.title)
                         .style(.title3)
                         .foregroundStyle(DS.Colors.Ink.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                    HStack(spacing: DS.Spacing.s8) {
-                        Text(entry.drill.focus)
-                            .style(.micro)
-                            .foregroundStyle(DS.Colors.Ink.quaternary)
-                        Text("· \(entry.category.name)")
-                            .style(.micro)
-                            .foregroundStyle(DS.Colors.Ink.quaternary)
-                    }
+                    Text("\(drill.focus) · \(drill.durationSec / 60) min")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
 
                     masteryDots
                 }
@@ -259,11 +350,11 @@ private struct LibraryDrillRow: View {
         HStack(spacing: DS.Spacing.s4) {
             ForEach(0..<ProgressionRules.masteryPasses, id: \.self) { index in
                 Circle()
-                    .fill(index < entry.passes ? Color.white : Color.clear)
+                    .fill(index < passes ? Color.white : Color.clear)
                     .frame(width: 8, height: 8)
                     .overlay(
                         Circle()
-                            .stroke(index < entry.passes ? Color.clear : DS.Colors.Line.subtle, lineWidth: 1)
+                            .stroke(index < passes ? Color.clear : DS.Colors.Line.subtle, lineWidth: 1)
                     )
             }
         }
@@ -271,7 +362,7 @@ private struct LibraryDrillRow: View {
 
     @ViewBuilder
     private var trailingIndicator: some View {
-        if entry.isMastered {
+        if isMastered {
             Circle()
                 .fill(Color.white)
                 .frame(width: 20, height: 20)
