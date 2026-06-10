@@ -19,6 +19,7 @@ struct AcademyTodayView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
+    @Query private var sessions: [SessionLogEntry]
     @Query(sort: \CustomWorkout.updatedAt, order: .reverse) private var workouts: [CustomWorkout]
     @Environment(SubscriptionService.self) private var subscription
     @State private var profile = PlayerProfileStore.shared
@@ -62,7 +63,9 @@ struct AcademyTodayView: View {
             disciplines: disciplines,
             xp: players.first?.xp ?? 0,
             streak: players.first?.streak ?? 0,
-            progress: progress
+            progress: progress,
+            sessions: sessions,
+            positionCode: profile.positionCode
         )
     }
 
@@ -78,6 +81,7 @@ struct AcademyTodayView: View {
                     salutation(vm)
                     dailyStandard(vm)
                     goalsCard(vm)
+                    todaysFocusCard(vm)
                     myWorkoutsSection
                     favoritesCard
                     continuePathway(vm)
@@ -494,6 +498,76 @@ struct AcademyTodayView: View {
                 .foregroundStyle(DS.Colors.Ink.quaternary)
         }
         .contentShape(Rectangle())
+    }
+
+    // MARK: - 4b. Today's Focus (adaptive)
+
+    @ViewBuilder
+    private func todaysFocusCard(_ vm: AcademyTodayViewModel) -> some View {
+        if let focus = vm.todaysFocus {
+            let locked = subscription.isLevelNumberLocked(focus.level.number)
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(text: "Today's Focus")
+                    .padding(.horizontal, DS.Spacing.s20)
+
+                Group {
+                    if locked {
+                        Button { subscription.presentPaywall() } label: {
+                            focusCardBody(focus, locked: true)
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                    } else {
+                        NavigationLink(value: DrillRoute(
+                            discipline: focus.discipline,
+                            category: focus.category,
+                            level: focus.level,
+                            drill: focus.drill
+                        )) {
+                            focusCardBody(focus, locked: false)
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                    }
+                }
+                .padding(.horizontal, DS.Spacing.s20)
+                .padding(.top, DS.Spacing.s12)
+            }
+            .padding(.top, DS.Spacing.s24 + 4)
+        }
+    }
+
+    private func focusCardBody(_ focus: PlanFocus, locked: Bool) -> some View {
+        Card(padding: DS.Spacing.s20, raised: true) {
+            VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                HStack(spacing: DS.Spacing.s12) {
+                    DisciplineMark(kind: focus.discipline.mark, size: 22)
+                        .frame(width: 44, height: 44)
+                        .background(DS.Colors.Bg.card)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+                        )
+                    VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                        Eyebrow(text: focus.headline)
+                        Text(focus.drill.title)
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: DS.Spacing.s4)
+                    Image(systemName: locked ? "lock.fill" : "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+
+                Text(focus.reason)
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .opacity(locked ? 0.7 : 1)
+        }
     }
 
     // MARK: - 5. Continue Your Pathway

@@ -35,6 +35,21 @@ struct Recommendation: Identifiable {
     var id: String { drill.id }
 }
 
+/// The day's single most important focus, with a coached explanation of why
+/// it was chosen, derived adaptively from position, weak areas and felt ratings.
+struct PlanFocus: Identifiable {
+    let drill: Drill
+    let category: Category
+    let level: MasteryLevel
+    let discipline: Discipline
+    /// Short tag, e.g. "Weak Foot" or "Finishing".
+    let headline: String
+    /// One human sentence explaining why this is today's focus.
+    let reason: String
+
+    var id: String { drill.id }
+}
+
 @MainActor
 @Observable
 final class AcademyTodayViewModel {
@@ -49,12 +64,20 @@ final class AcademyTodayViewModel {
     private let disciplineNameByDrill: [String: String]
     /// drillID → owning category name.
     private let categoryNameByDrill: [String: String]
+    /// drillID → most recent felt rating (1 tough … 5 easy), from the training log.
+    private let latestRatingByDrill: [String: Int]
+    /// disciplineID → number of sessions logged in the last 14 days.
+    private let recentSessionsByDiscipline: [String: Int]
+    /// The player's position code (e.g. "ST", "CB"), used to bias the focus.
+    private let positionCode: String
 
     init(
         disciplines: [Discipline],
         xp: Int,
         streak: Int,
-        progress: [DrillProgress]
+        progress: [DrillProgress],
+        sessions: [SessionLogEntry] = [],
+        positionCode: String = ""
     ) {
         let sorted = disciplines.sorted { $0.sortIndex < $1.sortIndex }
         self.disciplines = sorted
@@ -91,6 +114,23 @@ final class AcademyTodayViewModel {
         }
         self.disciplineNameByDrill = disciplineMap
         self.categoryNameByDrill = categoryMap
+        self.positionCode = positionCode.uppercased()
+
+        // Most recent felt rating per drill (newest log wins).
+        var ratingMap: [String: Int] = [:]
+        for entry in sessions.sorted(by: { $0.completedAt > $1.completedAt }) {
+            guard let rating = entry.feltRating else { continue }
+            if ratingMap[entry.drillID] == nil { ratingMap[entry.drillID] = rating }
+        }
+        self.latestRatingByDrill = ratingMap
+
+        // Sessions per discipline over the trailing 14 days, to spot neglected areas.
+        let cutoff = calendar.date(byAdding: .day, value: -14, to: Date()) ?? .distantPast
+        var recentMap: [String: Int] = [:]
+        for entry in sessions where entry.completedAt >= cutoff {
+            recentMap[entry.disciplineID, default: 0] += 1
+        }
+        self.recentSessionsByDiscipline = recentMap
     }
 
     // MARK: - Salutation
@@ -269,10 +309,149 @@ final class AcademyTodayViewModel {
         level.drills.filter { masteredDrillIDs.contains($0.id) }.count
     }
 
+    // MARK: - Adaptive focus
+
+    /// Categories worth leaning into for each position code. The first match that
+    /// still has actionable work becomes the day's focus.
+    private func preferredCategories(for code: String) -> [String] {
+        switch code {
+        case "ST":          return ["Finishing", "First Touch", "Movement Off the Ball"]
+        case "LW", "RW":    return ["Dribbling & 1v1", "Finishing", "Speed & Acceleration"]
+        case "CAM":         return ["Passing & Receiving", "Finishing", "Decision Making"]
+        case "CM":          return ["Passing & Receiving", "Scanning & Awareness", "Decision Making"]
+        case "LB", "RB":    return ["Speed & Acceleration", "Positioning", "Dribbling & 1v1"]
+        case "CB":          return ["Strength & Stability", "Positioning", "First Touch"]
+        case "GK":          return ["First Touch", "Composure", "Agility & Change of Direction"]
+        default:            return ["Ball Mastery", "First Touch"]
+        }
+    }
+
+    private var positionName: String {
+        PitchPosition.all.first { $0.code.replacingOccurrences(of: "2", with: "") == positionCode }?.name ?? "player"
+    }
+
+    /// The single most valuable thing to train today, with a coached reason.
+    var todaysFocus: PlanFocus? {
+        // 1. Position-led: the highest-priority preferred category that still has work.
+        for categoryName in preferredCategories(for: positionCode) {
+            if let drill = nextActionableDrill(inCategoryNamed: categoryName) {
+                let reason = focusReason(forCategory: categoryName, isPositionLed: true, rating: latestRatingByDrill[drill.drill.id])
+                return PlanFocus(
+                    drill: drill.drill, category: drill.category, level: drill.level,
+                    discipline: drill.discipline, headline: categoryName, reason: reason
+                )
+            }
+        }
+        // 2. Weakest discipline: lowest recent activity + lowest mastery that still has work.
+        if let weak = weakestDiscipline(), let drill = nextActionableDrill(inDiscipline: weak) {
+            let reason = focusReason(forCategory: drill.category.name, isPositionLed: false, rating: latestRatingByDrill[drill.drill.id])
+            return PlanFocus(
+                drill: drill.drill, category: drill.category, level: drill.level,
+                discipline: drill.discipline, headline: drill.category.name, reason: reason
+            )
+        }
+        // 3. Fallback: first actionable anywhere.
+        for discipline in disciplines {
+            if let drill = nextActionableDrill(inDiscipline: discipline) {
+                return PlanFocus(
+                    drill: drill.drill, category: drill.category, level: drill.level,
+                    discipline: drill.discipline, headline: drill.category.name,
+                    reason: "A clean place to start building momentum today."
+                )
+            }
+        }
+        return nil
+    }
+
+    /// A short, human explanation shown under the focus headline.
+    private func focusReason(forCategory name: String, isPositionLed: Bool, rating: Int?) -> String {
+        if name.localizedCaseInsensitiveContains("weak foot") {
+            return "Your weak foot needs reps — it's the fastest way to double your options on the ball."
+        }
+        if let rating, rating <= 2 {
+            return "This felt tough last time, so it's back today — that's exactly where the growth is."
+        }
+        if isPositionLed {
+            return "As a \(positionName.lowercased()), sharpening \(name.lowercased()) pays off most on match day."
+        }
+        return "You've trained \(name.lowercased()) the least lately — time to even it out."
+    }
+
+    /// The discipline with the least recent activity, preferring lower mastery to break ties.
+    private func weakestDiscipline() -> Discipline? {
+        disciplines
+            .filter { discipline in
+                discipline.categories.contains { category in
+                    category.levels.contains { level in
+                        level.drills.contains { !masteredDrillIDs.contains($0.id) }
+                    }
+                }
+            }
+            .min { a, b in
+                let ra = recentSessionsByDiscipline[a.id] ?? 0
+                let rb = recentSessionsByDiscipline[b.id] ?? 0
+                if ra != rb { return ra < rb }
+                return masteryRatio(a) < masteryRatio(b)
+            }
+    }
+
+    private func masteryRatio(_ discipline: Discipline) -> Double {
+        let drills = discipline.categories.flatMap { $0.levels.flatMap(\.drills) }
+        guard !drills.isEmpty else { return 1 }
+        let mastered = drills.filter { masteredDrillIDs.contains($0.id) }.count
+        return Double(mastered) / Double(drills.count)
+    }
+
+    /// Next not-yet-mastered drill within a discipline, preferring a level already
+    /// started, then a drill recently rated tough (resurfaced sooner).
+    private func nextActionableDrill(inDiscipline discipline: Discipline) -> Recommendation? {
+        for category in sortedCategories(discipline) {
+            if let rec = nextActionableDrill(inCategory: category, discipline: discipline) {
+                return rec
+            }
+        }
+        return nil
+    }
+
+    private func nextActionableDrill(inCategoryNamed name: String) -> Recommendation? {
+        for discipline in disciplines {
+            for category in sortedCategories(discipline) where category.name == name {
+                if let rec = nextActionableDrill(inCategory: category, discipline: discipline) {
+                    return rec
+                }
+            }
+        }
+        return nil
+    }
+
+    private func nextActionableDrill(inCategory category: Category, discipline: Discipline) -> Recommendation? {
+        for level in sortedLevels(category) {
+            let drills = sortedDrills(level)
+            let unmastered = drills.filter { !masteredDrillIDs.contains($0.id) }
+            guard !unmastered.isEmpty else { continue }
+            // Prefer a drill rated tough recently; otherwise the next in sequence.
+            let tough = unmastered.first { (latestRatingByDrill[$0.id] ?? 5) <= 2 }
+            let pick = tough ?? unmastered[0]
+            return Recommendation(
+                drill: pick, category: category, level: level,
+                discipline: discipline, reason: "Next in pathway"
+            )
+        }
+        return nil
+    }
+
     // MARK: - Recommendations
 
+    /// Per-discipline recommendations, with the focus discipline surfaced first.
     var recommendations: [Recommendation] {
-        disciplines.compactMap { recommendation(for: $0) }
+        let all = disciplines.compactMap { recommendation(for: $0) }
+        guard let focusDisciplineID = todaysFocus?.discipline.id else { return all }
+        return all.sorted { a, b in
+            let aFocus = a.discipline.id == focusDisciplineID
+            let bFocus = b.discipline.id == focusDisciplineID
+            if aFocus != bFocus { return aFocus }
+            return false
+        }
     }
 
     private func recommendation(for discipline: Discipline) -> Recommendation? {
