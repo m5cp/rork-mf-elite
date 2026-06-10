@@ -3599,8 +3599,8 @@
   {
    "id": "d-psy",
    "number": "04",
-   "name": "Psychological",
-   "mark": "psy",
+   "name": "Mental",
+   "mark": "circle",
    "tagline": "Train the mind like a muscle.",
    "blurb": "Guided mental exercises built for soccer: self-talk, focus, confidence, composure, and match mentality. Short, practical, and designed to pair with your on-pitch training.",
    "media": "psy-hero",

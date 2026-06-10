@@ -32,7 +32,7 @@ struct DailyRings: Equatable {
         let dayEntries = sessions.filter { calendar.isDate($0.completedAt, inSameDayAs: target) }
         let totalSec = dayEntries.reduce(0) { $0 + $1.durationSec }
         let minutes = Int((Double(totalSec) / 60).rounded())
-        let mind = dayEntries.filter { $0.disciplineName == "Psychological" }.count
+        let mind = dayEntries.filter { $0.disciplineName == "Mental" }.count
         return DailyRings(trainMinutes: minutes, drillCount: dayEntries.count, mindCount: mind)
     }
 

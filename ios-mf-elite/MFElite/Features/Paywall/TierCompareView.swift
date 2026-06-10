@@ -35,7 +35,7 @@ struct TierCompareView: View {
             ("Scanning & awareness levels", false),
             ("Decision-making progressions", false)
         ]),
-        FeatureGroup(title: "Psychological", rows: [
+        FeatureGroup(title: "Mental", rows: [
             ("Daily mindset quote", true),
             ("Mind training exercises", false),
             ("Certifications & player reports", false)

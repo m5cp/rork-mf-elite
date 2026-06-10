@@ -193,7 +193,7 @@ final class AcademyTodayViewModel {
     var goalStates: [GoalState] {
         let ballMasteryToday = drillsLoggedToday.contains { categoryNameByDrill[$0] == "Ball Mastery" }
         let physicalToday = drillsLoggedToday.contains { disciplineNameByDrill[$0] == "Physical" }
-        let mindToday = drillsLoggedToday.contains { disciplineNameByDrill[$0] == "Psychological" }
+        let mindToday = drillsLoggedToday.contains { disciplineNameByDrill[$0] == "Mental" }
         return [
             GoalState(
                 id: 0, label: "Ball Mastery — 1 drill", done: ballMasteryToday,
@@ -205,7 +205,7 @@ final class AcademyTodayViewModel {
             ),
             GoalState(
                 id: 2, label: "Mind — 1 exercise", done: mindToday,
-                drillRoute: firstUnmasteredDrill { discipline, _ in discipline.name == "Psychological" }
+                drillRoute: firstUnmasteredDrill { discipline, _ in discipline.name == "Mental" }
             )
         ]
     }

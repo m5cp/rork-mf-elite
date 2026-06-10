@@ -148,7 +148,7 @@ struct HistoryCalendarView: View {
         return grouped.mapValues { entries in
             let totalSec = entries.reduce(0) { $0 + $1.durationSec }
             let minutes = Int((Double(totalSec) / 60).rounded())
-            let mind = entries.filter { $0.disciplineName == "Psychological" }.count
+            let mind = entries.filter { $0.disciplineName == "Mental" }.count
             return DailyRings(trainMinutes: minutes, drillCount: entries.count, mindCount: mind)
         }
     }
