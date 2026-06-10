@@ -25,8 +25,11 @@ struct DrillDetailView: View {
     let discipline: Discipline
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var context
     @Query private var progress: [DrillProgress]
     @State private var activeSession: TrainingQueue?
+    @State private var showLogConfirm = false
+    @State private var lastLogResult: QuickLog.Result?
 
     private var drillProgress: DrillProgress? {
         progress.first { $0.drillID == drill.id }
@@ -80,6 +83,58 @@ struct DrillDetailView: View {
         .fullScreenCover(item: $activeSession) { queue in
             SessionPlayerView(queue: queue)
         }
+        .confirmationDialog(
+            drill.isMentalExercise ? "Log this exercise?" : "Log this drill?",
+            isPresented: $showLogConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Log as done") { logInstantly() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Records “\(drill.title)” without the timer — XP, streak and rings all count.")
+        }
+        .overlay(alignment: .bottom) {
+            if let result = lastLogResult {
+                loggedToast(result)
+                    .padding(.bottom, DS.Spacing.s48)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+    }
+
+    /// Log this single drill instantly, no timer, then confirm with a toast.
+    private func logInstantly() {
+        let ctx = DrillContext(drill: drill, level: level, category: category, discipline: discipline)
+        let result = QuickLog.logDrills([ctx], source: .single, sourceName: nil, context: context)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation(DS.Motion.standardSpring) { lastLogResult = result }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
+            withAnimation(DS.Motion.standardSpring) { lastLogResult = nil }
+        }
+    }
+
+    private func loggedToast(_ result: QuickLog.Result) -> some View {
+        HStack(spacing: DS.Spacing.s12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(DS.Colors.Ground.primary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Logged")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(DS.Colors.Ground.primary)
+                Text("+\(result.xpEarned) XP · \(result.newStreak)-day streak")
+                    .style(.micro)
+                    .foregroundStyle(Color.black.opacity(0.6))
+            }
+        }
+        .padding(.vertical, DS.Spacing.s12)
+        .padding(.horizontal, DS.Spacing.s20)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+        .pillLightElevation()
+        .padding(.horizontal, DS.Spacing.s20)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Logged. \(result.xpEarned) XP earned. \(result.newStreak) day streak.")
     }
 
     /// Builds a session queue starting at this drill, followed by the remaining
@@ -449,13 +504,25 @@ struct DrillDetailView: View {
     // MARK: - 8. Bottom CTA
 
     private func bottomCTA(_ vm: DrillDetailViewModel) -> some View {
-        HStack(spacing: DS.Spacing.s12) {
+        VStack(spacing: DS.Spacing.s12) {
             PrimaryButton(
                 label: drill.isMentalExercise ? "Begin exercise" : "Start drill",
                 hint: vm.drill.durationSec.minutesHint
             ) {
                 activeSession = makeQueue()
             }
+
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                showLogConfirm = true
+            } label: {
+                Label("Log as done — no timer", systemImage: "checkmark.circle")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+            }
+            .buttonStyle(PressableButtonStyle())
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32)
