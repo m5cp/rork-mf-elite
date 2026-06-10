@@ -165,8 +165,17 @@ nonisolated struct CardPlayerInfo: Equatable {
     var xp: Int
     var streak: Int
     var position: String
+    /// Short position code shown on the card (e.g. "ST").
+    var positionCode: String
     var kitNumber: String
+    /// Preferred foot label.
+    var foot: String
+    /// Class year text (e.g. "2029" or "—").
+    var classYearText: String
+    var academy: String
     var initials: String
+    /// Avatar selection so the card photo box mirrors the profile avatar.
+    var avatar: AvatarSelection
 }
 
 /// Palette of pen / text colors offered in the editor.

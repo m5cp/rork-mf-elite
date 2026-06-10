@@ -20,10 +20,13 @@ struct PlayerCardEditorView: View {
 
     @Environment(\.dismiss) private var dismiss
     private var cardStore = PlayerCardStore.shared
+    private var profile = PlayerProfileStore.shared
 
     // Working copy — committed on Save.
     @State private var design: CardDesign = PlayerCardStore.shared.design
-    @State private var photo: UIImage? = PlayerCardStore.shared.backgroundPhoto
+    /// The portrait shown in the card photo box — mirrors the profile avatar so
+    /// the card and profile always match.
+    private var photo: UIImage? { profile.avatarPhoto }
 
     // Tool / panel state
     enum Panel: Equatable { case none, theme, draw }
@@ -86,8 +89,7 @@ struct PlayerCardEditorView: View {
                 Task {
                     if let data = try? await newItem.loadTransferable(type: Data.self),
                        let image = UIImage(data: data) {
-                        photo = image
-                        design.hasPhoto = true
+                        profile.setPhotoAvatar(image)
                         UISelectionFeedbackGenerator().selectionChanged()
                     }
                 }
@@ -286,15 +288,13 @@ struct PlayerCardEditorView: View {
             HStack(spacing: DS.Spacing.s12) {
                 panelChip(
                     icon: design.showStatPlate ? "checkmark.rectangle" : "rectangle",
-                    label: "Stats plate"
+                    label: "Show stats"
                 ) {
                     design.showStatPlate.toggle()
                 }
-                if design.hasPhoto {
+                if profile.avatar == .photo {
                     panelChip(icon: "photo.badge.minus", label: "Remove photo", tint: Color(hex: "FF453A")) {
-                        photo = nil
-                        design.hasPhoto = false
-                        cardStore.clearBackgroundPhoto()
+                        profile.clearAvatar()
                     }
                 }
             }
@@ -529,11 +529,6 @@ struct PlayerCardEditorView: View {
     }
 
     private func save() {
-        if design.hasPhoto, let photo {
-            cardStore.setBackgroundPhoto(photo)
-        } else {
-            cardStore.clearBackgroundPhoto()
-        }
         cardStore.save(design)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()

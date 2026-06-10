@@ -15,11 +15,12 @@ let cardAspect: CGFloat = 1.25
 
 struct PlayerCardCanvas: View {
     let design: CardDesign
+    /// The player's portrait, mirrored from the profile avatar.
     let photo: UIImage?
     let player: CardPlayerInfo
     let width: CGFloat
-    /// Render the built-in stat plate + text stickers. Editor turns stickers off
-    /// to draw its own interactive layer, but export keeps them on.
+    /// Render the text stickers. Editor turns stickers off to draw its own
+    /// interactive layer, but export keeps them on.
     var includeOverlays: Bool = true
 
     private var height: CGFloat { width * cardAspect }
@@ -30,32 +31,36 @@ struct PlayerCardCanvas: View {
             background
             slashTexture
             scrim
+            memberCard
             strokesLayer
-            if design.showStatPlate { statPlate }
             if includeOverlays { overlayLayer }
         }
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: width * 0.06, style: .continuous))
     }
 
+    // MARK: - The white member card
+
+    private var memberCard: some View {
+        MemberCardView(
+            player: player,
+            avatarPhoto: photo,
+            width: width * 0.84,
+            accent: accent,
+            showStats: design.showStatPlate
+        )
+        .shadow(color: .black.opacity(0.45), radius: width * 0.05, y: width * 0.02)
+        .frame(width: width, height: height)
+    }
+
     // MARK: - Background
 
-    @ViewBuilder
     private var background: some View {
-        if design.hasPhoto, let photo {
-            Color.black.overlay {
-                Image(uiImage: photo)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .allowsHitTesting(false)
-            }
-        } else {
-            LinearGradient(
-                colors: design.theme.gradientColors,
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
+        LinearGradient(
+            colors: design.theme.gradientColors,
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
     }
 
     private var slashTexture: some View {
@@ -107,9 +112,9 @@ struct PlayerCardCanvas: View {
         .allowsHitTesting(false)
     }
 
-    // MARK: - Stat plate (name / rank / stats)
+    // MARK: - Legacy stat plate (unused; member card replaces it)
 
-    private var statPlate: some View {
+    private var legacyStatPlate: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Top brand row
             HStack {

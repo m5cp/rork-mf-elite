@@ -120,6 +120,9 @@ struct OnboardingView: View {
             username: state.generatedUsername,
             kit: state.kitNumber,
             position: state.positionName,
+            positionCode: state.positionCode,
+            foot: state.foot,
+            classYear: state.classYear ?? 0,
             skipped: skipped
         )
 

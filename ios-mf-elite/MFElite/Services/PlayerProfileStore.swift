@@ -38,6 +38,9 @@ final class PlayerProfileStore {
         static let username = "MF_PLAYER_USERNAME"
         static let kit = "MF_PLAYER_KIT"
         static let position = "MF_PLAYER_POSITION"
+        static let positionCode = "MF_PLAYER_POSITION_CODE"
+        static let foot = "MF_PLAYER_FOOT"
+        static let classYear = "MF_PLAYER_CLASS_YEAR"
         static let skipped = "MF_ONBOARDING_SKIPPED"
         static let promptDismissed = "MF_PROFILE_PROMPT_DISMISSED"
         static let sessionCount = "MF_SESSION_COUNT"
@@ -64,6 +67,18 @@ final class PlayerProfileStore {
     var position: String {
         didSet { defaults.set(position, forKey: Keys.position) }
     }
+    /// Short position code shown on the player card (e.g. "ST", "CM", "GK").
+    var positionCode: String {
+        didSet { defaults.set(positionCode, forKey: Keys.positionCode) }
+    }
+    /// Preferred foot ("Right", "Left", "Both").
+    var foot: String {
+        didSet { defaults.set(foot, forKey: Keys.foot) }
+    }
+    /// Graduation class year. 0 means unset.
+    var classYear: Int {
+        didSet { defaults.set(classYear, forKey: Keys.classYear) }
+    }
     /// True when the player bypassed onboarding and is running on defaults.
     var onboardingSkipped: Bool {
         didSet { defaults.set(onboardingSkipped, forKey: Keys.skipped) }
@@ -88,6 +103,9 @@ final class PlayerProfileStore {
         username = defaults.string(forKey: Keys.username) ?? ""
         kitNumber = defaults.string(forKey: Keys.kit) ?? ""
         position = defaults.string(forKey: Keys.position) ?? ""
+        positionCode = defaults.string(forKey: Keys.positionCode) ?? ""
+        foot = defaults.string(forKey: Keys.foot) ?? "Right"
+        classYear = defaults.integer(forKey: Keys.classYear)
         onboardingSkipped = defaults.bool(forKey: Keys.skipped)
         profilePromptDismissed = defaults.bool(forKey: Keys.promptDismissed)
         sessionCount = defaults.integer(forKey: Keys.sessionCount)
@@ -168,14 +186,29 @@ final class PlayerProfileStore {
     }
 
     /// Persist the onboarding result and mark the flow complete.
-    func complete(name: String, username: String = "", kit: String, position: String, skipped: Bool = false) {
+    func complete(
+        name: String,
+        username: String = "",
+        kit: String,
+        position: String,
+        positionCode: String = "",
+        foot: String = "Right",
+        classYear: Int = 0,
+        skipped: Bool = false
+    ) {
         displayName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if !username.isEmpty { self.username = username }
         kitNumber = kit
         self.position = position
+        self.positionCode = positionCode
+        self.foot = foot
+        self.classYear = classYear
         onboardingSkipped = skipped
         hasCompletedOnboarding = true
     }
+
+    /// Class year text shown on the card; "—" when unset.
+    var classYearText: String { classYear > 0 ? String(classYear) : "—" }
 
     /// Reset for testing.
     func reset() {
@@ -184,6 +217,9 @@ final class PlayerProfileStore {
         username = ""
         kitNumber = ""
         position = ""
+        positionCode = ""
+        foot = "Right"
+        classYear = 0
         onboardingSkipped = false
         profilePromptDismissed = false
         clearAvatar()

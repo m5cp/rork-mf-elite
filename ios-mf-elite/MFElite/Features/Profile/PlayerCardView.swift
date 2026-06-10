@@ -32,8 +32,13 @@ struct PlayerCardView: View {
             xp: xp,
             streak: players.first?.streak ?? 0,
             position: profile.position,
+            positionCode: profile.positionCode,
             kitNumber: profile.kitNumber,
-            initials: profile.initials
+            foot: profile.foot,
+            classYearText: profile.classYearText,
+            academy: "MF Elite",
+            initials: profile.initials,
+            avatar: profile.avatar
         )
     }
 
@@ -43,7 +48,7 @@ struct PlayerCardView: View {
                 GeometryReader { geo in
                     PlayerCardCanvas(
                         design: cardStore.design,
-                        photo: cardStore.backgroundPhoto,
+                        photo: profile.avatarPhoto,
                         player: info,
                         width: geo.size.width
                     )
@@ -96,7 +101,7 @@ struct PlayerCardView: View {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
         let image = CardExporter.render(
             design: cardStore.design,
-            photo: cardStore.backgroundPhoto,
+            photo: profile.avatarPhoto,
             player: info
         )
         isExporting = false
