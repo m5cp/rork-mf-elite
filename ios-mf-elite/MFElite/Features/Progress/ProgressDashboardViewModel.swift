@@ -50,6 +50,25 @@ struct ReflectionNote: Identifiable {
     let note: String
 }
 
+/// A summary of the most recently completed week, for the Monday recap.
+struct WeeklyRecap: Equatable {
+    /// Monday (start of day) of the week being summarized.
+    let weekStart: Date
+    /// e.g. "Jun 2 – Jun 8".
+    let rangeLabel: String
+    let drills: Int
+    let xp: Int
+    let trainedDays: Int
+    let mastered: Int
+    /// Weekday name of the most productive day, e.g. "Saturday"; nil if none.
+    let bestDayName: String?
+    let bestDayDrills: Int
+    /// The rank held at the end of the week.
+    let rank: AcademyRank
+    /// True if the player crossed into a new rank during the week.
+    let rankedUp: Bool
+}
+
 /// One day in the 7-day ring strip.
 struct RingStripDay: Identifiable {
     let id: Int
@@ -332,6 +351,59 @@ final class ProgressDashboardViewModel {
         }
         .prefix(limit)
         .map { $0 }
+    }
+
+    // MARK: - Weekly recap (most recently completed week)
+
+    /// A summary of last week (Mon–Sun) once that week is fully in the past.
+    /// Returns nil if the player logged nothing last week. `currentXP` is the
+    /// player's present total XP, used to derive rank movement across the week.
+    func lastWeekRecap(currentXP: Int, hasFullAccess: Bool) -> WeeklyRecap? {
+        let start = monday(weeksAgo: 1)
+        let weekSessions = sessions(weekStarting: start)
+        guard !weekSessions.isEmpty else { return nil }
+
+        let xp = weekSessions.reduce(0) { $0 + $1.xpEarned }
+        let trainedDays = Set(weekSessions.map { calendar.startOfDay(for: $0.completedAt) }).count
+
+        // Best day of the week by drills logged.
+        var perDay: [Date: Int] = [:]
+        for entry in weekSessions {
+            perDay[calendar.startOfDay(for: entry.completedAt), default: 0] += 1
+        }
+        let best = perDay.max { $0.value < $1.value }
+        let dayNameFmt = DateFormatter(); dayNameFmt.dateFormat = "EEEE"
+        let bestDayName = best.map { dayNameFmt.string(from: $0.key) }
+
+        // Mastered drills last logged during that week.
+        let mastered = progress.filter { entry in
+            guard entry.isMastered, let date = entry.lastLoggedAt else { return false }
+            let day = calendar.startOfDay(for: date)
+            guard let end = calendar.date(byAdding: .day, value: 7, to: start) else { return false }
+            return day >= start && day < end
+        }.count
+
+        // Rank movement: rank now vs. rank before last week's XP was earned.
+        let rankNow = AcademyRank.unlockedRank(for: currentXP, hasFullAccess: hasFullAccess)
+        let rankBefore = AcademyRank.unlockedRank(for: max(0, currentXP - xp), hasFullAccess: hasFullAccess)
+        let rankedUp = rankNow.rawValue > rankBefore.rawValue
+
+        let rangeFmt = DateFormatter(); rangeFmt.dateFormat = "MMM d"
+        let endDate = calendar.date(byAdding: .day, value: 6, to: start) ?? start
+        let rangeLabel = "\(rangeFmt.string(from: start)) – \(rangeFmt.string(from: endDate))"
+
+        return WeeklyRecap(
+            weekStart: start,
+            rangeLabel: rangeLabel,
+            drills: weekSessions.count,
+            xp: xp,
+            trainedDays: trainedDays,
+            mastered: mastered,
+            bestDayName: bestDayName,
+            bestDayDrills: best?.value ?? 0,
+            rank: rankNow,
+            rankedUp: rankedUp
+        )
     }
 
     // MARK: - Daily rings
