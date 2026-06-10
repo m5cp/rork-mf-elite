@@ -41,6 +41,7 @@ final class PlayerProfileStore {
         static let positionCode = "MF_PLAYER_POSITION_CODE"
         static let foot = "MF_PLAYER_FOOT"
         static let classYear = "MF_PLAYER_CLASS_YEAR"
+        static let birthYear = "MF_PLAYER_BIRTH_YEAR"
         static let skipped = "MF_ONBOARDING_SKIPPED"
         static let promptDismissed = "MF_PROFILE_PROMPT_DISMISSED"
         static let sessionCount = "MF_SESSION_COUNT"
@@ -79,6 +80,11 @@ final class PlayerProfileStore {
     var classYear: Int {
         didSet { defaults.set(classYear, forKey: Keys.classYear) }
     }
+    /// Year of birth, used to derive age for age-appropriate guidance and
+    /// parental-control decisions. 0 means unset.
+    var birthYear: Int {
+        didSet { defaults.set(birthYear, forKey: Keys.birthYear) }
+    }
     /// True when the player bypassed onboarding and is running on defaults.
     var onboardingSkipped: Bool {
         didSet { defaults.set(onboardingSkipped, forKey: Keys.skipped) }
@@ -106,6 +112,7 @@ final class PlayerProfileStore {
         positionCode = defaults.string(forKey: Keys.positionCode) ?? ""
         foot = defaults.string(forKey: Keys.foot) ?? "Right"
         classYear = defaults.integer(forKey: Keys.classYear)
+        birthYear = defaults.integer(forKey: Keys.birthYear)
         onboardingSkipped = defaults.bool(forKey: Keys.skipped)
         profilePromptDismissed = defaults.bool(forKey: Keys.promptDismissed)
         sessionCount = defaults.integer(forKey: Keys.sessionCount)
@@ -194,6 +201,7 @@ final class PlayerProfileStore {
         positionCode: String = "",
         foot: String = "Right",
         classYear: Int = 0,
+        birthYear: Int = 0,
         skipped: Bool = false
     ) {
         displayName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -203,12 +211,27 @@ final class PlayerProfileStore {
         self.positionCode = positionCode
         self.foot = foot
         self.classYear = classYear
+        if birthYear > 0 { self.birthYear = birthYear }
         onboardingSkipped = skipped
         hasCompletedOnboarding = true
     }
 
     /// Class year text shown on the card; "—" when unset.
     var classYearText: String { classYear > 0 ? String(classYear) : "—" }
+
+    /// Derived age from `birthYear`, or nil when unset.
+    var age: Int? {
+        guard birthYear > 0 else { return nil }
+        let currentYear = Calendar.current.component(.year, from: Date())
+        let value = currentYear - birthYear
+        return (value >= 4 && value <= 99) ? value : nil
+    }
+
+    /// True when the player is known to be under 13 (COPPA-relevant).
+    var isLikelyUnder13: Bool {
+        guard let age else { return false }
+        return age < 13
+    }
 
     /// Reset for testing.
     func reset() {
@@ -220,6 +243,7 @@ final class PlayerProfileStore {
         positionCode = ""
         foot = "Right"
         classYear = 0
+        birthYear = 0
         onboardingSkipped = false
         profilePromptDismissed = false
         clearAvatar()

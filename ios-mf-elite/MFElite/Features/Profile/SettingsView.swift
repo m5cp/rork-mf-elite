@@ -15,7 +15,7 @@ import AppIntents
 struct SettingsRoute: Hashable {}
 
 private enum AccountField: Identifiable {
-    case name, kit, position
+    case name, kit, position, birthYear
     var id: Int { hashValue }
 }
 
@@ -29,8 +29,11 @@ struct SettingsView: View {
     @AppStorage("MF_AUTO_ADVANCE") private var autoAdvance = true
 
     @State private var health = HealthKitService.shared
+    @State private var gate = ParentGate.shared
 
     @State private var editingField: AccountField?
+    @State private var gateMode: ParentGateMode?
+    @State private var showDisableGateConfirm = false
     @State private var mailRequest: MailRequest?
     @State private var showMailUnavailable = false
     @State private var pendingSupportSubject = ""
@@ -44,6 +47,7 @@ struct SettingsView: View {
                 headerView
                 accountSection
                 subscriptionSection
+                familySafetySection
                 trainingSection
                 if health.isAvailable { healthSection }
                 notificationsSection
@@ -60,6 +64,21 @@ struct SettingsView: View {
         .sheet(item: $editingField) { field in
             AccountEditSheet(field: field, profile: profile)
                 .preferredColorScheme(.dark)
+        }
+        .sheet(item: $gateMode) { mode in
+            ParentGateView(mode: mode)
+                .preferredColorScheme(.dark)
+                .presentationDetents([.large])
+        }
+        .confirmationDialog(
+            "Turn off the parent passcode?",
+            isPresented: $showDisableGateConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Turn off passcode", role: .destructive) { gate.disable() }
+            Button("Keep it on", role: .cancel) {}
+        } message: {
+            Text("Purchases and family settings will no longer require a passcode.")
         }
         .sheet(item: $mailRequest) { request in
             MailComposeView(request: request).ignoresSafeArea()
@@ -102,6 +121,8 @@ struct SettingsView: View {
             Hairline()
             valueRow(label: "Position", value: profile.position.isEmpty ? "Not set" : profile.position) { editingField = .position }
             Hairline()
+            valueRow(label: "Age", value: ageValue) { editingField = .birthYear }
+            Hairline()
             valueRow(label: "Academy", value: "MF Elite", action: nil)
         }
     }
@@ -112,9 +133,57 @@ struct SettingsView: View {
         section("Subscription") {
             currentPlanRow
             Hairline()
-            actionRow(label: "Manage subscription") { UIApplication.shared.open(manageSubscriptionURL) }
+            actionRow(label: "Manage subscription") {
+                protected("Unlock to manage") { UIApplication.shared.open(manageSubscriptionURL) }
+            }
             Hairline()
-            actionRow(label: "Restore purchases") { Task { await subscription.restorePurchases() } }
+            actionRow(label: "Restore purchases") {
+                protected("Unlock to restore") { Task { await subscription.restorePurchases() } }
+            }
+        }
+    }
+
+    private var ageValue: String {
+        if let age = profile.age { return "\(age) yrs" }
+        return "Not set"
+    }
+
+    // MARK: - Family Safety
+
+    private var familySafetySection: some View {
+        section("Family Safety") {
+            toggleRow(label: "Require parent passcode", isOn: Binding(
+                get: { gate.isEnabled },
+                set: { applyGateToggle($0) }
+            ))
+            Text("When on, buying or managing a subscription and restoring purchases ask for a 4-digit passcode only a parent knows. This is in addition to Apple’s Ask to Buy and Screen Time.")
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Spacing.s8)
+            if gate.hasPIN {
+                Hairline()
+                actionRow(label: "Change passcode") { gateMode = .set }
+            }
+        }
+    }
+
+    private func applyGateToggle(_ on: Bool) {
+        if on {
+            gateMode = .set
+        } else if gate.hasPIN {
+            showDisableGateConfirm = true
+        } else {
+            gate.disable()
+        }
+    }
+
+    /// Run a parent-only action, gating it behind the passcode when enabled.
+    private func protected(_ title: String, _ action: @escaping () -> Void) {
+        if gate.isEnabled && gate.hasPIN {
+            gateMode = .verify(title: title, onSuccess: action)
+        } else {
+            action()
         }
     }
 
@@ -130,7 +199,7 @@ struct SettingsView: View {
                 .lineLimit(1)
             if !subscription.hasFullAccess {
                 Button {
-                    subscription.presentPaywall()
+                    protected("Unlock to upgrade") { subscription.presentPaywall() }
                 } label: {
                     Text("UPGRADE")
                         .font(.system(size: 11, weight: .bold))
@@ -408,7 +477,13 @@ private struct AccountEditSheet: View {
 
     @State private var text: String = ""
     @State private var selectedPosition: String = ""
+    @State private var selectedBirthYear: Int = 0
     @FocusState private var inputFocused: Bool
+
+    private var birthYearRange: [Int] {
+        let current = Calendar.current.component(.year, from: Date())
+        return Array((current - 60)...(current - 4)).reversed()
+    }
 
     private let positions = ["Goalkeeper", "Defender", "Midfielder", "Forward", "Winger", "No preference"]
 
@@ -438,6 +513,22 @@ private struct AccountEditSheet: View {
                                 positionRow(pos)
                             }
                         }
+                    }
+                case .birthYear:
+                    field(title: "Year of birth") {
+                        Text("Used to tailor age-appropriate guidance. Stored only on this device.")
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Picker("Year of birth", selection: $selectedBirthYear) {
+                            Text("Not set").tag(0)
+                            ForEach(birthYearRange, id: \.self) { year in
+                                Text(String(year)).tag(year)
+                            }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(maxWidth: .infinity)
+                        .tint(DS.Colors.Ink.primary)
                     }
                 }
                 Spacer()
@@ -504,6 +595,7 @@ private struct AccountEditSheet: View {
         case .name: return !text.trimmingCharacters(in: .whitespaces).isEmpty
         case .kit: return !text.trimmingCharacters(in: .whitespaces).isEmpty
         case .position: return !selectedPosition.isEmpty
+        case .birthYear: return true
         }
     }
 
@@ -512,6 +604,7 @@ private struct AccountEditSheet: View {
         case .name: text = profile.displayName
         case .kit: text = profile.kitNumber
         case .position: selectedPosition = profile.position
+        case .birthYear: selectedBirthYear = profile.birthYear
         }
     }
 
@@ -524,6 +617,8 @@ private struct AccountEditSheet: View {
             profile.kitNumber = digits.isEmpty ? profile.kitNumber : digits
         case .position:
             profile.position = selectedPosition
+        case .birthYear:
+            profile.birthYear = selectedBirthYear
         }
         dismiss()
     }
