@@ -50,6 +50,9 @@ struct ProfileTabView: View {
             .navigationDestination(for: SettingsRoute.self) { _ in
                 SettingsView()
             }
+            .navigationDestination(for: PlayerCardRoute.self) { _ in
+                PlayerCardView()
+            }
             .sheet(isPresented: $showAvatarPicker) {
                 AvatarPickerSheet()
             }
@@ -72,14 +75,14 @@ struct ProfileTabView: View {
                     photo: profile.avatarPhoto,
                     initials: profile.initials,
                     kit: profile.kitNumber,
-                    size: 88,
+                    size: 104,
                     shape: .circle
                 )
                 .overlay(alignment: .bottomTrailing) {
                     Image(systemName: "camera.fill")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(.black)
-                        .frame(width: 28, height: 28)
+                        .frame(width: 30, height: 30)
                         .background(Color.white)
                         .clipShape(Circle())
                         .overlay(Circle().stroke(DS.Colors.Bg.base, lineWidth: 2))
@@ -89,34 +92,107 @@ struct ProfileTabView: View {
             .accessibilityLabel("Change avatar")
 
             Text(profile.displayName)
-                .style(.title1)
+                .style(.display)
                 .foregroundStyle(DS.Colors.Ink.primary)
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+                .padding(.top, DS.Spacing.s16)
+                .padding(.horizontal, DS.Spacing.s16)
+
+            rankBadge
                 .padding(.top, DS.Spacing.s12)
 
-            Eyebrow(text: "Rank \(currentRank.numeral) · \(currentRank.title) · \(xp.formatted()) XP")
-                .padding(.top, DS.Spacing.s8)
+            statStrip
+                .padding(.top, DS.Spacing.s24)
 
-            Button {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                showEditProfile = true
-            } label: {
-                HStack(spacing: DS.Spacing.s8) {
-                    Image(systemName: "pencil")
-                        .font(.system(size: 12, weight: .semibold))
-                    Text("Edit profile")
-                        .style(.foot)
+            HStack(spacing: DS.Spacing.s12) {
+                NavigationLink(value: PlayerCardRoute()) {
+                    HStack(spacing: DS.Spacing.s8) {
+                        Image(systemName: "rectangle.portrait.on.rectangle.portrait.fill")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("Player Card")
+                            .style(.foot)
+                    }
+                    .foregroundStyle(DS.Colors.Ground.primary)
+                    .padding(.vertical, DS.Spacing.s12)
+                    .padding(.horizontal, DS.Spacing.s20)
+                    .background(Color.white)
+                    .clipShape(Capsule())
                 }
-                .foregroundStyle(DS.Colors.Ink.primary)
-                .padding(.vertical, DS.Spacing.s8)
-                .padding(.horizontal, DS.Spacing.s16)
-                .overlay(Capsule().stroke(DS.Colors.Line.subtle, lineWidth: 1))
+                .buttonStyle(PressableButtonStyle())
+                .simultaneousGesture(TapGesture().onEnded {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                })
+
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showEditProfile = true
+                } label: {
+                    HStack(spacing: DS.Spacing.s8) {
+                        Image(systemName: "pencil")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("Edit")
+                            .style(.foot)
+                    }
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .padding(.vertical, DS.Spacing.s12)
+                    .padding(.horizontal, DS.Spacing.s20)
+                    .overlay(Capsule().stroke(DS.Colors.Line.subtle, lineWidth: 1))
+                }
+                .buttonStyle(PressableButtonStyle())
             }
-            .buttonStyle(PressableButtonStyle())
-            .padding(.top, DS.Spacing.s16)
+            .padding(.top, DS.Spacing.s20)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s16)
+    }
+
+    private var rankBadge: some View {
+        HStack(spacing: DS.Spacing.s8) {
+            Text("RANK \(currentRank.numeral)")
+                .style(.micro)
+                .foregroundStyle(.black)
+                .padding(.horizontal, DS.Spacing.s12)
+                .padding(.vertical, 5)
+                .background(Color.white)
+                .clipShape(Capsule())
+            Text(currentRank.title.uppercased())
+                .style(.micro)
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+        }
+    }
+
+    private var statStrip: some View {
+        HStack(spacing: 0) {
+            profileStat(value: xp.formatted(), label: "XP")
+            statDivider
+            profileStat(value: "\(players.first?.streak ?? 0)", label: "DAY STREAK")
+            statDivider
+            profileStat(value: currentRank.numeral, label: "RANK")
+        }
+        .padding(.vertical, DS.Spacing.s16)
+        .background(DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+        .overlay(RoundedRectangle(cornerRadius: DS.Radius.lg).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+    }
+
+    private func profileStat(value: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .style(.num(size: 26))
+                .foregroundStyle(DS.Colors.Ink.primary)
+            Text(label)
+                .style(.microSm)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var statDivider: some View {
+        Rectangle()
+            .fill(DS.Colors.Line.hairline)
+            .frame(width: 1, height: 32)
     }
 
     // MARK: - Menu
