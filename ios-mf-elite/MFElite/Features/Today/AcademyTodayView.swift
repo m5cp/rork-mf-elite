@@ -27,6 +27,7 @@ struct AcademyTodayView: View {
     @State private var workoutIndexCache = TodayWorkoutIndexCache()
     @State private var activeSession: TrainingQueue?
     @State private var showBuilder = false
+    @State private var router = AppActionRouter.shared
 
     /// Most recent workouts shown inline on the home strip before "See all".
     private let homeWorkoutLimit = 6
@@ -123,6 +124,24 @@ struct AcademyTodayView: View {
         .sheet(isPresented: $showBuilder) {
             WorkoutBuilderView()
         }
+        .onChange(of: router.startTrainingToken) { _, _ in
+            startRecommendedSession(vm)
+        }
+    }
+
+    // MARK: - Siri / Shortcuts entry
+
+    /// Launch a session built from today's unlocked recommendations. Triggered by
+    /// the "Start my training" Siri shortcut.
+    private func startRecommendedSession(_ vm: AcademyTodayViewModel) {
+        guard activeSession == nil else { return }
+        let unlocked = vm.recommendations.filter { !subscription.isLevelNumberLocked($0.level.number) }
+        let items = unlocked.prefix(5).map {
+            DrillContext(drill: $0.drill, level: $0.level, category: $0.category, discipline: $0.discipline)
+        }
+        guard !items.isEmpty else { return }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        activeSession = TrainingQueue(items: Array(items), source: .workout, sourceName: "Recommended")
     }
 
     // MARK: - My Workouts strip

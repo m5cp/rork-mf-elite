@@ -5,6 +5,7 @@
 
 import SwiftUI
 import SwiftData
+import AppIntents
 
 @main
 struct MFEliteApp: App {
@@ -15,6 +16,7 @@ struct MFEliteApp: App {
     init() {
         SubscriptionService.shared.configure()
         GameCenterService.shared.authenticate()
+        MFAppShortcuts.updateAppShortcutParameters()
         let schema = Schema([
             Discipline.self,
             Category.self,
@@ -87,6 +89,7 @@ struct MFEliteApp: App {
                     profileStore.incrementSession()
                     KeyboardWarmup.run()
                     submitTotalXPToGameCenter()
+                    WidgetBridge.refresh(context: container.mainContext)
                 }
         }
         .modelContainer(container)

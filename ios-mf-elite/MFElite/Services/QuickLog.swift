@@ -74,6 +74,13 @@ enum QuickLog {
             GameCenterService.shared.submitXP(player.xp)
         }
 
+        // Optionally mirror this session to Apple Health as a soccer workout.
+        let totalTrainingSec = contexts.reduce(0) { $0 + max(0, $1.drill.durationSec) }
+        HealthKitService.shared.logTraining(durationSec: totalTrainingSec)
+
+        // Refresh Home/Lock Screen widgets with the new status.
+        WidgetBridge.refresh(context: context)
+
         let perfectDay = evaluatePerfectDay(context: context)
 
         return Result(

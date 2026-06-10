@@ -23,6 +23,7 @@ struct CertificationAwardView: View {
     @State private var revealSeal = false
     @State private var shareImage: UIImage?
     @State private var showShare = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
@@ -87,8 +88,12 @@ struct CertificationAwardView: View {
         }
         .onAppear {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
-            withAnimation(DS.Motion.celebrationSpring) {
+            if reduceMotion {
                 revealSeal = true
+            } else {
+                withAnimation(DS.Motion.celebrationSpring) {
+                    revealSeal = true
+                }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()

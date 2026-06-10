@@ -20,6 +20,7 @@ struct LevelMasteredView: View {
     @Query private var progress: [DrillProgress]
 
     @State private var revealNumeral = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var masteredIDs: Set<String> {
         Set(progress.filter(\.isMastered).map(\.drillID))
@@ -107,8 +108,12 @@ struct LevelMasteredView: View {
         .preferredColorScheme(.dark)
         .onAppear {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
-            withAnimation(DS.Motion.celebrationSpring.delay(0.2)) {
+            if reduceMotion {
                 revealNumeral = true
+            } else {
+                withAnimation(DS.Motion.celebrationSpring.delay(0.2)) {
+                    revealNumeral = true
+                }
             }
         }
     }

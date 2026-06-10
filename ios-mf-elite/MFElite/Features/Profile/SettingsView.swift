@@ -10,6 +10,7 @@ import SwiftUI
 import SwiftData
 import RevenueCat
 import MessageUI
+import AppIntents
 
 struct SettingsRoute: Hashable {}
 
@@ -27,6 +28,8 @@ struct SettingsView: View {
     @AppStorage("MF_NOTIF_STREAK") private var streakAlerts = true
     @AppStorage("MF_AUTO_ADVANCE") private var autoAdvance = true
 
+    @State private var health = HealthKitService.shared
+
     @State private var editingField: AccountField?
     @State private var mailRequest: MailRequest?
     @State private var showMailUnavailable = false
@@ -42,7 +45,9 @@ struct SettingsView: View {
                 accountSection
                 subscriptionSection
                 trainingSection
+                if health.isAvailable { healthSection }
                 notificationsSection
+                siriSection
                 supportSection
                 footerView
             }
@@ -154,6 +159,45 @@ struct SettingsView: View {
         section("Training") {
             toggleRow(label: "Auto-advance drills", isOn: $autoAdvance)
             Text("In a routine or workout, the next drill loads automatically a few seconds after you log one. You always tap to start its timer.")
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Spacing.s8)
+        }
+    }
+
+    // MARK: - Apple Health
+
+    private var healthSection: some View {
+        section("Apple Health") {
+            toggleRow(label: "Log to Apple Health", isOn: Binding(
+                get: { health.isSyncEnabled },
+                set: { applyHealthSync($0) }
+            ))
+            Text("Save each completed session to Apple Health as a soccer workout, so your training counts toward your activity rings.")
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Spacing.s8)
+        }
+    }
+
+    private func applyHealthSync(_ on: Bool) {
+        if on {
+            health.enableSync { _ in }
+        } else {
+            health.disableSync()
+        }
+    }
+
+    // MARK: - Siri
+
+    private var siriSection: some View {
+        section("Siri Shortcuts") {
+            SiriTipView(intent: StartTrainingIntent())
+                .siriTipViewStyle(.dark)
+                .padding(.vertical, DS.Spacing.s8)
+            Text("Ask Siri to start your training hands-free, or add these actions to your own Shortcuts.")
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.quaternary)
                 .fixedSize(horizontal: false, vertical: true)

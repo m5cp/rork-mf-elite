@@ -8,6 +8,7 @@ import SwiftUI
 struct MainTabView: View {
     @State private var selectedTab: AppTab = .today
     @State private var subscription = SubscriptionService.shared
+    @State private var router = AppActionRouter.shared
 
     var body: some View {
         @Bindable var subscription = subscription
@@ -24,6 +25,11 @@ struct MainTabView: View {
         }
         .preferredColorScheme(.dark)
         .environment(subscription)
+        .onChange(of: router.pendingTab) { _, tab in
+            guard let tab else { return }
+            withAnimation(DS.Motion.standardSpring) { selectedTab = tab }
+            router.pendingTab = nil
+        }
         .fullScreenCover(isPresented: $subscription.showPaywall) {
             PaywallView()
                 .environment(subscription)

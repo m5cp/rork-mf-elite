@@ -394,6 +394,12 @@ final class DrillPlayerViewModel {
             GameCenterService.shared.submitXP(player.xp)
         }
 
+        // Optionally mirror this session to Apple Health as a soccer workout.
+        HealthKitService.shared.logTraining(durationSec: Int(completedSetsTrainingSec.rounded()))
+
+        // Refresh Home/Lock Screen widgets with the new status.
+        WidgetBridge.refresh(context: context)
+
         // Perfect Day: all three daily rings closed for the first time today.
         evaluatePerfectDay(context: context)
 

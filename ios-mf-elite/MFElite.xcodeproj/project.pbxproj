@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		XX298127CFBB2CF3FA631BXX /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = XXDCC169DE7B2F3C1C8B10XX /* RevenueCat */; };
+		XX7D086D86C8D531B0782CXX /* MFEliteWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = XX221B9B521B11BFAABF10XX /* MFEliteWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -25,13 +26,56 @@
 			remoteGlobalIDString = 105FC5792E9EAD3100EA8BCF;
 			remoteInfo = MFElite;
 		};
+		XX91DA875C0FA03855FA70XX /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 105FC5722E9EAD3100EA8BCF /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = XX1912BBFE1E73FB4DDA09XX;
+			remoteInfo = MFEliteWidget;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		XXFDBF39561687C1172362XX /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				XX7D086D86C8D531B0782CXX /* MFEliteWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		105FC57A2E9EAD3100EA8BCF /* MFElite.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MFElite.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		105FC5892E9EAD3200EA8BCF /* MFEliteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MFEliteTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		105FC5932E9EAD3200EA8BCF /* MFEliteUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MFEliteUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		XX221B9B521B11BFAABF10XX /* MFEliteWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MFEliteWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		XX4075108C7EBDEACED4A2XX /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = XX1912BBFE1E73FB4DDA09XX /* MFEliteWidget */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		XX660654CEC028BD8B123EXX /* MFEliteWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MFEliteWidget;
+			sourceTree = "<group>";
+			exceptions = (
+				XX4075108C7EBDEACED4A2XX /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		105FC5772E9EAD3100EA8BCF /* Frameworks */ = {
@@ -50,6 +94,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		105FC5902E9EAD3200EA8BCF /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		XX75B8358D2242CEB782C5XX /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -84,6 +135,7 @@
 				105FC58C2E9EAD3200EA8BCF /* MFEliteTests */,
 				105FC5962E9EAD3200EA8BCF /* MFEliteUITests */,
 				105FC57B2E9EAD3100EA8BCF /* Products */,
+				XX660654CEC028BD8B123EXX /* MFEliteWidget */,
 			);
 			sourceTree = "<group>";
 		};
@@ -93,6 +145,7 @@
 				105FC57A2E9EAD3100EA8BCF /* MFElite.app */,
 				105FC5892E9EAD3200EA8BCF /* MFEliteTests.xctest */,
 				105FC5932E9EAD3200EA8BCF /* MFEliteUITests.xctest */,
+				XX221B9B521B11BFAABF10XX /* MFEliteWidget.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -107,10 +160,12 @@
 				105FC5762E9EAD3100EA8BCF /* Sources */,
 				105FC5772E9EAD3100EA8BCF /* Frameworks */,
 				105FC5782E9EAD3100EA8BCF /* Resources */,
+				XXFDBF39561687C1172362XX /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				XX9215D5EA1677E413385AXX /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				105FC57C2E9EAD3100EA8BCF /* MFElite */,
@@ -169,6 +224,26 @@
 			productReference = 105FC5932E9EAD3200EA8BCF /* MFEliteUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		XX1912BBFE1E73FB4DDA09XX /* MFEliteWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = XX3FBC74C8322EFE6D0A3DXX /* Build configuration list for PBXNativeTarget "MFEliteWidget" */;
+			buildPhases = (
+				XXE0FD6AFA7551401BFCEBXX /* Sources */,
+				XX75B8358D2242CEB782C5XX /* Frameworks */,
+				XX8DEE49FEB104205DDA8DXX /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = MFEliteWidget;
+			productName = MFEliteWidget;
+			productReference = XX221B9B521B11BFAABF10XX /* MFEliteWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+			fileSystemSynchronizedGroups = (
+				XX660654CEC028BD8B123EXX /* MFEliteWidget */,
+			);
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -209,6 +284,7 @@
 				105FC5792E9EAD3100EA8BCF /* MFElite */,
 				105FC5882E9EAD3200EA8BCF /* MFEliteTests */,
 				105FC5922E9EAD3200EA8BCF /* MFEliteUITests */,
+				XX1912BBFE1E73FB4DDA09XX /* MFEliteWidget */,
 			);
 			packageReferences = (
 				XX4AC81916604C4344ADC0XX /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
@@ -232,6 +308,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		105FC5912E9EAD3200EA8BCF /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		XX8DEE49FEB104205DDA8DXX /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -262,6 +345,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		XXE0FD6AFA7551401BFCEBXX /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -274,6 +364,11 @@
 			isa = PBXTargetDependency;
 			target = 105FC5792E9EAD3100EA8BCF /* MFElite */;
 			targetProxy = 105FC5942E9EAD3200EA8BCF /* PBXContainerItemProxy */;
+		};
+		XX9215D5EA1677E413385AXX /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = XX1912BBFE1E73FB4DDA09XX /* MFEliteWidget */;
+			targetProxy = XX91DA875C0FA03855FA70XX /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -413,6 +508,8 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "MF Elite sends daily training reminders and streak alerts to help you stay consistent.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "MF Elite saves your player card image to your photo library.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MF Elite reads your training time so it can keep your Apple Health activity in sync.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MF Elite saves your completed training sessions to Apple Health as soccer workouts.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -450,6 +547,8 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "MF Elite sends daily training reminders and streak alerts to help you stay consistent.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "MF Elite saves your player card image to your photo library.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MF Elite reads your training time so it can keep your Apple Health activity in sync.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MF Elite saves your completed training sessions to Apple Health as soccer workouts.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -557,6 +656,52 @@
 			};
 			name = Release;
 		};
+		XX10453D130AB6CB89C493XX /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = MFEliteWidget/MFEliteWidget.entitlements;
+				PRODUCT_BUNDLE_IDENTIFIER = app.rork.pgx8pb996dmcvbhdfnx8x.mfelitewidget;
+				PRODUCT_NAME = MFEliteWidget;
+				SWIFT_VERSION = 5.0;
+				SDKROOT = iphoneos;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MFEliteWidget/Info.plist;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 1.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
+			};
+			name = Release;
+		};
+		XX889794D2F32F70E0ACF1XX /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = MFEliteWidget/MFEliteWidget.entitlements;
+				PRODUCT_BUNDLE_IDENTIFIER = app.rork.pgx8pb996dmcvbhdfnx8x.mfelitewidget;
+				PRODUCT_NAME = MFEliteWidget;
+				SWIFT_VERSION = 5.0;
+				SDKROOT = iphoneos;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MFEliteWidget/Info.plist;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				MARKETING_VERSION = 1.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
+				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
+			};
+			name = Debug;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -592,6 +737,15 @@
 			buildConfigurations = (
 				105FC5A42E9EAD3200EA8BCF /* Debug */,
 				105FC5A52E9EAD3200EA8BCF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		XX3FBC74C8322EFE6D0A3DXX /* Build configuration list for PBXNativeTarget "MFEliteWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				XX889794D2F32F70E0ACF1XX /* Debug */,
+				XX10453D130AB6CB89C493XX /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -11,6 +11,7 @@ struct PerfectDayOverlay: View {
     var onDismiss: () -> Void
 
     @State private var reveal = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private let closedRings = DailyRings(
         trainMinutes: DailyRings.trainGoalMinutes,
@@ -44,8 +45,16 @@ struct PerfectDayOverlay: View {
         .contentShape(Rectangle())
         .onTapGesture { onDismiss() }
         .onAppear {
-            withAnimation(DS.Motion.celebrationSpring.delay(0.1)) { reveal = true }
+            if reduceMotion {
+                reveal = true
+            } else {
+                withAnimation(DS.Motion.celebrationSpring.delay(0.1)) { reveal = true }
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) { onDismiss() }
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Perfect day. Train, drills and mind all done today.")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint("Double tap to dismiss")
     }
 }
