@@ -58,7 +58,7 @@ struct EULAView: View {
                 ),
                 LegalSection(
                     heading: "12. Contact",
-                    body: "If you have any questions about this Agreement, please contact:\n\nM5 Capital Partners LLC\nEmail: joe@m5cairio.com\nWebsite: m5cairio.com"
+                    body: "If you have any questions about this Agreement, please contact:\n\nM5 Capital Partners LLC\nEmail: mf.elitetraining@gmail.com\nWebsite: m5cairio.com"
                 )
             ]
         )

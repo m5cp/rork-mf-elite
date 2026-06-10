@@ -30,7 +30,7 @@ struct AccessibilityView: View {
                 ),
                 LegalSection(
                     heading: "Feedback",
-                    body: "If you encounter any accessibility barriers while using MF Elite, or if you have suggestions for improving accessibility, please contact us. Your feedback directly informs our development priorities.\n\nEmail: joe@m5cairio.com\n\nWhen reporting an accessibility issue, please include:\n\nA description of the issue\nThe screen or feature where you encountered it\nYour device model and iOS version\nAny assistive technology you were using (VoiceOver, Switch Control, etc.)"
+                    body: "If you encounter any accessibility barriers while using MF Elite, or if you have suggestions for improving accessibility, please contact us. Your feedback directly informs our development priorities.\n\nEmail: mf.elitetraining@gmail.com\n\nWhen reporting an accessibility issue, please include:\n\nA description of the issue\nThe screen or feature where you encountered it\nYour device model and iOS version\nAny assistive technology you were using (VoiceOver, Switch Control, etc.)"
                 ),
                 LegalSection(
                     heading: "Continuous Improvement",

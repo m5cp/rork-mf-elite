@@ -58,7 +58,7 @@ struct TermsOfUseView: View {
                 ),
                 LegalSection(
                     heading: "12. Contact",
-                    body: "For questions about these Terms, contact us at:\n\nM5 Capital Partners LLC\nEmail: joe@m5cairio.com\nWebsite: m5cairio.com"
+                    body: "For questions about these Terms, contact us at:\n\nM5 Capital Partners LLC\nEmail: mf.elitetraining@gmail.com\nWebsite: m5cairio.com"
                 )
             ]
         )

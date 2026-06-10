@@ -30,7 +30,7 @@ struct PrivacyPolicyView: View {
                 ),
                 LegalSection(
                     heading: "5. Children's Privacy",
-                    body: "The App is designed for use by youth athletes, including children under 13. We comply with the Children's Online Privacy Protection Act (COPPA) and similar regulations.\n\nWe do not knowingly collect personal information from children. All data remains on-device. No data is transmitted to our servers.\n\nParents and guardians can review and delete any data stored in the App by accessing the App on the child's device or by deleting and reinstalling the App.\n\nIf you believe we have inadvertently collected personal information from a child, please contact us immediately at joe@m5cairio.com and we will take steps to delete such information."
+                    body: "The App is designed for use by youth athletes, including children under 13. We comply with the Children's Online Privacy Protection Act (COPPA) and similar regulations.\n\nWe do not knowingly collect personal information from children. All data remains on-device. No data is transmitted to our servers.\n\nParents and guardians can review and delete any data stored in the App by accessing the App on the child's device or by deleting and reinstalling the App.\n\nIf you believe we have inadvertently collected personal information from a child, please contact us immediately at mf.elitetraining@gmail.com and we will take steps to delete such information."
                 ),
                 LegalSection(
                     heading: "6. Your Rights",
@@ -42,7 +42,7 @@ struct PrivacyPolicyView: View {
                 ),
                 LegalSection(
                     heading: "8. Contact Us",
-                    body: "For privacy-related questions or concerns:\n\nM5 Capital Partners LLC\nEmail: joe@m5cairio.com\nWebsite: m5cairio.com"
+                    body: "For privacy-related questions or concerns:\n\nM5 Capital Partners LLC\nEmail: mf.elitetraining@gmail.com\nWebsite: m5cairio.com"
                 )
             ]
         )

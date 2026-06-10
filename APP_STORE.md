@@ -71,7 +71,7 @@ Subscription: RevenueCat. Sandbox Apple ID for testing. Prices load dynamically.
 Content managed by coach via in-app admin — no App Store update needed.
 No user-generated content shared publicly.
 Designed for youth athletes (10+) with parental oversight.
-Contact: joe@m5cairio.com
+Contact: mf.elitetraining@gmail.com
 ```
 
 ## Data collection (App Privacy)
