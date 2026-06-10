@@ -23,11 +23,20 @@ struct PaywallView: View {
         ("4 disciplines, Level 1 drills", true, true),
         ("Train daily & track streaks", true, true),
         ("All 216 drills, every level", false, true),
+        ("Adaptive daily plan for your position", false, true),
         ("Full academy curriculum", false, true),
         ("Earn certifications & rank up", false, true),
+        ("Global leaderboards & achievements", false, true),
         ("Streak freeze protection", false, true),
         ("Achievement badges", false, true),
         ("10 curated training routines", false, true),
+        ("Unlimited custom workouts", false, true),
+    ]
+
+    private let valueProps: [(icon: String, title: String, detail: String)] = [
+        ("figure.soccer", "216 pro-level drills", "Every discipline, every level — train like an academy player."),
+        ("sparkles", "Your adaptive daily plan", "Built around your position, age and weak spots."),
+        ("rosette", "Rank up & get certified", "Earn certifications, climb ranks, top the leaderboards."),
     ]
 
     private var packages: [Package] {
@@ -38,6 +47,44 @@ struct PaywallView: View {
         packages.first { $0.identifier == selectedPackageID } ?? packages.first
     }
 
+    private var annualPackage: Package? { packages.first { $0.packageType == .annual } }
+    private var monthlyPackage: Package? { packages.first { $0.packageType == .monthly } }
+
+    /// Percentage saved by the annual plan vs paying monthly for a year, from live prices.
+    private var annualSavingsVsMonthlyPercent: Int? {
+        guard let annual = annualPackage?.storeProduct.price,
+              let monthly = monthlyPackage?.storeProduct.price,
+              monthly > 0 else { return nil }
+        let yearlyAtMonthly = monthly * 12
+        guard yearlyAtMonthly > 0 else { return nil }
+        let saved = (yearlyAtMonthly - annual) / yearlyAtMonthly
+        let pct = NSDecimalNumber(decimal: saved * 100).doubleValue
+        guard pct > 0 else { return nil }
+        return Int(pct.rounded())
+    }
+
+    /// A short sub-label for each plan card (per-month equivalent or billing cadence).
+    private func subLabel(for package: Package) -> String? {
+        switch package.packageType {
+        case .annual:
+            let perMonth = package.storeProduct.price / 12
+            if let formatter = package.storeProduct.priceFormatter,
+               let s = formatter.string(from: NSDecimalNumber(decimal: perMonth)) {
+                return "\(s)/mo — billed yearly"
+            }
+            return "billed yearly"
+        case .monthly: return "billed monthly"
+        case .weekly: return "billed weekly"
+        default: return nil
+        }
+    }
+
+    /// A "SAVE x%" badge string shown on the annual card.
+    private func savingsBadge(for package: Package) -> String? {
+        guard package.packageType == .annual, let pct = annualSavingsVsMonthlyPercent else { return nil }
+        return "SAVE \(pct)%"
+    }
+
     var body: some View {
         ZStack(alignment: .top) {
             DS.Colors.Bg.base.ignoresSafeArea()
@@ -45,6 +92,7 @@ struct PaywallView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     header
+                    valuePropsSection
                     if packages.isEmpty { pricingPreview }
                     savingsCallout
                     comparison
@@ -130,12 +178,42 @@ struct PaywallView: View {
 
     private var pricingPreview: some View {
         HStack(spacing: DS.Spacing.s16) {
-            pricingChip(period: "YEAR", price: "$299.99", note: "Best value", highlight: true)
-            pricingChip(period: "MONTH", price: "$39.99", note: "", highlight: false)
+            pricingChip(period: "YEAR", price: "$199.99", note: "Best value", highlight: true)
+            pricingChip(period: "MONTH", price: "$29.99", note: "", highlight: false)
             pricingChip(period: "WEEK", price: "$12.99", note: "", highlight: false)
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s20)
+    }
+
+    // MARK: - Value props
+
+    private var valuePropsSection: some View {
+        VStack(spacing: DS.Spacing.s12) {
+            ForEach(Array(valueProps.enumerated()), id: \.offset) { _, prop in
+                HStack(spacing: DS.Spacing.s16) {
+                    Image(systemName: prop.icon)
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .frame(width: 44, height: 44)
+                        .background(DS.Colors.Bg.raised)
+                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(prop.title)
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text(prop.detail)
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s24 + 4)
     }
 
     private func pricingChip(period: String, price: String, note: String, highlight: Bool) -> some View {
@@ -165,12 +243,21 @@ struct PaywallView: View {
     }
 
     private var savingsCallout: some View {
-        Text("Annual saves over 60% vs monthly")
+        Text(annualSavingsCallout)
             .style(.foot)
             .foregroundStyle(DS.Colors.Ink.tertiary)
+            .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
-            .padding(.top, DS.Spacing.s8)
+            .padding(.top, DS.Spacing.s24)
             .padding(.horizontal, DS.Spacing.s20)
+    }
+
+    /// Savings line computed from live prices when available, else a static fallback.
+    private var annualSavingsCallout: String {
+        guard let pct = annualSavingsVsMonthlyPercent else {
+            return "Annual saves 44% vs monthly — just $16.66/mo"
+        }
+        return "Annual saves \(pct)% vs paying monthly"
     }
 
     // MARK: - Feature comparison
@@ -237,7 +324,9 @@ struct PaywallView: View {
                     PricingCard(
                         package: package,
                         isSelected: selectedPackage?.identifier == package.identifier,
-                        isBestValue: package.packageType == .annual
+                        isBestValue: package.packageType == .annual,
+                        subLabel: subLabel(for: package),
+                        savingsBadge: savingsBadge(for: package)
                     ) {
                         withAnimation(DS.Motion.standardSpring) {
                             selectedPackageID = package.identifier
@@ -304,7 +393,7 @@ struct PaywallView: View {
     /// Auto-renewal terms built from the selected package's live RevenueCat pricing.
     private var autoRenewalTerms: String {
         guard let package = selectedPackage else {
-            return "Plans start at $299.99/year (best value), $39.99/month, or $12.99/week. Payment is charged to your Apple ID at confirmation of purchase. Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Manage or cancel anytime in your App Store account settings."
+            return "Plans: $199.99/year (best value), $29.99/month, or $12.99/week. Payment is charged to your Apple ID at confirmation of purchase. Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Manage or cancel anytime in your App Store account settings."
         }
         let price = package.storeProduct.localizedPriceString
         let period = periodWord(for: package)
@@ -330,6 +419,8 @@ private struct PricingCard: View {
     let package: Package
     let isSelected: Bool
     let isBestValue: Bool
+    let subLabel: String?
+    let savingsBadge: String?
     let action: () -> Void
 
     private var product: StoreProduct { package.storeProduct }
@@ -364,7 +455,15 @@ private struct PricingCard: View {
                         Text(periodLabel)
                             .style(.title3)
                             .foregroundStyle(isSelected ? DS.Colors.Ground.primary : DS.Colors.Ink.primary)
-                        if isBestValue {
+                        if let savingsBadge {
+                            Text(savingsBadge)
+                                .style(.microSm)
+                                .foregroundStyle(isSelected ? Color.white : DS.Colors.Ground.primary)
+                                .padding(.vertical, 3)
+                                .padding(.horizontal, 7)
+                                .background(isSelected ? DS.Colors.Ground.primary : Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+                        } else if isBestValue {
                             Text("Best Value")
                                 .style(.microSm)
                                 .foregroundStyle(isSelected ? Color.white : DS.Colors.Ground.primary)
@@ -374,7 +473,7 @@ private struct PricingCard: View {
                                 .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
                         }
                     }
-                    Text(perPeriod)
+                    Text(subLabel ?? perPeriod)
                         .style(.foot)
                         .foregroundStyle(isSelected ? DS.Colors.Ground.secondary : DS.Colors.Ink.tertiary)
                 }

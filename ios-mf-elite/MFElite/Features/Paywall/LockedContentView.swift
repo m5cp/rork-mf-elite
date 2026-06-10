@@ -14,16 +14,34 @@ struct LockedContentView: View {
             RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous)
                 .fill(Color.black.opacity(0.45))
 
-            VStack(spacing: DS.Spacing.s4 + 2) {
+            HStack(spacing: DS.Spacing.s4 + 2) {
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 24, weight: .bold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                Text("Elite")
-                    .style(.micro)
-                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .font(.system(size: 11, weight: .bold))
+                Text("ELITE")
+                    .font(.system(size: 11, weight: .heavy, design: .rounded))
+                    .tracking(0.8)
             }
+            .foregroundStyle(DS.Colors.Ground.primary)
+            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
         }
         .allowsHitTesting(false)
+    }
+}
+
+/// A small circular lock badge for the corner of a locked card. Disappears when
+/// the gating condition is false, so it vanishes the moment a player subscribes.
+struct LockBadge: View {
+    var body: some View {
+        Image(systemName: "lock.fill")
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(DS.Colors.Ground.primary)
+            .padding(7)
+            .background(Color.white)
+            .clipShape(Circle())
+            .allowsHitTesting(false)
     }
 }
 
