@@ -137,6 +137,14 @@ final class SubscriptionService {
         number > ProgressionRules.freeLevels && !hasFullAccess
     }
 
+    /// True when an academy rank (pathway level) is locked because it requires an
+    /// active Elite subscription the user does not currently have. The final
+    /// three ranks are members-only; XP is still earned and retained, but the
+    /// rank itself only unlocks while subscribed.
+    func isRankLocked(_ rank: AcademyRank) -> Bool {
+        rank.requiresSubscription && !hasFullAccess
+    }
+
     /// Present the paywall from anywhere in the app. No-op for users who already
     /// have full access, so they never see a purchase prompt.
     func presentPaywall() {

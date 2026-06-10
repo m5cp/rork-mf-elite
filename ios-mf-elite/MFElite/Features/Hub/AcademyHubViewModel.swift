@@ -25,7 +25,7 @@ final class AcademyHubViewModel {
     }
 
     var currentRank: AcademyRank {
-        AcademyRank.rank(for: xp)
+        AcademyRank.unlockedRank(for: xp, hasFullAccess: SubscriptionService.shared.hasFullAccess)
     }
 
     var totalCategories: Int {

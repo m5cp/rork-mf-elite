@@ -13,7 +13,7 @@ struct ProfileTabView: View {
     @Environment(SubscriptionService.self) private var subscription
 
     private var currentRank: AcademyRank {
-        AcademyRank.rank(for: players.first?.xp ?? 0)
+        AcademyRank.unlockedRank(for: players.first?.xp ?? 0, hasFullAccess: subscription.hasFullAccess)
     }
 
     private var xp: Int { players.first?.xp ?? 0 }

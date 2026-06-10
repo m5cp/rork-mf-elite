@@ -35,9 +35,12 @@ final class RankDetailViewModel {
 
     // MARK: - Rank
 
-    var currentRank: AcademyRank { AcademyRank.rank(for: xp) }
-    var nextRank: AcademyRank? { AcademyRank.nextRank(for: xp) }
-    var xpToNext: Int? { AcademyRank.xpToNext(for: xp) }
+    private var hasFullAccess: Bool { SubscriptionService.shared.hasFullAccess }
+
+    var currentRank: AcademyRank { AcademyRank.unlockedRank(for: xp, hasFullAccess: hasFullAccess) }
+    var nextRank: AcademyRank? { AcademyRank.nextRank(for: xp, hasFullAccess: hasFullAccess) }
+    var xpToNext: Int? { AcademyRank.xpToNext(for: xp, hasFullAccess: hasFullAccess) }
+    var hasLockedEarnedRank: Bool { AcademyRank.hasLockedEarnedRank(for: xp, hasFullAccess: hasFullAccess) }
 
     var progressToNext: Double {
         guard let next = nextRank else { return 1 }

@@ -186,7 +186,7 @@ final class AcademyTodayViewModel {
 
     // MARK: - Rank
 
-    var currentRank: AcademyRank { AcademyRank.rank(for: xp) }
+    var currentRank: AcademyRank { AcademyRank.unlockedRank(for: xp, hasFullAccess: SubscriptionService.shared.hasFullAccess) }
 
     // MARK: - Daily goals
 

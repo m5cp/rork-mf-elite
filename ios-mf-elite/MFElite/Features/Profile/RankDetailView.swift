@@ -16,6 +16,7 @@ struct RankDetailView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
+    @Environment(SubscriptionService.self) private var subscription
 
     private var profile = PlayerProfileStore.shared
 
@@ -82,18 +83,36 @@ struct RankDetailView: View {
                 Eyebrow(text: "Next Rank")
 
                 if let next = vm.nextRank {
-                    Text(next.title)
-                        .style(.title3)
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                        .padding(.top, DS.Spacing.s4 + 2)
+                    let nextLocked = subscription.isRankLocked(next)
+
+                    HStack(spacing: DS.Spacing.s8) {
+                        Text(next.title)
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        if nextLocked {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(DS.Colors.Ink.tertiary)
+                        }
+                    }
+                    .padding(.top, DS.Spacing.s4 + 2)
 
                     ProgressBar(value: vm.progressToNext)
                         .padding(.top, DS.Spacing.s12)
 
-                    Text("\((vm.xpToNext ?? 0).formatted()) XP to go")
-                        .style(.foot)
-                        .foregroundStyle(DS.Colors.Ink.tertiary)
-                        .padding(.top, DS.Spacing.s8)
+                    if nextLocked {
+                        Text(vm.hasLockedEarnedRank
+                             ? "XP unlocked — Elite required to claim this rank"
+                             : "Reach the XP and go Elite to unlock this rank")
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                            .padding(.top, DS.Spacing.s8)
+                    } else {
+                        Text("\((vm.xpToNext ?? 0).formatted()) XP to go")
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                            .padding(.top, DS.Spacing.s8)
+                    }
                 } else {
                     Text("Highest rank achieved")
                         .style(.title3)

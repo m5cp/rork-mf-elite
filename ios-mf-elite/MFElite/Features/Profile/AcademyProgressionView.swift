@@ -15,6 +15,7 @@ struct AcademyProgressionView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
+    @Environment(SubscriptionService.self) private var subscription
 
     private var totalCategories: Int {
         disciplines.reduce(0) { $0 + $1.categories.count }
@@ -86,18 +87,55 @@ struct AcademyProgressionView: View {
                 Eyebrow(text: "Next Rank")
 
                 if let next = vm.nextRank {
-                    Text(next.title)
-                        .style(.title3)
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                        .padding(.top, DS.Spacing.s4 + 2)
+                    let nextLocked = subscription.isRankLocked(next)
+
+                    HStack(spacing: DS.Spacing.s8) {
+                        Text(next.title)
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        if nextLocked {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(DS.Colors.Ink.tertiary)
+                        }
+                    }
+                    .padding(.top, DS.Spacing.s4 + 2)
 
                     ProgressBar(value: vm.progressToNext)
                         .padding(.top, DS.Spacing.s12)
 
-                    Text("\((vm.xpToNext ?? 0).formatted()) XP to go")
-                        .style(.foot)
-                        .foregroundStyle(DS.Colors.Ink.tertiary)
-                        .padding(.top, DS.Spacing.s8)
+                    if nextLocked {
+                        Text(vm.hasLockedEarnedRank
+                             ? "XP unlocked — Elite required to claim this rank"
+                             : "Reach the XP and go Elite to unlock this rank")
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                            .padding(.top, DS.Spacing.s8)
+
+                        Button {
+                            subscription.presentPaywall()
+                        } label: {
+                            HStack(spacing: DS.Spacing.s8) {
+                                Image(systemName: "star.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                Text("Unlock with Elite")
+                                    .style(.foot)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, DS.Spacing.s12)
+                            .background(Color.white)
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                        .padding(.top, DS.Spacing.s12)
+                    } else {
+                        Text("\((vm.xpToNext ?? 0).formatted()) XP to go")
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                            .padding(.top, DS.Spacing.s8)
+                    }
                 } else {
                     Text("Highest rank achieved")
                         .style(.title3)
@@ -118,11 +156,21 @@ struct AcademyProgressionView: View {
 
             VStack(spacing: 0) {
                 ForEach(Array(AcademyRank.allCases.enumerated()), id: \.element) { index, rank in
-                    RankNode(
+                    let memberLocked = subscription.isRankLocked(rank)
+                    let node = RankNode(
                         rank: rank,
                         state: state(for: rank, current: vm.currentRank, next: vm.nextRank),
+                        isMemberLocked: memberLocked,
                         isLast: false
                     )
+                    if memberLocked {
+                        Button {
+                            subscription.presentPaywall()
+                        } label: { node }
+                        .buttonStyle(PressableButtonStyle())
+                    } else {
+                        node
+                    }
                 }
                 ElevenNode()
             }
@@ -133,6 +181,7 @@ struct AcademyProgressionView: View {
     }
 
     private func state(for rank: AcademyRank, current: AcademyRank, next: AcademyRank?) -> RankNodeState {
+        if subscription.isRankLocked(rank) { return .locked }
         if rank == current { return .current }
         if rank.rawValue < current.rawValue { return .achieved }
         if let next, rank == next { return .next }
@@ -221,6 +270,7 @@ enum RankNodeState {
 private struct RankNode: View {
     let rank: AcademyRank
     let state: RankNodeState
+    var isMemberLocked: Bool = false
     let isLast: Bool
 
     var body: some View {
@@ -240,6 +290,8 @@ private struct RankNode: View {
                     Eyebrow(text: "Rank \(rank.numeral)")
                     if state == .current {
                         youAreHereChip
+                    } else if isMemberLocked {
+                        membersChip
                     }
                 }
                 Text(rank.title)
@@ -250,6 +302,10 @@ private struct RankNode: View {
                     .foregroundStyle(DS.Colors.Ink.quaternary)
                 if state == .achieved {
                     Text("Achieved")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                } else if isMemberLocked {
+                    Text("Elite required")
                         .style(.micro)
                         .foregroundStyle(DS.Colors.Ink.quaternary)
                 }
@@ -287,11 +343,35 @@ private struct RankNode: View {
                 .stroke(DS.Colors.Line.subtle, lineWidth: 1)
                 .frame(width: 44, height: 44)
                 .overlay(
-                    Text(rank.numeral)
-                        .font(.system(size: 16, weight: .heavy))
-                        .foregroundStyle(DS.Colors.Ink.disabled)
+                    Group {
+                        if isMemberLocked {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(DS.Colors.Ink.disabled)
+                        } else {
+                            Text(rank.numeral)
+                                .font(.system(size: 16, weight: .heavy))
+                                .foregroundStyle(DS.Colors.Ink.disabled)
+                        }
+                    }
                 )
         }
+    }
+
+    private var membersChip: some View {
+        HStack(spacing: DS.Spacing.s4) {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 8, weight: .bold))
+            Text("Members")
+                .style(.microSm)
+        }
+        .foregroundStyle(DS.Colors.Ink.tertiary)
+        .padding(.vertical, 3)
+        .padding(.horizontal, 8)
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.pill)
+                .stroke(DS.Colors.Line.subtle, lineWidth: 1)
+        )
     }
 
     private var youAreHereChip: some View {

@@ -24,7 +24,7 @@ struct PlayerCardView: View {
 
     private var info: CardPlayerInfo {
         let xp = players.first?.xp ?? 0
-        let rank = AcademyRank.rank(for: xp)
+        let rank = AcademyRank.unlockedRank(for: xp, hasFullAccess: SubscriptionService.shared.hasFullAccess)
         return CardPlayerInfo(
             name: profile.displayName,
             rankNumeral: rank.numeral,

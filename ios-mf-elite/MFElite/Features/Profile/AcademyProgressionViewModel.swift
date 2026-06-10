@@ -33,16 +33,29 @@ final class AcademyProgressionViewModel {
         self.loggedDrillIDs = loggedDrillIDs
     }
 
+    private var hasFullAccess: Bool { SubscriptionService.shared.hasFullAccess }
+
     var currentRank: AcademyRank {
-        AcademyRank.rank(for: xp)
+        AcademyRank.unlockedRank(for: xp, hasFullAccess: hasFullAccess)
     }
 
     var nextRank: AcademyRank? {
-        AcademyRank.nextRank(for: xp)
+        AcademyRank.nextRank(for: xp, hasFullAccess: hasFullAccess)
     }
 
     var xpToNext: Int? {
-        AcademyRank.xpToNext(for: xp)
+        AcademyRank.xpToNext(for: xp, hasFullAccess: hasFullAccess)
+    }
+
+    /// True when the player has banked enough XP for a higher rank that is
+    /// locked behind an Elite subscription.
+    var hasLockedEarnedRank: Bool {
+        AcademyRank.hasLockedEarnedRank(for: xp, hasFullAccess: hasFullAccess)
+    }
+
+    /// The full XP-earned rank, ignoring the subscription cap.
+    var earnedRank: AcademyRank {
+        AcademyRank.rank(for: xp)
     }
 
     /// Progress from the current rank threshold toward the next rank (0...1).
