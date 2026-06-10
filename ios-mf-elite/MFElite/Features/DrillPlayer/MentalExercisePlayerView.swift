@@ -215,9 +215,17 @@ struct MentalExercisePlayerView: View {
             }
             .scrollIndicators(.hidden)
 
-            FloatingButton(label: "Begin exercise", hint: "\(steps.count) STEPS") {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                withAnimation(DS.Motion.standardSpring) { stage = .steps }
+            VStack(spacing: DS.Spacing.s12) {
+                FloatingButton(label: "Begin exercise", hint: "\(steps.count) STEPS") {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    withAnimation(DS.Motion.standardSpring) { stage = .steps }
+                }
+                SecondaryButton(label: "Log as done — skip steps") {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    viewModel.completeMentalExercise(journal: nil)
+                    withAnimation(DS.Motion.standardSpring) { stage = .logged }
+                }
+                .accessibilityHint("Logs this exercise as completed without going through the steps")
             }
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.bottom, DS.Spacing.s40)

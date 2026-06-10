@@ -49,6 +49,16 @@ struct RoutinesView: View {
     @State private var showBuilder = false
     @State private var editingWorkout: CustomWorkout?
     @State private var workoutToDelete: CustomWorkout?
+    @State private var markCompleteTarget: MarkCompleteTarget?
+    @State private var lastLogResult: QuickLog.Result?
+
+    /// A routine/workout queued for one-tap, timer-free logging.
+    private struct MarkCompleteTarget: Identifiable {
+        let id = UUID()
+        let name: String
+        let source: SessionSource
+        let contexts: [DrillContext]
+    }
 
     /// Free players may keep a single custom workout; Elite is unlimited.
     private var canCreateWorkout: Bool {
@@ -192,6 +202,74 @@ struct RoutinesView: View {
         } message: { workout in
             Text("“\(workout.title)” will be removed permanently.")
         }
+        .confirmationDialog(
+            "Mark complete?",
+            isPresented: markCompleteBinding,
+            presenting: markCompleteTarget
+        ) { target in
+            Button("Log \(target.contexts.count) drills as done") { markComplete(target) }
+            Button("Cancel", role: .cancel) {}
+        } message: { target in
+            Text("Logs every drill in “\(target.name)” without the timer — XP, streak and rings all count.")
+        }
+        .overlay(alignment: .bottom) {
+            if let result = lastLogResult {
+                loggedToast(result)
+                    .padding(.bottom, 110)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+    }
+
+    private var markCompleteBinding: Binding<Bool> {
+        Binding(
+            get: { markCompleteTarget != nil },
+            set: { if !$0 { markCompleteTarget = nil } }
+        )
+    }
+
+    /// Log every drill in a routine/workout at once, no timer.
+    private func markComplete(_ target: MarkCompleteTarget) {
+        let result = QuickLog.logDrills(
+            target.contexts,
+            source: target.source,
+            sourceName: target.name,
+            context: context
+        )
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        withAnimation(DS.Motion.standardSpring) { lastLogResult = result }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
+            withAnimation(DS.Motion.standardSpring) { lastLogResult = nil }
+        }
+    }
+
+    private func loggedToast(_ result: QuickLog.Result) -> some View {
+        HStack(spacing: DS.Spacing.s12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(DS.Colors.Ground.primary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("\(result.drillsLogged) drills logged")
+                    .font(.system(size: 15, weight: .bold))
+                    .foregroundStyle(DS.Colors.Ground.primary)
+                Text("+\(result.xpEarned) XP · \(result.newStreak)-day streak")
+                    .style(.micro)
+                    .foregroundStyle(Color.black.opacity(0.6))
+            }
+        }
+        .padding(.vertical, DS.Spacing.s12)
+        .padding(.horizontal, DS.Spacing.s20)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+        .pillLightElevation()
+        .padding(.horizontal, DS.Spacing.s20)
+    }
+
+    /// Resolve a routine/workout into full drill contexts for one-tap logging.
+    private func contexts(from resolved: [ResolvedDrill]) -> [DrillContext] {
+        resolved.map {
+            DrillContext(drill: $0.drill, level: $0.level, category: $0.category, discipline: $0.discipline)
+        }
     }
 
     private var deleteAlertBinding: Binding<Bool> {
@@ -230,6 +308,11 @@ struct RoutinesView: View {
                         isExpanded: expanded.contains(workout.id.uuidString),
                         onToggle: { toggle(workout.id.uuidString) },
                         onStart: { startIndex in start(name: workout.title, resolved: resolved, from: startIndex) },
+                        onMarkComplete: {
+                            markCompleteTarget = MarkCompleteTarget(
+                                name: workout.title, source: .workout, contexts: contexts(from: resolved)
+                            )
+                        },
                         onEdit: { editingWorkout = workout },
                         onDuplicate: { duplicate(workout) },
                         onDelete: { workoutToDelete = workout }
@@ -326,7 +409,12 @@ struct RoutinesView: View {
                     loggedToday: doneToday,
                     isExpanded: expanded.contains(routine.id),
                     onToggle: { toggle(routine.id) },
-                    onStart: { startIndex in start(routine: routine, resolved: resolved, from: startIndex) }
+                    onStart: { startIndex in start(routine: routine, resolved: resolved, from: startIndex) },
+                    onMarkComplete: {
+                        markCompleteTarget = MarkCompleteTarget(
+                            name: routine.title, source: .routine, contexts: contexts(from: resolved)
+                        )
+                    }
                 )
             }
         }
@@ -375,6 +463,8 @@ private struct RoutineCard: View {
     let onToggle: () -> Void
     /// Start the routine from the given drill index (0 = from the top).
     let onStart: (Int) -> Void
+    /// Log every drill in the routine at once, no timer.
+    let onMarkComplete: () -> Void
 
     private var isCompletedToday: Bool {
         !resolved.isEmpty && resolved.allSatisfy { loggedToday.contains($0.drill.id) }
@@ -436,6 +526,15 @@ private struct RoutineCard: View {
                 }
                 .buttonStyle(PressableButtonStyle())
                 .padding(.top, DS.Spacing.s4)
+
+                Button(action: onMarkComplete) {
+                    Label("Mark complete — no timer", systemImage: "checkmark.circle")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                }
+                .buttonStyle(PressableButtonStyle())
             }
         }
     }
@@ -509,6 +608,7 @@ private struct WorkoutCard: View {
     let isExpanded: Bool
     let onToggle: () -> Void
     let onStart: (Int) -> Void
+    let onMarkComplete: () -> Void
     let onEdit: () -> Void
     let onDuplicate: () -> Void
     let onDelete: () -> Void
@@ -533,6 +633,7 @@ private struct WorkoutCard: View {
                                 Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
                                 Button { onDuplicate() } label: { Label("Duplicate", systemImage: "plus.square.on.square") }
                                 Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
+                                Button { onMarkComplete() } label: { Label("Mark complete", systemImage: "checkmark.circle") }
                             } label: {
                                 Image(systemName: "ellipsis")
                                     .font(.system(size: 14, weight: .bold))
@@ -589,6 +690,15 @@ private struct WorkoutCard: View {
                 }
                 .buttonStyle(PressableButtonStyle())
                 .padding(.top, DS.Spacing.s4)
+
+                Button(action: onMarkComplete) {
+                    Label("Mark complete — no timer", systemImage: "checkmark.circle")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 36)
+                }
+                .buttonStyle(PressableButtonStyle())
             }
         }
     }

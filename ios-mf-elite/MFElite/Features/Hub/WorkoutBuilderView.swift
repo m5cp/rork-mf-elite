@@ -137,9 +137,10 @@ struct WorkoutBuilderView: View {
     private var drillsSection: some View {
         Section {
             if items.isEmpty {
-                Text("No drills yet. Tap “Add drills” to build your session.")
+                Text("No drills yet. Tap “Add drills” below to pick from the academy — they’ll run back-to-back in the order you set.")
                     .style(.foot)
                     .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
                     .listRowBackground(DS.Colors.Bg.card)
             } else {
                 ForEach(items) { item in
@@ -175,6 +176,9 @@ struct WorkoutBuilderView: View {
         } footer: {
             if items.count < 2 {
                 Text("Add at least 2 drills to save.")
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            } else {
+                Text("Drills run back-to-back, top to bottom. Drag to reorder.")
                     .foregroundStyle(DS.Colors.Ink.quaternary)
             }
         }

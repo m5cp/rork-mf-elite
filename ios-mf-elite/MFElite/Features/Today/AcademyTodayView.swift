@@ -8,12 +8,50 @@
 import SwiftUI
 import SwiftData
 
+/// Reference-type memo so the drillID→context map is built once and reused
+/// across body evaluations, rebuilding only when the curriculum graph changes.
+private final class TodayWorkoutIndexCache {
+    var signature: Int = -1
+    var index: [String: DrillContext] = [:]
+}
+
 struct AcademyTodayView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
+    @Query(sort: \CustomWorkout.updatedAt, order: .reverse) private var workouts: [CustomWorkout]
     @Environment(SubscriptionService.self) private var subscription
     @State private var profile = PlayerProfileStore.shared
+    @State private var workoutIndexCache = TodayWorkoutIndexCache()
+    @State private var activeSession: TrainingQueue?
+    @State private var showBuilder = false
+
+    /// Free players may keep a single custom workout; Elite is unlimited.
+    private var canCreateWorkout: Bool {
+        subscription.hasFullAccess || workouts.count < 1
+    }
+
+    /// drillID → resolved context, rebuilt only when the curriculum graph changes.
+    private var drillIndex: [String: DrillContext] {
+        let signature = disciplines.map { ObjectIdentifier($0) }.hashValue
+        if workoutIndexCache.signature != signature {
+            var map: [String: DrillContext] = [:]
+            for discipline in disciplines {
+                for category in discipline.categories {
+                    for level in category.levels {
+                        for drill in level.drills {
+                            map[drill.id] = DrillContext(
+                                drill: drill, level: level, category: category, discipline: discipline
+                            )
+                        }
+                    }
+                }
+            }
+            workoutIndexCache.index = map
+            workoutIndexCache.signature = signature
+        }
+        return workoutIndexCache.index
+    }
 
     private var viewModel: AcademyTodayViewModel {
         AcademyTodayViewModel(
@@ -36,6 +74,7 @@ struct AcademyTodayView: View {
                     salutation(vm)
                     dailyStandard(vm)
                     goalsCard(vm)
+                    myWorkoutsSection
                     continuePathway(vm)
                     recommendedSection(vm)
                 }
@@ -56,7 +95,117 @@ struct AcademyTodayView: View {
             .navigationDestination(for: SettingsRoute.self) { _ in
                 SettingsView()
             }
+            .navigationDestination(for: RoutinesRoute.self) { _ in
+                RoutinesView()
+            }
+            .navigationDestination(for: DrillLibraryRoute.self) { _ in
+                DrillLibraryView()
+            }
         }
+        .fullScreenCover(item: $activeSession) { queue in
+            SessionPlayerView(queue: queue)
+        }
+        .sheet(isPresented: $showBuilder) {
+            WorkoutBuilderView()
+        }
+    }
+
+    // MARK: - My Workouts strip
+
+    private var myWorkoutsSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            HStack {
+                Eyebrow(text: "My Workouts")
+                Spacer()
+                NavigationLink(value: RoutinesRoute()) {
+                    HStack(spacing: 3) {
+                        Text("All")
+                            .style(.micro)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: DS.Spacing.s12) {
+                    ForEach(workouts) { workout in
+                        workoutChip(workout)
+                    }
+                    buildChip
+                }
+                .padding(.horizontal, DS.Spacing.s20)
+            }
+        }
+        .padding(.top, DS.Spacing.s24 + 4)
+    }
+
+    private func workoutChip(_ workout: CustomWorkout) -> some View {
+        let resolved = workout.drillIDs.compactMap { drillIndex[$0] }
+        return Button {
+            guard !resolved.isEmpty else { return }
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            activeSession = TrainingQueue(items: resolved, source: .workout, sourceName: workout.title)
+        } label: {
+            VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                Image(systemName: "figure.run")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Spacer(minLength: 0)
+                Text(workout.title)
+                    .style(.callout)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(resolved.count) drills · \(estimatedSessionMinutes(forDrills: resolved.map(\.drill))) min")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+            .padding(DS.Spacing.s16)
+            .frame(width: 168, height: 132, alignment: .leading)
+            .background(DS.Colors.Bg.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.lg)
+                    .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+            )
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityHint("Start workout")
+    }
+
+    private var buildChip: some View {
+        Button {
+            if canCreateWorkout {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                showBuilder = true
+            } else {
+                subscription.presentPaywall()
+            }
+        } label: {
+            VStack(spacing: DS.Spacing.s8) {
+                Image(systemName: "plus")
+                    .font(.system(size: 20, weight: .bold))
+                Text("Build a workout")
+                    .style(.micro)
+                    .multilineTextAlignment(.center)
+            }
+            .foregroundStyle(DS.Colors.Ink.secondary)
+            .frame(width: 132, height: 132)
+            .background(DS.Colors.Bg.raised)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.lg)
+                    .strokeBorder(style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+                    .foregroundStyle(DS.Colors.Line.subtle)
+            )
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 
     // MARK: - Complete-profile banner (skipped onboarding)

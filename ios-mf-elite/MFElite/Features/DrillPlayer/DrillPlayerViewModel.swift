@@ -241,6 +241,17 @@ final class DrillPlayerViewModel {
         phase = .logged
     }
 
+    /// Log the drill as done from the ready screen — no timer. Banks the full
+    /// guide duration as training time, then logs through the shared path so XP,
+    /// streak, mastery, and celebrations all still count.
+    func logInstant() {
+        invalidateTimer()
+        completedSetsTrainingSec = TimeInterval(drill.durationSec)
+        setsCompleted = max(1, drill.sets)
+        logDrill()
+        phase = .logged
+    }
+
     /// Called when a set's countdown reaches zero.
     func completeSet() {
         recordActiveSetIfNeeded()

@@ -221,11 +221,20 @@ struct DrillPlayerView: View {
             }
             .scrollIndicators(.hidden)
 
-            FloatingButton(label: "Start set", hint: "SET 1 OF \(drill.sets)") {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                withAnimation(DS.Motion.standardSpring) {
-                    viewModel.startSet()
+            VStack(spacing: DS.Spacing.s12) {
+                FloatingButton(label: "Start set", hint: "SET 1 OF \(drill.sets)") {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    withAnimation(DS.Motion.standardSpring) {
+                        viewModel.startSet()
+                    }
                 }
+                SecondaryButton(label: "Log as done — no timer") {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    withAnimation(DS.Motion.standardSpring) {
+                        viewModel.logInstant()
+                    }
+                }
+                .accessibilityHint("Logs this drill as completed without running the timer")
             }
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.bottom, DS.Spacing.s40)

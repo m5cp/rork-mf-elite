@@ -41,8 +41,8 @@ struct AcademyHubView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     masthead
                     standingStrip(viewModel)
+                    trainingSection
                     pathwaysSection(viewModel)
-                    moreSection
                     scalabilityFooter(viewModel)
                 }
                 .padding(.bottom, 120)
@@ -197,25 +197,25 @@ struct AcademyHubView: View {
         .padding(.top, DS.Spacing.s32)
     }
 
-    // MARK: - 4. More
+    // MARK: - Train (Routines, Workouts, Library)
 
-    private var moreSection: some View {
+    private var trainingSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(text: "More")
+            Eyebrow(text: "Train")
                 .padding(.horizontal, DS.Spacing.s20)
                 .padding(.bottom, DS.Spacing.s4 + 2)
 
-            NavigationLink(value: DrillLibraryRoute()) {
-                MoreRow(icon: "list.bullet", label: "Drill Library", detail: "Every drill, one list", isLast: false)
+            NavigationLink(value: RoutinesRoute()) {
+                MoreRow(icon: "figure.run", label: "Routines & My Workouts", detail: "Ready-made sessions — or build your own", isLast: false)
             }
             .buttonStyle(PressableButtonStyle())
 
-            NavigationLink(value: RoutinesRoute()) {
-                MoreRow(icon: "figure.run", label: "Routines", detail: "Curated training sessions", isLast: true)
+            NavigationLink(value: DrillLibraryRoute()) {
+                MoreRow(icon: "list.bullet", label: "Drill Library", detail: "Every drill, one list", isLast: true)
             }
             .buttonStyle(PressableButtonStyle())
         }
-        .padding(.top, DS.Spacing.s32)
+        .padding(.top, DS.Spacing.s24)
     }
 
     // MARK: - 5. Scalability Footer
