@@ -13,10 +13,17 @@ struct OnboardingIdentifyView: View {
 
     @State private var name: String = ""
     @State private var classYear: Int? = nil
+    @State private var birthYear: Int? = nil
     @FocusState private var nameFocused: Bool
 
+    /// Sensible birth-year window for youth athletes through adults.
+    private var birthYearRange: ClosedRange<Int> {
+        let currentYear = Calendar.current.component(.year, from: Date())
+        return (currentYear - 99)...(currentYear - 4)
+    }
+
     private var canContinue: Bool {
-        !name.trimmingCharacters(in: .whitespaces).isEmpty && classYear != nil
+        !name.trimmingCharacters(in: .whitespaces).isEmpty && classYear != nil && birthYear != nil
     }
 
     var body: some View {
@@ -62,6 +69,17 @@ struct OnboardingIdentifyView: View {
                             .style(.foot)
                             .foregroundStyle(DS.Colors.Ink.tertiary)
                             .padding(.top, DS.Spacing.s8)
+
+                        Eyebrow(text: "Birth Year")
+                            .padding(.top, DS.Spacing.s24)
+
+                        YearPickerField(year: $birthYear, range: birthYearRange, defaultYear: OnboardingState.defaultBirthYear)
+                            .padding(.top, DS.Spacing.s8)
+
+                        Text("Used to tailor age-appropriate guidance and to set up family safety controls.")
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                            .padding(.top, DS.Spacing.s8)
                     }
                     .padding(.horizontal, DS.Spacing.s20)
                     .padding(.bottom, DS.Spacing.s24)
@@ -75,6 +93,7 @@ struct OnboardingIdentifyView: View {
         .onAppear {
             name = state.playerName
             classYear = state.classYear
+            birthYear = state.birthYear
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { nameFocused = true }
         }
     }
@@ -113,6 +132,7 @@ struct OnboardingIdentifyView: View {
             PrimaryButton(label: "Continue") {
                 state.playerName = name.trimmingCharacters(in: .whitespacesAndNewlines)
                 state.classYear = classYear
+                state.birthYear = birthYear
                 state.advance()
             }
             .opacity(canContinue ? 1 : 0.4)

@@ -142,13 +142,14 @@ struct UnderlineField: View {
 struct YearPickerField: View {
     @Binding var year: Int?
     var range: ClosedRange<Int> = 1980...2050
+    /// Year used to seat the wheel when nothing has been chosen yet.
+    var defaultYear: Int = OnboardingState.defaultClassYear
 
     @State private var expanded = false
 
-    /// Year used to seat the wheel when nothing has been chosen yet.
     private var wheelSelection: Binding<Int> {
         Binding(
-            get: { year ?? OnboardingState.defaultClassYear },
+            get: { year ?? defaultYear },
             set: { year = $0 }
         )
     }

@@ -6,6 +6,27 @@
 //
 
 import SwiftUI
+import UIKit
+
+// MARK: - Font.Weight bridge
+
+extension Font.Weight {
+    /// The matching `UIFont.Weight`, used to build Dynamic-Type-scalable fonts.
+    var uiWeight: UIFont.Weight {
+        switch self {
+        case .ultraLight: return .ultraLight
+        case .thin:       return .thin
+        case .light:      return .light
+        case .regular:    return .regular
+        case .medium:     return .medium
+        case .semibold:   return .semibold
+        case .bold:       return .bold
+        case .heavy:      return .heavy
+        case .black:      return .black
+        default:          return .regular
+        }
+    }
+}
 
 // MARK: - Color Hex Support
 
@@ -69,21 +90,39 @@ enum DS {
 
     // MARK: - Typography
 
+    /// Fonts scale with the user's preferred text size (Dynamic Type) via
+    /// `UIFontMetrics`, while preserving the editorial point sizes at the
+    /// default setting. The whole-app maximum is clamped at the root (see
+    /// `mfDynamicTypeClamp`) so large accessibility sizes don't break layouts.
     enum Typography {
-        static let hero: Font = .system(size: 48, weight: .heavy)
-        static let display: Font = .system(size: 36, weight: .heavy)
-        static let title1: Font = .system(size: 28, weight: .bold)
-        static let title2: Font = .system(size: 22, weight: .bold)
-        static let title3: Font = .system(size: 17, weight: .semibold)
-        static let body: Font = .system(size: 16, weight: .regular)
-        static let callout: Font = .system(size: 15, weight: .medium)
-        static let foot: Font = .system(size: 13, weight: .medium)
-        static let cap: Font = .system(size: 11, weight: .medium)
-        static let micro: Font = .system(size: 10, weight: .medium, design: .monospaced)
-        static let microSm: Font = .system(size: 9, weight: .medium, design: .monospaced)
+        /// Build a system font of `size`/`weight` that scales relative to the
+        /// closest matching text style.
+        static func scaled(
+            _ size: CGFloat,
+            weight: Font.Weight,
+            relativeTo textStyle: UIFont.TextStyle,
+            monospaced: Bool = false
+        ) -> Font {
+            let base: UIFont = monospaced
+                ? .monospacedSystemFont(ofSize: size, weight: weight.uiWeight)
+                : .systemFont(ofSize: size, weight: weight.uiWeight)
+            return Font(UIFontMetrics(forTextStyle: textStyle).scaledFont(for: base))
+        }
+
+        static let hero: Font = scaled(48, weight: .heavy, relativeTo: .largeTitle)
+        static let display: Font = scaled(36, weight: .heavy, relativeTo: .largeTitle)
+        static let title1: Font = scaled(28, weight: .bold, relativeTo: .title1)
+        static let title2: Font = scaled(22, weight: .bold, relativeTo: .title2)
+        static let title3: Font = scaled(17, weight: .semibold, relativeTo: .headline)
+        static let body: Font = scaled(16, weight: .regular, relativeTo: .body)
+        static let callout: Font = scaled(15, weight: .medium, relativeTo: .callout)
+        static let foot: Font = scaled(13, weight: .medium, relativeTo: .footnote)
+        static let cap: Font = scaled(11, weight: .medium, relativeTo: .caption1)
+        static let micro: Font = scaled(10, weight: .medium, relativeTo: .caption2, monospaced: true)
+        static let microSm: Font = scaled(9, weight: .medium, relativeTo: .caption2, monospaced: true)
 
         static func num(size: CGFloat) -> Font {
-            .system(size: size, weight: .bold).monospacedDigit()
+            scaled(size, weight: .bold, relativeTo: .title1).monospacedDigit()
         }
     }
 
@@ -161,6 +200,13 @@ struct StyledText: ViewModifier {
 extension View {
     func style(_ style: DS.TextStyle) -> some View {
         modifier(StyledText(style: style))
+    }
+
+    /// Clamp the app's Dynamic Type range so text scales for accessibility
+    /// while the editorial layouts (large display numerals, dense cards) stay
+    /// intact at the very largest sizes. Apply once at the root.
+    func mfDynamicTypeClamp() -> some View {
+        dynamicTypeSize(.xSmall ... .accessibility2)
     }
 }
 

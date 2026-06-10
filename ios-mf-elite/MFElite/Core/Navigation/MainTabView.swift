@@ -24,6 +24,7 @@ struct MainTabView: View {
                 .frame(maxWidth: .infinity)
         }
         .preferredColorScheme(.dark)
+        .mfDynamicTypeClamp()
         .environment(subscription)
         .onChange(of: router.pendingTab) { _, tab in
             guard let tab else { return }

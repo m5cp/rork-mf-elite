@@ -99,6 +99,7 @@ final class OnboardingState {
 
     var playerName: String = ""
     var classYear: Int? = nil
+    var birthYear: Int? = nil
     var selectedPosition: PitchPosition? = nil
     var foot: String = "Right"
     var pledgeTier: PledgeTier = .standard
@@ -112,6 +113,11 @@ final class OnboardingState {
         let year = calendar.component(.year, from: now)
         let month = calendar.component(.month, from: now)
         return month >= 7 ? year + 4 : year + 3
+    }
+
+    /// Seats the birth-year wheel at a typical youth-athlete age (~14).
+    static var defaultBirthYear: Int {
+        Calendar.current.component(.year, from: Date()) - 14
     }
 
     var positionName: String { selectedPosition?.name ?? skippedPositionName ?? "Anywhere" }
