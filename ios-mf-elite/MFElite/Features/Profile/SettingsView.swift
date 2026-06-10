@@ -32,7 +32,7 @@ struct SettingsView: View {
     @State private var showMailUnavailable = false
     @State private var pendingSupportSubject = ""
 
-    private let supportEmail = "joe@m5cairio.com"
+    private let supportEmail = "mf.elitetraining@gmail.com"
     private let manageSubscriptionURL = URL(string: "https://apps.apple.com/account/subscriptions")!
 
     var body: some View {

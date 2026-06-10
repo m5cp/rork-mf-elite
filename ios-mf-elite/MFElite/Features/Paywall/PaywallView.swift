@@ -17,7 +17,7 @@ struct PaywallView: View {
     @State private var mailRequest: MailRequest?
     @State private var showMailUnavailable = false
 
-    private let supportEmail = "joe@m5cairio.com"
+    private let supportEmail = "mf.elitetraining@gmail.com"
 
     private let features: [(label: String, free: Bool, elite: Bool)] = [
         ("4 disciplines, Level 1 drills", true, true),
