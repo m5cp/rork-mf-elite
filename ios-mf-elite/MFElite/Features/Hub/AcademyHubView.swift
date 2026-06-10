@@ -71,6 +71,12 @@ struct AcademyHubView: View {
             .navigationDestination(for: RoutinesRoute.self) { _ in
                 RoutinesView()
             }
+            .navigationDestination(for: MyWorkoutsRoute.self) { _ in
+                MyWorkoutsView()
+            }
+            .navigationDestination(for: FavoritesRoute.self) { _ in
+                FavoritesView()
+            }
             .navigationDestination(for: RankDetailRoute.self) { _ in
                 RankDetailView()
             }
@@ -206,12 +212,22 @@ struct AcademyHubView: View {
                 .padding(.bottom, DS.Spacing.s4 + 2)
 
             NavigationLink(value: RoutinesRoute()) {
-                MoreRow(icon: "figure.run", label: "Routines & My Workouts", detail: "Ready-made sessions — or build your own", isLast: false)
+                MoreRow(icon: "figure.run", label: "Routines", detail: "Ready-made training sessions", isLast: false)
+            }
+            .buttonStyle(PressableButtonStyle())
+
+            NavigationLink(value: MyWorkoutsRoute()) {
+                MoreRow(icon: "hammer", label: "My Workouts", detail: "Build and manage your own sessions", isLast: false)
+            }
+            .buttonStyle(PressableButtonStyle())
+
+            NavigationLink(value: FavoritesRoute()) {
+                MoreRow(icon: "heart", label: "Favorites", detail: "Your saved drills, routines & workouts", isLast: false)
             }
             .buttonStyle(PressableButtonStyle())
 
             NavigationLink(value: DrillLibraryRoute()) {
-                MoreRow(icon: "list.bullet", label: "Drill Library", detail: "Every drill, one list", isLast: true)
+                MoreRow(icon: "list.bullet", label: "Drill Library", detail: "Every drill, by category", isLast: true)
             }
             .buttonStyle(PressableButtonStyle())
         }

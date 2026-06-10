@@ -22,9 +22,13 @@ struct AcademyTodayView: View {
     @Query(sort: \CustomWorkout.updatedAt, order: .reverse) private var workouts: [CustomWorkout]
     @Environment(SubscriptionService.self) private var subscription
     @State private var profile = PlayerProfileStore.shared
+    @State private var favorites = FavoritesStore.shared
     @State private var workoutIndexCache = TodayWorkoutIndexCache()
     @State private var activeSession: TrainingQueue?
     @State private var showBuilder = false
+
+    /// Most recent workouts shown inline on the home strip before "See all".
+    private let homeWorkoutLimit = 6
 
     /// Free players may keep a single custom workout; Elite is unlimited.
     private var canCreateWorkout: Bool {
@@ -75,6 +79,7 @@ struct AcademyTodayView: View {
                     dailyStandard(vm)
                     goalsCard(vm)
                     myWorkoutsSection
+                    favoritesCard
                     continuePathway(vm)
                     recommendedSection(vm)
                 }
@@ -101,6 +106,12 @@ struct AcademyTodayView: View {
             .navigationDestination(for: DrillLibraryRoute.self) { _ in
                 DrillLibraryView()
             }
+            .navigationDestination(for: MyWorkoutsRoute.self) { _ in
+                MyWorkoutsView()
+            }
+            .navigationDestination(for: FavoritesRoute.self) { _ in
+                FavoritesView()
+            }
         }
         .fullScreenCover(item: $activeSession) { queue in
             SessionPlayerView(queue: queue)
@@ -117,22 +128,24 @@ struct AcademyTodayView: View {
             HStack {
                 Eyebrow(text: "My Workouts")
                 Spacer()
-                NavigationLink(value: RoutinesRoute()) {
-                    HStack(spacing: 3) {
-                        Text("All")
-                            .style(.micro)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .bold))
+                if !workouts.isEmpty {
+                    NavigationLink(value: MyWorkoutsRoute()) {
+                        HStack(spacing: 3) {
+                            Text("See all")
+                                .style(.micro)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
                     }
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .buttonStyle(PressableButtonStyle())
                 }
-                .buttonStyle(PressableButtonStyle())
             }
             .padding(.horizontal, DS.Spacing.s20)
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: DS.Spacing.s12) {
-                    ForEach(workouts) { workout in
+                    ForEach(workouts.prefix(homeWorkoutLimit)) { workout in
                         workoutChip(workout)
                     }
                     buildChip
@@ -206,6 +219,46 @@ struct AcademyTodayView: View {
             )
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    // MARK: - Favorites hero card
+
+    private var favoritesCard: some View {
+        NavigationLink(value: FavoritesRoute()) {
+            HStack(spacing: DS.Spacing.s16) {
+                Image(systemName: favorites.isEmpty ? "heart" : "heart.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .frame(width: 52, height: 52)
+                    .background(DS.Colors.Bg.raised)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                    .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+
+                VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                    Text("Favorites")
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text(favorites.isEmpty
+                         ? "Heart any drill, routine or workout to save it"
+                         : "\(favorites.totalCount) saved · drills, routines & workouts")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(DS.Spacing.s16)
+            .background(DS.Colors.Bg.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+            .overlay(RoundedRectangle(cornerRadius: DS.Radius.lg).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+        }
+        .buttonStyle(PressableButtonStyle())
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s24 + 4)
     }
 
     // MARK: - Complete-profile banner (skipped onboarding)

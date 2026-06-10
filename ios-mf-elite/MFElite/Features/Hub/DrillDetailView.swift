@@ -30,6 +30,7 @@ struct DrillDetailView: View {
     @State private var activeSession: TrainingQueue?
     @State private var showLogConfirm = false
     @State private var lastLogResult: QuickLog.Result?
+    @State private var favorites = FavoritesStore.shared
 
     private var drillProgress: DrillProgress? {
         progress.first { $0.drillID == drill.id }
@@ -157,9 +158,28 @@ struct DrillDetailView: View {
                 dismiss()
             }
             Spacer()
+            favoriteButton
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s12)
+    }
+
+    private var favoriteButton: some View {
+        let isFav = favorites.isFavoriteDrill(drill.id)
+        return Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            withAnimation(DS.Motion.standardSpring) { favorites.toggleDrill(drill.id) }
+        } label: {
+            Image(systemName: isFav ? "heart.fill" : "heart")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(isFav ? DS.Colors.Ink.primary : DS.Colors.Ink.secondary)
+                .frame(width: 36, height: 36)
+                .background(DS.Colors.Bg.raised)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(DS.Colors.Line.hairline, lineWidth: 1))
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel(isFav ? "Remove from favorites" : "Add to favorites")
     }
 
     // MARK: - 2. Title Block

@@ -40,7 +40,7 @@ struct WorkoutBuilderView: View {
 
     init(editing: CustomWorkout? = nil) {
         self.editing = editing
-        _title = State(initialValue: editing?.title ?? "My Workout")
+        _title = State(initialValue: editing?.title ?? "")
         _items = State(initialValue: (editing?.drillIDs ?? []).map { BuilderItem(drillID: $0) })
     }
 
@@ -118,7 +118,7 @@ struct WorkoutBuilderView: View {
 
     private var nameSection: some View {
         Section {
-            TextField("Workout name", text: $title)
+            TextField("Name your workout", text: $title)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(DS.Colors.Ink.primary)
                 .onChange(of: title) { _, newValue in
