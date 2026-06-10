@@ -238,9 +238,27 @@ struct WorkoutBuilderView: View {
     }
 }
 
+// MARK: - Drill picker navigation routes
+
+/// Pushes the drill list for one category inside the picker.
+private struct PickerCategoryRoute: Hashable {
+    let category: Category
+    let discipline: Discipline
+}
+
+/// Pushes a read-only preview of a single drill inside the picker.
+private struct PickerDrillRoute: Hashable {
+    let drill: Drill
+    let category: Category
+    let discipline: Discipline
+}
+
 // MARK: - Drill picker
 
-/// A searchable, grouped picker that adds drills to the workout being built.
+/// A browse-by-category picker that adds drills to the workout being built.
+/// The root shows a hero card per category; tapping one drills into that
+/// category's drill list, and each drill opens a read-only preview. Search
+/// still flattens the whole curriculum into a quick result list.
 private struct DrillPickerView: View {
     let disciplines: [Discipline]
     let onAdd: (String) -> Void
@@ -261,24 +279,12 @@ private struct DrillPickerView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         if hasQuery {
-                            let results = viewModel.searchDrills()
-                            if results.isEmpty {
-                                emptyState
-                            } else {
-                                ForEach(results) { result in
-                                    pickerRow(
-                                        drill: result.drill,
-                                        discipline: result.discipline,
-                                        breadcrumb: "\(result.discipline.name) · \(result.category.name)"
-                                    )
-                                    Hairline().padding(.horizontal, DS.Spacing.s20)
-                                }
-                            }
+                            searchResults
                         } else {
-                            groupedBrowse
+                            categoryBrowse
                         }
                     }
-                    .padding(.bottom, 80)
+                    .padding(.bottom, 100)
                 }
                 .scrollIndicators(.hidden)
 
@@ -286,7 +292,22 @@ private struct DrillPickerView: View {
             }
             .navigationTitle("Add drills")
             .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $searchText, prompt: "Search drills...")
+            .searchable(text: $searchText, prompt: "Search all drills...")
+            .navigationDestination(for: PickerCategoryRoute.self) { route in
+                PickerCategoryView(
+                    category: route.category,
+                    discipline: route.discipline,
+                    onAdd: addDrill
+                )
+            }
+            .navigationDestination(for: PickerDrillRoute.self) { route in
+                PickerDrillPreviewView(
+                    drill: route.drill,
+                    category: route.category,
+                    discipline: route.discipline,
+                    onAdd: addDrill
+                )
+            }
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
@@ -298,68 +319,73 @@ private struct DrillPickerView: View {
         .preferredColorScheme(.dark)
     }
 
+    private func addDrill(_ id: String) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        onAdd(id)
+        addedCount += 1
+    }
+
     private var hasQuery: Bool {
         !searchText.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    private var groupedBrowse: some View {
+    // MARK: Root — category hero cards
+
+    private var categoryBrowse: some View {
         ForEach(disciplines) { discipline in
-            Section {
-                ForEach(discipline.categories.sorted(by: { $0.sortIndex < $1.sortIndex })) { category in
-                    let drills = category.levels
-                        .sorted(by: { $0.sortIndex < $1.sortIndex })
-                        .flatMap { $0.drills.sorted(by: { $0.sortIndex < $1.sortIndex }) }
-                    if !drills.isEmpty {
-                        Text(category.name.uppercased())
-                            .style(.micro)
-                            .foregroundStyle(DS.Colors.Ink.quaternary)
-                            .padding(.horizontal, DS.Spacing.s20)
-                            .padding(.top, DS.Spacing.s12)
-                            .padding(.bottom, DS.Spacing.s4)
-                        ForEach(drills) { drill in
-                            pickerRow(drill: drill, discipline: discipline, breadcrumb: category.name)
-                            Hairline().padding(.horizontal, DS.Spacing.s20)
-                        }
-                    }
-                }
-            } header: {
+            VStack(alignment: .leading, spacing: 0) {
                 HStack(spacing: DS.Spacing.s8) {
                     DisciplineMark(kind: discipline.mark, size: 16)
                     Text(discipline.name)
                         .style(.title3)
                         .foregroundStyle(DS.Colors.Ink.primary)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, DS.Spacing.s20)
-                .padding(.top, DS.Spacing.s20)
+                .padding(.top, DS.Spacing.s24)
+                .padding(.bottom, DS.Spacing.s12)
+
+                ForEach(discipline.categories.sorted(by: { $0.sortIndex < $1.sortIndex })) { category in
+                    let count = drillCount(in: category)
+                    if count > 0 {
+                        NavigationLink(value: PickerCategoryRoute(category: category, discipline: discipline)) {
+                            CategoryHeroCard(category: category, discipline: discipline, drillCount: count)
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                        .padding(.horizontal, DS.Spacing.s20)
+                        .padding(.bottom, DS.Spacing.s12)
+                    }
+                }
             }
         }
     }
 
-    private func pickerRow(drill: Drill, discipline: Discipline, breadcrumb: String) -> some View {
-        HStack(spacing: DS.Spacing.s12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(drill.title)
-                    .style(.callout)
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                Text("\(breadcrumb) · \(drill.durationSec / 60) min")
-                    .style(.micro)
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
+    private func drillCount(in category: Category) -> Int {
+        category.levels.reduce(0) { $0 + $1.drills.count }
+    }
+
+    // MARK: Search results
+
+    @ViewBuilder
+    private var searchResults: some View {
+        let results = viewModel.searchDrills()
+        if results.isEmpty {
+            emptyState
+        } else {
+            ForEach(results) { result in
+                NavigationLink(value: PickerDrillRoute(
+                    drill: result.drill,
+                    category: result.category,
+                    discipline: result.discipline
+                )) {
+                    PickerDrillRow(
+                        drill: result.drill,
+                        breadcrumb: "\(result.discipline.name) · \(result.category.name)",
+                        isLast: result.id == results.last?.id
+                    ) { addDrill(result.drill.id) }
+                }
+                .buttonStyle(PressableButtonStyle())
             }
-            Spacer(minLength: DS.Spacing.s8)
-            Button {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                onAdd(drill.id)
-                addedCount += 1
-            } label: {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 24, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
-            }
-            .buttonStyle(.plain)
         }
-        .padding(.vertical, DS.Spacing.s12)
-        .padding(.horizontal, DS.Spacing.s20)
     }
 
     private var addedBar: some View {
@@ -395,5 +421,303 @@ private struct DrillPickerView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 80)
+    }
+}
+
+// MARK: - Category hero card
+
+/// A large, tappable card representing one category in the picker root.
+private struct CategoryHeroCard: View {
+    let category: Category
+    let discipline: Discipline
+    let drillCount: Int
+
+    var body: some View {
+        HStack(alignment: .top, spacing: DS.Spacing.s16) {
+            Text(category.letter)
+                .font(DS.Typography.num(size: 24))
+                .foregroundStyle(DS.Colors.Ink.primary)
+                .frame(width: 48, height: 48)
+                .background(DS.Colors.Bg.raised)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Radius.md)
+                        .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+                )
+
+            VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                Text(category.name)
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(category.focus)
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(drillCount) \(drillCount == 1 ? "drill" : "drills")")
+                    .style(.microSm)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                    .padding(.top, DS.Spacing.s4)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .padding(.top, DS.Spacing.s16)
+        }
+        .padding(DS.Spacing.s16)
+        .background(DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.lg)
+                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+        )
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Category drill list (pushed)
+
+/// Lists every drill inside one category. Each row opens a preview; the trailing
+/// button adds the drill to the workout directly.
+private struct PickerCategoryView: View {
+    let category: Category
+    let discipline: Discipline
+    let onAdd: (String) -> Void
+
+    private var drills: [Drill] {
+        category.levels
+            .sorted(by: { $0.sortIndex < $1.sortIndex })
+            .flatMap { $0.drills.sorted(by: { $0.sortIndex < $1.sortIndex }) }
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                header
+                ForEach(drills) { drill in
+                    NavigationLink(value: PickerDrillRoute(
+                        drill: drill,
+                        category: category,
+                        discipline: discipline
+                    )) {
+                        PickerDrillRow(
+                            drill: drill,
+                            breadcrumb: "Level \(levelNumber(for: drill)) · \(drill.durationSec / 60) min",
+                            isLast: drill.id == drills.last?.id
+                        ) { onAdd(drill.id) }
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                }
+            }
+            .padding(.bottom, 100)
+        }
+        .background(DS.Colors.Bg.base)
+        .scrollIndicators(.hidden)
+        .navigationTitle(category.name)
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func levelNumber(for drill: Drill) -> Int {
+        category.levels.first { lvl in lvl.drills.contains { $0.id == drill.id } }?.number ?? 1
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            HStack(spacing: DS.Spacing.s8) {
+                DisciplineMark(kind: discipline.mark, size: 14)
+                Text("\(discipline.name) · \(category.letter)")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+            Text(category.focus)
+                .style(.body)
+                .foregroundStyle(DS.Colors.Ink.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s16)
+        .padding(.bottom, DS.Spacing.s8)
+    }
+}
+
+// MARK: - Picker drill row
+
+/// A single drill row used in both the category list and search results.
+private struct PickerDrillRow: View {
+    let drill: Drill
+    let breadcrumb: String
+    let isLast: Bool
+    let onAdd: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: DS.Spacing.s12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(drill.title)
+                        .style(.callout)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Text(breadcrumb)
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button {
+                    onAdd()
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 26, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                }
+                .buttonStyle(.plain)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(.vertical, DS.Spacing.s12 + 2)
+
+            if !isLast {
+                Hairline()
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .contentShape(Rectangle())
+    }
+}
+
+// MARK: - Drill preview (pushed, read-only)
+
+/// A read-only summary of what a drill consists of, with an "Add to workout"
+/// button — no timer or session start, since this is the builder context.
+private struct PickerDrillPreviewView: View {
+    let drill: Drill
+    let category: Category
+    let discipline: Discipline
+    let onAdd: (String) -> Void
+
+    @State private var didAdd = false
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                titleBlock
+                if let setup = drill.setupSummary {
+                    section("SET-UP") {
+                        Text(setup)
+                            .style(.callout)
+                            .foregroundStyle(DS.Colors.Ink.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                section("PURPOSE") {
+                    Text(drill.how)
+                        .style(.body)
+                        .foregroundStyle(DS.Colors.Ink.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                let listItems = drill.isMentalExercise ? drill.steps : drill.instructions
+                if !listItems.isEmpty {
+                    section(drill.isMentalExercise ? "THE EXERCISE" : "HOW TO DO IT") {
+                        numberedList(listItems)
+                    }
+                }
+                if !drill.coachingPoints.isEmpty {
+                    section("COACHING POINTS") {
+                        numberedList(drill.coachingPoints)
+                    }
+                }
+            }
+            .padding(.bottom, 120)
+        }
+        .background(DS.Colors.Bg.base)
+        .scrollIndicators(.hidden)
+        .navigationTitle(drill.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .bottom) {
+            addButton
+        }
+    }
+
+    private var titleBlock: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            HStack(spacing: DS.Spacing.s8) {
+                DisciplineMark(kind: discipline.mark, size: 14)
+                Text("\(discipline.name) · \(category.name)")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+            Text(drill.title)
+                .style(.title1)
+                .foregroundStyle(DS.Colors.Ink.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("\(drill.focus) · \(drill.durationSec / 60) min")
+                .style(.micro)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s16)
+    }
+
+    private func section(_ title: String, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: title)
+            content()
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s24 + 4)
+    }
+
+    private func numberedList(_ items: [String]) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            ForEach(Array(items.enumerated()), id: \.offset) { index, item in
+                HStack(alignment: .top, spacing: DS.Spacing.s12) {
+                    Text("\(index + 1)")
+                        .style(.foot)
+                        .fontWeight(.bold)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .frame(width: 24, height: 24)
+                        .background(DS.Colors.Bg.raised)
+                        .clipShape(Circle())
+                    Text(item)
+                        .style(.callout)
+                        .foregroundStyle(DS.Colors.Ink.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+
+    private var addButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            onAdd(drill.id)
+            withAnimation(DS.Motion.standardSpring) { didAdd = true }
+        } label: {
+            HStack(spacing: DS.Spacing.s8) {
+                Image(systemName: didAdd ? "checkmark.circle.fill" : "plus.circle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                Text(didAdd ? "Added to workout" : "Add to workout")
+                    .font(.system(size: 16, weight: .bold))
+            }
+            .foregroundStyle(DS.Colors.Ground.primary)
+            .frame(maxWidth: .infinity)
+            .frame(height: 52)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+        }
+        .buttonStyle(PressableButtonStyle())
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.vertical, DS.Spacing.s12)
+        .background(.ultraThinMaterial)
+        .overlay(alignment: .top) { Hairline() }
     }
 }
