@@ -28,11 +28,13 @@ struct MFEliteApp: App {
             CustomWorkout.self,
             DrillNote.self,
             CombineTest.self,
-            CombineResult.self
+            CombineResult.self,
+            GameIQLesson.self
         ])
         container = MFEliteApp.makeContainer(for: schema)
         SeedData.seedIfNeeded(context: container.mainContext)
         CombineSeed.seedIfNeeded(context: container.mainContext)
+        GameIQSeed.seedIfNeeded(context: container.mainContext)
     }
 
     /// Builds the SwiftData container. If the on-disk store can't be opened

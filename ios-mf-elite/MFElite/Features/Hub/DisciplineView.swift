@@ -24,6 +24,11 @@ struct DisciplineView: View {
         Set(progress.filter { $0.isMastered }.map { $0.drillID })
     }
 
+    /// Game IQ lessons live on the Tactical pathway only.
+    private var isTactical: Bool {
+        discipline.id == "d-tact" || discipline.name == "Tactical"
+    }
+
     private var viewModel: DisciplineViewModel {
         DisciplineViewModel(discipline: discipline, masteredDrillIDs: masteredDrillIDs)
     }
@@ -34,6 +39,9 @@ struct DisciplineView: View {
             VStack(alignment: .leading, spacing: 0) {
                 breadcrumb
                 header
+                if isTactical {
+                    GameIQSection()
+                }
                 diplomaCard(vm)
                 categoriesList(vm)
             }
