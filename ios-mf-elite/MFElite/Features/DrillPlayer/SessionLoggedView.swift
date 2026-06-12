@@ -23,7 +23,9 @@ struct SessionLoggedView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.requestReview) private var requestReview
+    @Query private var allProgress: [DrillProgress]
 
+    @State private var nextSession: TrainingQueue?
     @State private var celebrate = false
     @State private var activeCelebration: CelebrationKind?
     @State private var chainToCert = false
@@ -43,6 +45,24 @@ struct SessionLoggedView: View {
     private var discipline: Discipline { context.discipline }
 
     private var isMental: Bool { drill.isMentalExercise }
+
+    /// Next not-yet-mastered drill in this discipline, excluding the one just
+    /// logged. Mirrors the Today tab's goal traversal: categories sorted by
+    /// sortIndex → levels by number → drills by sortIndex, first unmastered.
+    /// Only offered after a single-drill session (routines/workouts auto-advance).
+    private var upNext: DrillContext? {
+        guard queue.source == .single else { return nil }
+        let mastered = Set(allProgress.filter { $0.isMastered }.map { $0.drillID })
+        for category in discipline.categories.sorted(by: { $0.sortIndex < $1.sortIndex }) {
+            for level in category.levels.sorted(by: { $0.number < $1.number }) {
+                let drills = level.drills.sorted { $0.sortIndex < $1.sortIndex }
+                if let next = drills.first(where: { !mastered.contains($0.id) && $0.id != drill.id }) {
+                    return DrillContext(drill: next, level: level, category: category, discipline: discipline)
+                }
+            }
+        }
+        return nil
+    }
 
     private var headerEyebrow: String {
         isMental ? "Exercise · Logged" : "Set \(drill.sets) Of \(drill.sets) · Logged"
@@ -117,6 +137,11 @@ struct SessionLoggedView: View {
                     }
                 }
                 .padding(.top, DS.Spacing.s32)
+
+                if let upNext {
+                    upNextCard(upNext)
+                        .padding(.top, DS.Spacing.s32)
+                }
             }
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.bottom, 80)
@@ -137,6 +162,9 @@ struct SessionLoggedView: View {
                 .transition(.opacity)
                 .zIndex(10)
             }
+        }
+        .fullScreenCover(item: $nextSession) { queue in
+            SessionPlayerView(queue: queue)
         }
         .sheet(isPresented: $showNotificationPrompt) {
             NotificationPromptSheet()
@@ -234,6 +262,32 @@ struct SessionLoggedView: View {
             activeCelebration = .cert
         } else {
             onExit()
+        }
+    }
+
+    // MARK: - Up next (single-drill recommendation)
+
+    private func upNextCard(_ next: DrillContext) -> some View {
+        Card(raised: true) {
+            VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                Eyebrow(text: "Up Next For You")
+
+                Text(next.drill.title)
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("\(next.category.name) · Level \(next.level.number) · ~\(estimatedSessionMinutes(forDrills: [next.drill])) min")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+
+                PrimaryButton(label: "Train it now", hint: nil) {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    nextSession = TrainingQueue(items: [next], source: .single, sourceName: nil)
+                }
+                .padding(.top, DS.Spacing.s4)
+            }
         }
     }
 
