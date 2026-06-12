@@ -15,6 +15,7 @@ enum OnboardingStep: Int, CaseIterable {
     case identify
     case position
     case pledge
+    case account
     case number
     case passport
 
@@ -30,6 +31,7 @@ enum OnboardingStep: Int, CaseIterable {
         case .identify: return 2
         case .position: return 3
         case .pledge:   return 4
+        case .account:  return 4
         case .number:   return 5
         case .passport: return 6
         }

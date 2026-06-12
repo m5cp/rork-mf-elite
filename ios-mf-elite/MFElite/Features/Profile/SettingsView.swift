@@ -30,6 +30,10 @@ struct SettingsView: View {
 
     @State private var health = HealthKitService.shared
     @State private var gate = ParentGate.shared
+    @State private var auth = SupabaseAuth.shared
+
+    @State private var showSignInSheet = false
+    @State private var showSignOutConfirm = false
 
     @State private var editingField: AccountField?
     @State private var gateMode: ParentGateMode?
@@ -46,6 +50,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 headerView
                 accountSection
+                syncSection
                 subscriptionSection
                 familySafetySection
                 trainingSection
@@ -69,6 +74,21 @@ struct SettingsView: View {
             ParentGateView(mode: mode)
                 .preferredColorScheme(.dark)
                 .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showSignInSheet) {
+            AccountSyncSignInSheet { showSignInSheet = false }
+                .preferredColorScheme(.dark)
+                .presentationDetents([.medium])
+        }
+        .confirmationDialog(
+            "Sign out of this account?",
+            isPresented: $showSignOutConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Sign out", role: .destructive) { auth.signOut() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Your training data stays on this device. You can sign back in anytime.")
         }
         .confirmationDialog(
             "Turn off the parent passcode?",
@@ -125,6 +145,54 @@ struct SettingsView: View {
             Hairline()
             valueRow(label: "Academy", value: "MF Elite", action: nil)
         }
+    }
+
+    // MARK: - Account Sync
+
+    private var syncSection: some View {
+        section("Sync") {
+            HStack(spacing: DS.Spacing.s12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(auth.isSignedIn ? "Signed in" : "Local only")
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text(syncStatusDetail)
+                        .style(.callout)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: DS.Spacing.s12)
+                if auth.isSignedIn {
+                    Button("Sign out") { showSignOutConfirm = true }
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.secondary)
+                        .buttonStyle(PressableButtonStyle())
+                } else {
+                    Button { showSignInSheet = true } label: {
+                        Text("SIGN IN")
+                            .font(.system(size: 11, weight: .bold))
+                            .tracking(1.2)
+                            .foregroundStyle(DS.Colors.Ground.primary)
+                            .padding(.vertical, 5)
+                            .padding(.horizontal, DS.Spacing.s12)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                }
+            }
+            .padding(.vertical, DS.Spacing.s16 - 2)
+            Text("Sign in with Apple to back up your progress and restore it on another device. The app works fully offline either way.")
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Spacing.s8)
+        }
+    }
+
+    private var syncStatusDetail: String {
+        if auth.isSignedIn { return auth.email ?? "Apple account" }
+        return "Not backed up"
     }
 
     // MARK: - Subscription

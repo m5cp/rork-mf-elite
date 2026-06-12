@@ -34,6 +34,8 @@ struct OnboardingView: View {
                     OnboardingPositionView(state: state)
                 case .pledge:
                     OnboardingPledgeView(state: state)
+                case .account:
+                    OnboardingAccountView(state: state)
                 case .number:
                     OnboardingNumberView(state: state)
                 case .passport:
@@ -128,6 +130,13 @@ struct OnboardingView: View {
 
         // Ensure a local PlayerState exists at zero.
         ensurePlayerState()
+
+        // If the player signed in during onboarding, push their now-complete
+        // identity to the cloud profile. Fails soft.
+        if SupabaseAuth.shared.isSignedIn {
+            Task { await SupabaseAuth.shared.syncPlayerProfile() }
+        }
+
         onComplete()
     }
 
