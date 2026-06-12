@@ -44,6 +44,11 @@ final class SessionLogEntry {
     var feltRating: Int?
     /// Optional one-line reflection captured at the post-session check-in.
     var reflection: String?
+    /// Number of sets the player skipped with the skip button. 0 for older records.
+    var setsSkipped: Int = 0
+    /// False when the player logged early (log-anytime / log & finish during rest)
+    /// instead of completing every set. True for older records.
+    var completedFully: Bool = true
 
     init(
         id: UUID = UUID(),
@@ -62,7 +67,9 @@ final class SessionLogEntry {
         xpEarned: Int,
         journalResponse: String? = nil,
         feltRating: Int? = nil,
-        reflection: String? = nil
+        reflection: String? = nil,
+        setsSkipped: Int = 0,
+        completedFully: Bool = true
     ) {
         self.id = id
         self.completedAt = completedAt
@@ -81,5 +88,7 @@ final class SessionLogEntry {
         self.journalResponse = journalResponse
         self.feltRating = feltRating
         self.reflection = reflection
+        self.setsSkipped = setsSkipped
+        self.completedFully = completedFully
     }
 }

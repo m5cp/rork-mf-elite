@@ -43,6 +43,11 @@ final class DrillPlayerViewModel {
     private var completedSetsTrainingSec: TimeInterval = 0
     private(set) var setsCompleted: Int = 0
 
+    /// Number of sets the player skipped with the skip button this session.
+    private(set) var setsSkipped: Int = 0
+    /// True once the player triggered an early log (didn't finish every set naturally).
+    private var loggedEarly: Bool = false
+
     /// Real training seconds banked for the most recent log (set after logging).
     var loggedDurationSec: Int { Int(completedSetsTrainingSec.rounded()) }
 
@@ -229,6 +234,7 @@ final class DrillPlayerViewModel {
     /// Skip the current set's timer and move to the next set (or log if final set).
     func skipSet() {
         invalidateTimer()
+        setsSkipped += 1
         completeSet()
     }
 
@@ -236,6 +242,7 @@ final class DrillPlayerViewModel {
     /// Awards XP and updates progress just like a normal completion.
     func logDrillEarly() {
         invalidateTimer()
+        loggedEarly = true
         recordActiveSetIfNeeded()
         logDrill()
         phase = .logged
@@ -383,7 +390,9 @@ final class DrillPlayerViewModel {
             source: source,
             sourceName: sourceName,
             xpEarned: ProgressionRules.xpPerDrill,
-            journalResponse: journalResponse
+            journalResponse: journalResponse,
+            setsSkipped: setsSkipped,
+            completedFully: !loggedEarly
         )
         context.insert(entry)
 
