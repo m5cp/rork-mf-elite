@@ -27,6 +27,7 @@ struct DrillDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
     @Query private var progress: [DrillProgress]
+    @Query private var sessions: [SessionLogEntry]
     @State private var activeSession: TrainingQueue?
     @State private var showLogConfirm = false
     @State private var lastLogResult: QuickLog.Result?
@@ -34,6 +35,19 @@ struct DrillDetailView: View {
 
     private var drillProgress: DrillProgress? {
         progress.first { $0.drillID == drill.id }
+    }
+
+    // MARK: - Personal history (this drill)
+
+    private var drillSessions: [SessionLogEntry] {
+        sessions.filter { $0.drillID == drill.id }
+    }
+    private var timesTrained: Int { drillSessions.count }
+    private var lastTrained: Date? { drillSessions.map(\.completedAt).max() }
+    private var totalMinutes: Int { drillSessions.map(\.durationSec).reduce(0, +) / 60 }
+    private var avgFeltRating: Double? {
+        let r = drillSessions.compactMap(\.feltRating)
+        return r.isEmpty ? nil : Double(r.reduce(0, +)) / Double(r.count)
     }
 
     private var viewModel: DrillDetailViewModel {
@@ -54,6 +68,7 @@ struct DrillDetailView: View {
                 topBar
                 titleBlock(vm)
                 statStrip(vm)
+                historySection
                 if let setup = drill.setupSummary {
                     setupSection(setup)
                 }
@@ -260,6 +275,84 @@ struct DrillDetailView: View {
         Rectangle()
             .fill(DS.Colors.Line.hairline)
             .frame(width: 1, height: 40)
+    }
+
+    // MARK: - Your History
+
+    private var historySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "YOUR HISTORY")
+            Card {
+                if timesTrained == 0 {
+                    Text("Not trained yet — today's a good day.")
+                        .style(.callout)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+                        HStack(spacing: 0) {
+                            historyStat(value: "×\(timesTrained)", label: "Trained")
+                            historyDivider
+                            historyStat(value: lastTrainedLabel, label: "Last")
+                            historyDivider
+                            historyStat(value: "\(totalMinutes) min", label: "Total")
+                        }
+                        if let avg = avgFeltRating {
+                            feltRow(avg: avg)
+                        }
+                    }
+                }
+            }
+            .padding(.top, DS.Spacing.s12 + 2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s24 + 4)
+    }
+
+    private var lastTrainedLabel: String {
+        guard let last = lastTrained else { return "—" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: last, relativeTo: Date())
+    }
+
+    private func historyStat(value: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+            Text(value)
+                .font(DS.Typography.num(size: 17))
+                .tracking(-0.4)
+                .foregroundStyle(DS.Colors.Ink.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Eyebrow(text: label)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var historyDivider: some View {
+        Rectangle()
+            .fill(DS.Colors.Line.hairline)
+            .frame(width: 1, height: 32)
+            .padding(.horizontal, DS.Spacing.s12)
+    }
+
+    private func feltRow(avg: Double) -> some View {
+        let rounded = Int(avg.rounded())
+        return HStack(spacing: DS.Spacing.s8) {
+            HStack(spacing: DS.Spacing.s4 + 2) {
+                ForEach(1...5, id: \.self) { i in
+                    Circle()
+                        .fill(i <= rounded ? DS.Colors.Ink.primary : DS.Colors.Line.subtle)
+                        .frame(width: 8, height: 8)
+                }
+            }
+            Text("How it felt")
+                .style(.micro)
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("How it felt: \(rounded) of 5")
     }
 
     // MARK: - Set-Up
