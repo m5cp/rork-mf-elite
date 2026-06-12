@@ -49,6 +49,15 @@ final class SupabaseClient {
         return await mutate(request, label: "UPSERT \(table)")
     }
 
+    /// Update rows matching the given query filters with the provided values.
+    @discardableResult
+    func update(table: String, values: [String: Any], match: [URLQueryItem]) async -> Bool {
+        guard var request = await makeRequest(table: table, method: "PATCH", query: match) else { return false }
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: values)
+        return await mutate(request, label: "UPDATE \(table)")
+    }
+
     /// Delete rows matching the given equality filters.
     @discardableResult
     func delete(table: String, match: [String: String]) async -> Bool {

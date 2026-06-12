@@ -22,6 +22,9 @@ final class SubscriptionService {
     // MARK: - Subscription state
 
     var isElite: Bool = false
+    /// True when the signed-in account is an authorized coach. Coaches get full,
+    /// free access everywhere and never see a paywall. Set by `SupabaseAuth`.
+    var isCoach: Bool = false
     var offerings: Offerings?
     var isLoading: Bool = false
     var isPurchasing: Bool = false
@@ -121,10 +124,10 @@ final class SubscriptionService {
 
     // MARK: - Gating helpers
 
-    /// True when the user has full access to all content via an active Elite
-    /// subscription.
+    /// True when the user has full access to all content — via an active Elite
+    /// subscription or because they are an authorized coach.
     var hasFullAccess: Bool {
-        isElite
+        isElite || isCoach
     }
 
     /// A level is locked when it is beyond the free tier and the user lacks full access.

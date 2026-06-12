@@ -9,13 +9,14 @@ import SwiftUI
 
 struct CustomTabBar: View {
     @Binding var selectedTab: AppTab
+    var tabs: [AppTab] = AppTab.allCases
 
     private let barHeight: CGFloat = 68
     private let cornerRadius: CGFloat = 34
 
     var body: some View {
         HStack(spacing: 0) {
-            ForEach(AppTab.allCases) { tab in
+            ForEach(tabs) { tab in
                 tabSlot(for: tab)
             }
         }

@@ -54,6 +54,9 @@ final class SupabaseAuth {
     private(set) var email: String?
     /// Supabase user UUID (text) of the signed-in account.
     private(set) var userID: String?
+    /// True when the signed-in account is on the active coach allow-list. Never
+    /// cached across sign-outs — re-checked on every sign-in / launch.
+    private(set) var isCoach: Bool = false
 
     private var accessToken: String?
     private var refreshToken: String?
@@ -112,6 +115,7 @@ final class SupabaseAuth {
             let token = try JSONDecoder().decode(SupabaseTokenResponse.self, from: data)
             applySession(token)
             await syncProfilesAfterSignIn()
+            await refreshCoachStatus()
             return true
         } catch {
             print("[SupabaseAuth] Token exchange error: \(error.localizedDescription)")
@@ -182,12 +186,54 @@ final class SupabaseAuth {
         expiresAt = nil
         email = nil
         isSignedIn = false
+        setCoach(false)
         SyncEngine.shared.handleSignOut()
         Keychain.delete(.accessToken)
         Keychain.delete(.refreshToken)
         Keychain.delete(.userID)
         Keychain.delete(.expiresAt)
         defaults.removeObject(forKey: DefaultsKeys.email)
+    }
+
+    // MARK: - Coach allow-list
+
+    /// Re-check whether this account is an active coach. If so, stamp the coach
+    /// row's `user_id` once (required for the data-access policies). Fails soft:
+    /// any error leaves `isCoach` false and never blocks the app.
+    func refreshCoachStatus() async {
+        guard isSignedIn, let mail = email, !mail.isEmpty else {
+            setCoach(false)
+            return
+        }
+        let rows = await SupabaseClient.shared.get(
+            table: "coaches",
+            query: [
+                URLQueryItem(name: "email", value: "ilike.\(mail)"),
+                URLQueryItem(name: "is_active", value: "eq.true"),
+                URLQueryItem(name: "limit", value: "1")
+            ]
+        )
+        guard let row = rows?.first else {
+            setCoach(false)
+            return
+        }
+        setCoach(true)
+
+        // Self-link: stamp our UUID onto the coach row once so RLS resolves by
+        // user_id thereafter. The database permits this self-link a single time.
+        if let userID, (row["user_id"] as? String) != userID {
+            await SupabaseClient.shared.update(
+                table: "coaches",
+                values: ["user_id": userID],
+                match: [URLQueryItem(name: "email", value: "ilike.\(mail)")]
+            )
+        }
+    }
+
+    /// Update both the local flag and the app-wide entitlement mirror.
+    private func setCoach(_ value: Bool) {
+        isCoach = value
+        SubscriptionService.shared.isCoach = value
     }
 
     // MARK: - Profile sync

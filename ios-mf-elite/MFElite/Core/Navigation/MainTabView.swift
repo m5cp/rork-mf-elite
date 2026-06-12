@@ -21,7 +21,7 @@ struct MainTabView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .adaptiveContentWidth()
 
-            CustomTabBar(selectedTab: $selectedTab)
+            CustomTabBar(selectedTab: $selectedTab, tabs: visibleTabs)
                 .frame(maxWidth: AdaptiveLayout.maxContentWidth)
                 .frame(maxWidth: .infinity)
         }
@@ -32,6 +32,12 @@ struct MainTabView: View {
             guard let tab else { return }
             withAnimation(DS.Motion.standardSpring) { selectedTab = tab }
             router.pendingTab = nil
+        }
+        .onChange(of: subscription.isCoach) { _, isCoach in
+            // If a coach signs out while on the Coach tab, fall back to Today.
+            if !isCoach && selectedTab == .coach {
+                withAnimation(DS.Motion.standardSpring) { selectedTab = .today }
+            }
         }
         .fullScreenCover(isPresented: $subscription.showPaywall) {
             PaywallView()
@@ -60,6 +66,11 @@ struct MainTabView: View {
         )
     }
 
+    /// Tabs shown for the current role — players never see the Coach tab.
+    private var visibleTabs: [AppTab] {
+        AppTab.visible(isCoach: subscription.isCoach)
+    }
+
     @ViewBuilder
     private var tabContent: some View {
         switch selectedTab {
@@ -67,6 +78,7 @@ struct MainTabView: View {
         case .hub:      AcademyHubView()
         case .progress: ProgressTabView()
         case .profile:  ProfileTabView()
+        case .coach:    CoachView()
         }
     }
 }

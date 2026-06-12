@@ -7,12 +7,13 @@
 
 import SwiftUI
 
-/// The four tabs of the app.
+/// The tabs of the app. The `coach` tab is only shown to authorized coaches.
 enum AppTab: Int, CaseIterable, Identifiable {
     case today
     case hub
     case progress
     case profile
+    case coach
 
     var id: Int { rawValue }
 
@@ -22,7 +23,13 @@ enum AppTab: Int, CaseIterable, Identifiable {
         case .hub:      return "MF HUB"
         case .progress: return "PROGRESS"
         case .profile:  return "PROFILE"
+        case .coach:    return "COACH"
         }
+    }
+
+    /// The tabs visible for the current role. Players never see the Coach tab.
+    static func visible(isCoach: Bool) -> [AppTab] {
+        isCoach ? allCases : allCases.filter { $0 != .coach }
     }
 }
 
@@ -42,6 +49,7 @@ struct TabBarIcon: View {
             case .hub:      path = gridPath(in: canvasSize)
             case .progress: path = chartPath(in: canvasSize)
             case .profile:  path = personPath(in: canvasSize)
+            case .coach:    path = shieldPath(in: canvasSize)
             }
 
             context.stroke(
@@ -122,6 +130,26 @@ struct TabBarIcon: View {
         p.addLine(to: CGPoint(x: w * 0.38, y: h * 0.52))
         p.addLine(to: CGPoint(x: w * 0.56, y: h * 0.60))
         p.addLine(to: CGPoint(x: w * 0.78, y: h * 0.26))
+        return p
+    }
+
+    private func shieldPath(in s: CGSize) -> Path {
+        var p = Path()
+        let w = s.width, h = s.height
+        // Shield outline.
+        p.move(to: CGPoint(x: w * 0.5, y: h * 0.14))
+        p.addLine(to: CGPoint(x: w * 0.82, y: h * 0.28))
+        p.addLine(to: CGPoint(x: w * 0.82, y: h * 0.50))
+        p.addQuadCurve(to: CGPoint(x: w * 0.5, y: h * 0.88),
+                       control: CGPoint(x: w * 0.80, y: h * 0.74))
+        p.addQuadCurve(to: CGPoint(x: w * 0.18, y: h * 0.50),
+                       control: CGPoint(x: w * 0.20, y: h * 0.74))
+        p.addLine(to: CGPoint(x: w * 0.18, y: h * 0.28))
+        p.closeSubpath()
+        // Inner check mark.
+        p.move(to: CGPoint(x: w * 0.37, y: h * 0.48))
+        p.addLine(to: CGPoint(x: w * 0.46, y: h * 0.58))
+        p.addLine(to: CGPoint(x: w * 0.64, y: h * 0.37))
         return p
     }
 
