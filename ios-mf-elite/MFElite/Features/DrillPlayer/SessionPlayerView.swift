@@ -13,10 +13,15 @@ struct SessionPlayerView: View {
     @State private var queue: TrainingQueue
     @State private var showSummary = false
 
+    /// When set, the final "Finish session" tap calls this instead of showing the
+    /// built-in summary — lets a custom flow (e.g. Match Day) own its own finish.
+    private let onComplete: (() -> Void)?
+
     @Environment(\.dismiss) private var dismiss
 
-    init(queue: TrainingQueue) {
+    init(queue: TrainingQueue, onComplete: (() -> Void)? = nil) {
         _queue = State(initialValue: queue)
+        self.onComplete = onComplete
     }
 
     var body: some View {
@@ -34,9 +39,7 @@ struct SessionPlayerView: View {
                             queue: queue,
                             onAdvance: advance,
                             onExit: { dismiss() },
-                            onSessionComplete: {
-                                withAnimation(DS.Motion.standardSpring) { showSummary = true }
-                            }
+                            onSessionComplete: finishSession
                         )
                     } else {
                         DrillPlayerView(
@@ -44,9 +47,7 @@ struct SessionPlayerView: View {
                             queue: queue,
                             onAdvance: advance,
                             onExit: { dismiss() },
-                            onSessionComplete: {
-                                withAnimation(DS.Motion.standardSpring) { showSummary = true }
-                            }
+                            onSessionComplete: finishSession
                         )
                     }
                 }
@@ -65,6 +66,14 @@ struct SessionPlayerView: View {
     private func advance() {
         withAnimation(DS.Motion.standardSpring) {
             queue.advance()
+        }
+    }
+
+    private func finishSession() {
+        if let onComplete {
+            onComplete()
+        } else {
+            withAnimation(DS.Motion.standardSpring) { showSummary = true }
         }
     }
 }

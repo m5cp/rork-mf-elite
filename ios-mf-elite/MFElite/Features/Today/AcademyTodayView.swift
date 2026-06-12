@@ -34,6 +34,7 @@ struct AcademyTodayView: View {
     @State private var router = AppActionRouter.shared
     @State private var retestStore = CombineRetestStore.shared
     @State private var activeLesson: GameIQLesson?
+    @State private var matchDay: MatchDayLaunch?
 
     /// Most recent workouts shown inline on the home strip before "See all".
     private let homeWorkoutLimit = 6
@@ -91,6 +92,7 @@ struct AcademyTodayView: View {
                     dailyStandard(vm)
                     goalsCard(vm)
                     quickTrainRow
+                    matchDayRow(vm)
                     todaysFocusCard(vm)
                     myWorkoutsSection
                     favoritesCard
@@ -135,6 +137,9 @@ struct AcademyTodayView: View {
         }
         .fullScreenCover(item: $activeLesson) { lesson in
             GameIQLessonView(lesson: lesson) { activeLesson = nil }
+        }
+        .fullScreenCover(item: $matchDay) { launch in
+            MatchDayFlowView(items: launch.items, cueLine: launch.cueLine)
         }
         .sheet(isPresented: $showBuilder) {
             WorkoutBuilderView()
@@ -221,6 +226,57 @@ struct AcademyTodayView: View {
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.top, DS.Spacing.s16)
         }
+    }
+
+    // MARK: - Match Day
+
+    /// Carries the assembled routine + cue line into the Match Day flow cover.
+    private struct MatchDayLaunch: Identifiable {
+        let id = UUID()
+        let items: [DrillContext]
+        let cueLine: String
+    }
+
+    /// Entry to the pre-game routine, sitting just under Quick Train.
+    private func matchDayRow(_ vm: AcademyTodayViewModel) -> some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            let items = vm.matchDayItems()
+            guard !items.isEmpty else { return }
+            matchDay = MatchDayLaunch(items: items, cueLine: vm.matchDayCueLine(drillIndex: drillIndex))
+        } label: {
+            HStack(spacing: DS.Spacing.s16) {
+                Image(systemName: "soccerball.inverse")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .frame(width: 52, height: 52)
+                    .background(DS.Colors.Bg.raised)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                    .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+
+                VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                    Text("Game today? Get ready.")
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text("Match Day routine · activate, visualize, lock in")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(DS.Spacing.s16)
+            .background(DS.Colors.Bg.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+            .overlay(RoundedRectangle(cornerRadius: DS.Radius.lg).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+        }
+        .buttonStyle(PressableButtonStyle())
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s12)
     }
 
     // MARK: - Quick Train

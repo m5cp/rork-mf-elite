@@ -180,6 +180,11 @@ struct DayDetailView: View {
                         .style(.microSm)
                         .foregroundStyle(DS.Colors.Ink.quaternary)
                 }
+                if entry.sourceName == "Match Day" {
+                    Text("MATCH DAY")
+                        .style(.microSm)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
                 if !entry.completedFully {
                     Text("logged early")
                         .style(.microSm)

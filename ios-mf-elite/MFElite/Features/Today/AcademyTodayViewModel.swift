@@ -74,6 +74,8 @@ final class AcademyTodayViewModel {
     private let gameIQLessons: [GameIQLesson]
     /// Most recent Tactical drill completion (excludes Game IQ lesson log entries).
     private let lastTacticalDrillDate: Date?
+    /// Rated Technical drill completions, for the Match Day pre-game cue line.
+    let recentTechnicalRatings: [(drillID: String, rating: Int, date: Date)]
 
     init(
         disciplines: [Discipline],
@@ -142,6 +144,12 @@ final class AcademyTodayViewModel {
             .filter { ($0.disciplineName == "Tactical" || $0.disciplineID == "d-tact") && $0.sourceName != "Game IQ" }
             .map(\.completedAt)
             .max()
+
+        self.recentTechnicalRatings = sessions.compactMap { entry in
+            guard entry.disciplineName == "Technical" || entry.disciplineID == "d-tech" else { return nil }
+            guard let rating = entry.feltRating else { return nil }
+            return (drillID: entry.drillID, rating: rating, date: entry.completedAt)
+        }
     }
 
     // MARK: - Game IQ alternation
@@ -599,6 +607,132 @@ final class AcademyTodayViewModel {
             }
         }
         return nil
+    }
+
+    // MARK: - Match Day
+
+    /// Work seconds for a drill: duration across all sets (no rest), used to keep
+    /// the activation pairing short.
+    private func matchDayWorkSec(_ ctx: DrillContext) -> Int {
+        ctx.drill.durationSec * ctx.drill.sets
+    }
+
+    /// Assemble the Match Day pre-game routine from existing content:
+    /// two quick physical activation drills, one visualization exercise, and one
+    /// Self-Talk / Confidence exercise. Returns whatever could be resolved (the
+    /// queue still runs if a section is empty).
+    func matchDayItems() -> [DrillContext] {
+        var result: [DrillContext] = []
+        var used: Set<String> = []
+
+        let activation = matchDayActivation()
+        result.append(contentsOf: activation)
+        used.formUnion(activation.map(\.drill.id))
+
+        if let viz = nextMentalExercise(
+            matching: { $0.drill.exerciseKind == "visualization" },
+            excluding: used
+        ) {
+            result.append(viz)
+            used.insert(viz.drill.id)
+        }
+
+        if let mind = nextMentalExercise(
+            matching: { ["Self-Talk", "Confidence"].contains($0.category.name) },
+            excluding: used
+        ) {
+            result.append(mind)
+            used.insert(mind.drill.id)
+        }
+
+        return result
+    }
+
+    /// Two physical activation drills — preferring one each from Mobility & Recovery
+    /// and Speed & Acceleration, unmastered first, keeping the pair under ~4 minutes.
+    private func matchDayActivation() -> [DrillContext] {
+        func candidates(in name: String) -> [DrillContext] {
+            var list: [DrillContext] = []
+            for discipline in disciplines {
+                for category in sortedCategories(discipline) where category.name == name {
+                    for level in sortedLevels(category) {
+                        for drill in sortedDrills(level) where drill.exerciseKind == nil {
+                            list.append(DrillContext(drill: drill, level: level, category: category, discipline: discipline))
+                        }
+                    }
+                }
+            }
+            return list.sorted { a, b in
+                let aMastered = masteredDrillIDs.contains(a.drill.id)
+                let bMastered = masteredDrillIDs.contains(b.drill.id)
+                if aMastered != bMastered { return !aMastered }
+                return matchDayWorkSec(a) < matchDayWorkSec(b)
+            }
+        }
+
+        let budget = 240
+        let mobility = candidates(in: "Mobility & Recovery")
+        let speed = candidates(in: "Speed & Acceleration")
+
+        // Prefer one from each category.
+        if let m = mobility.first, let s = speed.first {
+            if matchDayWorkSec(m) + matchDayWorkSec(s) <= budget { return [m, s] }
+            let shorter = matchDayWorkSec(m) <= matchDayWorkSec(s) ? m : s
+            let pool = (mobility + speed)
+                .filter { $0.drill.id != shorter.drill.id }
+                .sorted { matchDayWorkSec($0) < matchDayWorkSec($1) }
+            if let partner = pool.first(where: { matchDayWorkSec(shorter) + matchDayWorkSec($0) <= budget }) ?? pool.first {
+                return [shorter, partner]
+            }
+            return [shorter]
+        }
+
+        // Only one category available — take up to two, shortest unmastered-first.
+        var picked: [DrillContext] = []
+        var sec = 0
+        for ctx in (mobility + speed) {
+            guard picked.count < 2 else { break }
+            if picked.isEmpty || sec + matchDayWorkSec(ctx) <= budget {
+                picked.append(ctx)
+                sec += matchDayWorkSec(ctx)
+            }
+        }
+        return picked
+    }
+
+    /// Next mental exercise matching a predicate: the first unmastered one, else
+    /// the first overall (rotate) so the slot always fills when content exists.
+    private func nextMentalExercise(
+        matching: (DrillContext) -> Bool,
+        excluding: Set<String>
+    ) -> DrillContext? {
+        var candidates: [DrillContext] = []
+        for discipline in disciplines {
+            for category in sortedCategories(discipline) {
+                for level in sortedLevels(category) {
+                    for drill in sortedDrills(level) where drill.isMentalExercise {
+                        let ctx = DrillContext(drill: drill, level: level, category: category, discipline: discipline)
+                        if matching(ctx) && !excluding.contains(drill.id) {
+                            candidates.append(ctx)
+                        }
+                    }
+                }
+            }
+        }
+        return candidates.first { !masteredDrillIDs.contains($0.drill.id) } ?? candidates.first
+    }
+
+    /// A personal pre-match cue line for the "You're ready" screen, built from the
+    /// highest-rated Technical drill logged in the last 7 days, or a brave fallback.
+    func matchDayCueLine(drillIndex: [String: DrillContext]) -> String {
+        let cutoff = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? .distantPast
+        let best = recentTechnicalRatings
+            .filter { $0.date >= cutoff }
+            .max { $0.rating < $1.rating }
+        if let best, let ctx = drillIndex[best.drillID] {
+            return "Trust your \(ctx.drill.focus.lowercased()) — you rated it \(best.rating)/5 this week."
+        }
+        return "Play brave. Play simple. Play YOUR game."
     }
 
     // MARK: - Sorting helpers
