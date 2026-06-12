@@ -25,6 +25,7 @@ struct AcademyTodayView: View {
     @Query private var combineResults: [CombineResult]
     @Query(sort: \GameIQLesson.sortIndex) private var gameIQLessons: [GameIQLesson]
     @Query(sort: \CoachWorkout.createdAt, order: .reverse) private var coachWorkouts: [CoachWorkout]
+    @Query(sort: \Announcement.createdAt, order: .reverse) private var announcements: [Announcement]
     @Environment(SubscriptionService.self) private var subscription
     @Environment(\.modelContext) private var modelContext
     @State private var profile = PlayerProfileStore.shared
@@ -38,6 +39,8 @@ struct AcademyTodayView: View {
     @State private var activeLesson: GameIQLesson?
     @State private var matchDay: MatchDayLaunch?
     @State private var coachWorkoutSheet: CoachWorkout?
+    @State private var announcementStore = AnnouncementStore.shared
+    @State private var announcementExpanded = false
 
     /// Most recent workouts shown inline on the home strip before "See all".
     private let homeWorkoutLimit = 6
@@ -91,6 +94,7 @@ struct AcademyTodayView: View {
                         completeProfileBanner
                     }
                     salutation(vm)
+                    announcementBanner
                     combineRetestNudge
                     dailyStandard(vm)
                     goalsCard(vm)
@@ -163,6 +167,7 @@ struct AcademyTodayView: View {
         }
         .task {
             await CoachWorkoutFeed.refresh(context: modelContext)
+            await AnnouncementFeed.refresh(context: modelContext)
             await CurriculumOverlay.applyAndMaybeRefresh(context: modelContext)
         }
         .sheet(isPresented: $showBuilder) {
@@ -245,6 +250,75 @@ struct AcademyTodayView: View {
                     }
                     .buttonStyle(PressableButtonStyle())
                     .accessibilityLabel("Dismiss")
+                }
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s16)
+        }
+    }
+
+    // MARK: - Coach announcement banner
+
+    /// The newest cached announcement the player hasn't dismissed.
+    private var activeAnnouncement: Announcement? {
+        announcements.first { !announcementStore.isDismissed($0.id) }
+    }
+
+    /// A slim, dismissable banner showing the latest coach announcement. Tapping
+    /// expands it to reveal the full message body.
+    @ViewBuilder
+    private var announcementBanner: some View {
+        if let announcement = activeAnnouncement {
+            VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                HStack(spacing: DS.Spacing.s12) {
+                    Image(systemName: "megaphone.fill")
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundStyle(DS.Colors.Ground.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(announcement.title)
+                            .style(.callout)
+                            .fontWeight(.bold)
+                            .foregroundStyle(DS.Colors.Ground.primary)
+                            .lineLimit(announcementExpanded ? nil : 1)
+                        if !announcementExpanded, !announcement.body.isEmpty {
+                            Text(announcement.body)
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Ground.primary.opacity(0.7))
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: DS.Spacing.s8)
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        withAnimation(DS.Motion.standardSpring) {
+                            announcementStore.dismiss(announcement.id)
+                        }
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(DS.Colors.Ground.primary.opacity(0.6))
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .accessibilityLabel("Dismiss announcement")
+                }
+
+                if announcementExpanded, !announcement.body.isEmpty {
+                    Text(announcement.body)
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ground.primary.opacity(0.85))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(DS.Spacing.s16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if !announcement.body.isEmpty {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    withAnimation(DS.Motion.standardSpring) { announcementExpanded.toggle() }
                 }
             }
             .padding(.horizontal, DS.Spacing.s20)

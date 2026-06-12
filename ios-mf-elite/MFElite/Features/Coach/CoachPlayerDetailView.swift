@@ -15,6 +15,8 @@ struct CoachPlayerDetailView: View {
     @Bindable var model: CoachViewModel
     @Environment(\.modelContext) private var modelContext
     @State private var sync = SyncEngine.shared
+    @State private var shareImage: ShareableImage?
+    @State private var isExporting = false
 
     private var state: CoachLoadState { model.detailState[player.id] ?? .idle }
     private var detail: CoachPlayerDetail? { model.detailCache[player.id] }
@@ -30,6 +32,7 @@ struct CoachPlayerDetailView: View {
 
                 if let detail {
                     progressionCard(detail)
+                    shareProgressButton(detail)
                     masterySection(detail)
                     trainingTimeSection(detail)
                     if !detail.combineLatest.isEmpty { combineSection(detail) }
@@ -65,6 +68,107 @@ struct CoachPlayerDetailView: View {
         }
         .refreshable { await model.loadDetail(for: player, context: modelContext, force: true) }
         .task { await model.loadDetail(for: player, context: modelContext) }
+        .sheet(item: $shareImage) { item in
+            ShareSheet(items: [item.image])
+                .presentationDetents([.medium, .large])
+        }
+    }
+
+    // MARK: - Share progress card (image)
+
+    private func shareProgressButton(_ detail: CoachPlayerDetail) -> some View {
+        Button {
+            exportProgressCard(detail)
+        } label: {
+            HStack(spacing: DS.Spacing.s8) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 14, weight: .semibold))
+                Text(isExporting ? "Preparing…" : "Share progress card")
+                    .style(.foot)
+                    .fontWeight(.semibold)
+                Spacer(minLength: 0)
+            }
+            .foregroundStyle(DS.Colors.Ink.primary)
+            .padding(DS.Spacing.s12)
+            .frame(maxWidth: .infinity)
+            .background(DS.Colors.Bg.card)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+            .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+        }
+        .buttonStyle(PressableButtonStyle())
+        .disabled(isExporting)
+    }
+
+    /// A dark, branded progress card image. First name only; no email or surname.
+    private func progressCard(_ detail: CoachPlayerDetail) -> some View {
+        let firstName = ShareText.firstName(player.displayName)
+        let kit = (player.kitNumber?.isEmpty == false) ? " · #\(player.kitNumber!)" : ""
+        return MFShareCard(eyebrow: "Progress") {
+            VStack(spacing: DS.Spacing.s16) {
+                Text("\(firstName)\(kit)")
+                    .font(.system(size: 22, weight: .bold))
+                    .foregroundStyle(.white)
+
+                HStack(spacing: 0) {
+                    cardStat(value: "\(detail.streak)", label: "Day streak")
+                    cardStatDivider
+                    cardStat(value: CoachFormat.minutes(detail.minutes30d), label: "Last 30d")
+                    cardStatDivider
+                    cardStat(value: "\(detail.totalMastered)", label: "Mastered")
+                }
+
+                if !detail.combineLatest.isEmpty {
+                    VStack(spacing: DS.Spacing.s8) {
+                        Text("LATEST COMBINE")
+                            .font(.system(size: 11, weight: .bold))
+                            .tracking(1.6)
+                            .foregroundStyle(.white.opacity(0.4))
+                        ForEach(detail.combineLatest.prefix(4)) { item in
+                            HStack {
+                                Text(item.name)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundStyle(.white.opacity(0.75))
+                                Spacer(minLength: DS.Spacing.s12)
+                                Text(CoachFormat.combineValue(item.value, unit: item.unit))
+                                    .font(.system(size: 15, weight: .bold))
+                                    .monospacedDigit()
+                                    .foregroundStyle(.white)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+    }
+
+    private func cardStat(value: String, label: String) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 24, weight: .bold))
+                .monospacedDigit()
+                .foregroundStyle(.white)
+            Text(label.uppercased())
+                .font(.system(size: 10, weight: .bold))
+                .tracking(1)
+                .foregroundStyle(.white.opacity(0.45))
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var cardStatDivider: some View {
+        Rectangle()
+            .fill(.white.opacity(0.12))
+            .frame(width: 1, height: 36)
+    }
+
+    private func exportProgressCard(_ detail: CoachPlayerDetail) {
+        guard !isExporting else { return }
+        isExporting = true
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        let image = ShareCardRenderer.render(progressCard(detail))
+        isExporting = false
+        if let image { shareImage = ShareableImage(image: image) }
     }
 
     // MARK: - Identity

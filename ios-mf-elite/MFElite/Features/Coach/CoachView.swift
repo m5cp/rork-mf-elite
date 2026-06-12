@@ -15,6 +15,8 @@ struct CoachView: View {
     @State private var model = CoachViewModel()
     @State private var sync = SyncEngine.shared
     @State private var showPublish = false
+    @State private var showAnnounce = false
+    @State private var shareText: ShareableText?
 
     var body: some View {
         NavigationStack {
@@ -33,6 +35,7 @@ struct CoachView: View {
                         retryState
                     default:
                         overviewSection
+                        announcementsSection
                         workoutsSection
                         drillEditorSection
                         rosterSection
@@ -60,10 +63,78 @@ struct CoachView: View {
             if model.publishedWorkouts.isEmpty {
                 await model.loadPublishedWorkouts()
             }
+            if model.announcements.isEmpty {
+                await model.loadAnnouncements()
+            }
+        }
+        .sheet(isPresented: $showAnnounce) {
+            AnnouncementComposerView { title, body in
+                Task {
+                    let text = await model.sendAnnouncement(title: title, body: body)
+                    if !text.isEmpty {
+                        shareText = ShareableText(text: text)
+                    }
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationBackground(DS.Colors.Bg.base)
         }
         .sheet(isPresented: $showPublish) {
             WorkoutBuilderView { title, note, drillIDs in
                 Task { await model.publishWorkout(title: title, note: note, drillIDs: drillIDs) }
+            }
+        }
+        .sheet(item: $shareText) { item in
+            ShareSheet(items: [item.text])
+                .presentationDetents([.medium, .large])
+        }
+    }
+
+    // MARK: - Announcements
+
+    private var announcementsSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Announcements")
+
+            Button {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                showAnnounce = true
+            } label: {
+                HStack(spacing: DS.Spacing.s12) {
+                    Image(systemName: "megaphone.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Send a message")
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("Post an update to the whole team")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                .padding(DS.Spacing.s16)
+                .frame(maxWidth: .infinity)
+                .background(DS.Colors.Bg.card)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
+
+            let visible = model.announcements.filter { !$0.title.hasPrefix("__") }
+            if !visible.isEmpty {
+                VStack(spacing: DS.Spacing.s8) {
+                    ForEach(visible) { announcement in
+                        CoachAnnouncementRow(announcement: announcement) { active in
+                            Task { await model.setAnnouncementActive(announcement, active: active) }
+                        }
+                    }
+                }
             }
         }
     }
@@ -257,6 +328,29 @@ struct CoachView: View {
                     statCard(value: "\(overview.teamMinutesThisWeek)", label: "Team minutes")
                     statCard(value: "\(overview.sessionsThisWeek)", label: "Sessions")
                 }
+
+                Button {
+                    guard let overview = model.overview else { return }
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    shareText = ShareableText(text: CoachExport.weeklyDigest(overview))
+                } label: {
+                    HStack(spacing: DS.Spacing.s8) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("Share weekly digest")
+                            .style(.foot)
+                            .fontWeight(.semibold)
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(model.overview == nil ? DS.Colors.Ink.quaternary : DS.Colors.Ink.primary)
+                    .padding(DS.Spacing.s12)
+                    .frame(maxWidth: .infinity)
+                    .background(DS.Colors.Bg.card)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                    .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                }
+                .buttonStyle(PressableButtonStyle())
+                .disabled(model.overview == nil)
             }
         }
     }

@@ -26,6 +26,8 @@ struct CoachOverview: Equatable {
     var activeThisWeek: Int
     var teamMinutesThisWeek: Int
     var sessionsThisWeek: Int
+    /// First names of the 3 most active players this week (by session count).
+    var topActiveNames: [String] = []
 }
 
 /// One roster entry, joined client-side from player_profiles + profiles.
@@ -64,6 +66,15 @@ struct SessionHistoryItem: Identifiable, Equatable {
     let date: Date
     let durationSec: Int
     let feltRating: Int?
+}
+
+/// One team announcement the coach can manage.
+struct TeamAnnouncement: Identifiable, Equatable {
+    let id: String
+    var title: String
+    var body: String
+    var active: Bool
+    var createdAt: Date
 }
 
 /// One workout the coach has published, for the WORKOUTS list.
@@ -189,6 +200,10 @@ final class CoachViewModel {
     var publishedWorkouts: [CoachPublishedWorkout] = []
     var workoutsState: CoachLoadState = .idle
 
+    /// Team announcements this coach can manage (newest first).
+    var announcements: [TeamAnnouncement] = []
+    var announcementsState: CoachLoadState = .idle
+
     /// Roster filtered + sorted (most recently active first).
     var filteredRoster: [RosterPlayer] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -252,6 +267,7 @@ final class CoachViewModel {
         var activeUsers: Set<String> = []
         var minutesThisWeek = 0
         var sessionsThisWeek = 0
+        var sessionsByUser: [String: Int] = [:]
         for row in logRows {
             guard let uid = row["user_id"] as? String,
                   let date = Self.parseDate(row["completed_at"]) else { continue }
@@ -260,6 +276,7 @@ final class CoachViewModel {
                 activeUsers.insert(uid)
                 sessionsThisWeek += 1
                 minutesThisWeek += (row["duration_sec"] as? Int) ?? 0
+                sessionsByUser[uid, default: 0] += 1
             }
         }
 
@@ -278,11 +295,19 @@ final class CoachViewModel {
             )
         }
 
+        let nameByID = Dictionary(uniqueKeysWithValues: roster.map { ($0.id, $0.displayName) })
+        let topActiveNames = sessionsByUser
+            .sorted { $0.value > $1.value }
+            .prefix(3)
+            .compactMap { nameByID[$0.key] }
+            .map { ShareText.firstName($0) }
+
         overview = CoachOverview(
             totalPlayers: profileRows.count,
             activeThisWeek: activeUsers.count,
             teamMinutesThisWeek: minutesThisWeek / 60,
-            sessionsThisWeek: sessionsThisWeek
+            sessionsThisWeek: sessionsThisWeek,
+            topActiveNames: topActiveNames
         )
         overviewState = .loaded
         lastLoadedAt = Date()
@@ -348,6 +373,63 @@ final class CoachViewModel {
             table: "coach_workouts",
             values: ["active": active],
             match: [URLQueryItem(name: "id", value: "eq.\(workout.id)")]
+        )
+    }
+
+    // MARK: - Announcements
+
+    /// Load recent announcements (active and inactive), newest first.
+    func loadAnnouncements() async {
+        if announcements.isEmpty { announcementsState = .loading }
+        guard let rows = await SupabaseClient.shared.get(
+            table: "announcements",
+            query: [
+                URLQueryItem(name: "order", value: "created_at.desc"),
+                URLQueryItem(name: "limit", value: "30")
+            ]
+        ) else {
+            announcementsState = announcements.isEmpty ? .failed : .loaded
+            return
+        }
+        announcements = rows.compactMap { row in
+            guard let id = row["id"] as? String else { return nil }
+            return TeamAnnouncement(
+                id: id,
+                title: (row["title"] as? String) ?? "",
+                body: (row["body"] as? String) ?? "",
+                active: (row["active"] as? Bool) ?? true,
+                createdAt: Self.parseDate(row["created_at"]) ?? Date()
+            )
+        }
+        announcementsState = .loaded
+    }
+
+    /// Publish a new announcement, then return the "<title> — <body>" text the
+    /// caller can share to a team chat. Fails soft.
+    @discardableResult
+    func sendAnnouncement(title: String, body: String) async -> String {
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedTitle.isEmpty else { return "" }
+        let row: [String: Any] = [
+            "title": trimmedTitle,
+            "body": trimmedBody,
+            "active": true
+        ]
+        await SupabaseClient.shared.insert(table: "announcements", values: row)
+        await loadAnnouncements()
+        return trimmedBody.isEmpty ? trimmedTitle : "\(trimmedTitle) — \(trimmedBody)"
+    }
+
+    /// Deactivate an announcement (players stop seeing it). Optimistic local update.
+    func setAnnouncementActive(_ announcement: TeamAnnouncement, active: Bool) async {
+        if let index = announcements.firstIndex(where: { $0.id == announcement.id }) {
+            announcements[index].active = active
+        }
+        await SupabaseClient.shared.update(
+            table: "announcements",
+            values: ["active": active],
+            match: [URLQueryItem(name: "id", value: "eq.\(announcement.id)")]
         )
     }
 

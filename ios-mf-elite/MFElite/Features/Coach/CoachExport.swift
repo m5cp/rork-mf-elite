@@ -81,4 +81,19 @@ enum CoachExport {
 
         return lines.joined(separator: "\n")
     }
+
+    /// A short, shareable weekly team digest built from loaded overview data.
+    static func weeklyDigest(_ overview: CoachOverview) -> String {
+        let weekOf = CoachFormat.shortDate(
+            Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+        )
+        var text = "MF Elite — Week of \(weekOf): "
+        text += "\(overview.activeThisWeek) player\(overview.activeThisWeek == 1 ? "" : "s") trained, "
+        text += "\(overview.teamMinutesThisWeek) minutes, "
+        text += "\(overview.sessionsThisWeek) session\(overview.sessionsThisWeek == 1 ? "" : "s")."
+        if !overview.topActiveNames.isEmpty {
+            text += " Most active: \(overview.topActiveNames.joined(separator: ", "))."
+        }
+        return text
+    }
 }

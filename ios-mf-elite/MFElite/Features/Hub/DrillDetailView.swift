@@ -34,6 +34,7 @@ struct DrillDetailView: View {
     @State private var lastLogResult: QuickLog.Result?
     @State private var favorites = FavoritesStore.shared
     @State private var showNoteEditor = false
+    @State private var shareText: ShareableText?
 
     private var drillProgress: DrillProgress? {
         progress.first { $0.drillID == drill.id }
@@ -111,6 +112,10 @@ struct DrillDetailView: View {
                 saveNote(newText)
             }
         }
+        .sheet(item: $shareText) { item in
+            ShareSheet(items: [item.text])
+                .presentationDetents([.medium, .large])
+        }
         .confirmationDialog(
             drill.isMentalExercise ? "Log this exercise?" : "Log this drill?",
             isPresented: $showLogConfirm,
@@ -180,15 +185,71 @@ struct DrillDetailView: View {
     // MARK: - 1. Top Bar
 
     private var topBar: some View {
-        HStack {
+        HStack(spacing: DS.Spacing.s8) {
             IconButton(systemName: "chevron.left", size: 36) {
                 dismiss()
             }
             Spacer()
+            shareButton
             favoriteButton
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s12)
+    }
+
+    private var shareButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            shareText = ShareableText(text: drillShareText())
+        } label: {
+            Image(systemName: "square.and.arrow.up")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(DS.Colors.Ink.secondary)
+                .frame(width: 36, height: 36)
+                .background(DS.Colors.Bg.raised)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(DS.Colors.Line.hairline, lineWidth: 1))
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("Share drill")
+    }
+
+    /// Compose a plain-text summary of this drill for sharing.
+    private func drillShareText() -> String {
+        var lines: [String] = []
+        lines.append(drill.title)
+        lines.append("\(discipline.name) · \(category.name) · Level \(level.number)")
+        lines.append("")
+
+        let space = drill.space?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let equipment = drill.equipment.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if !equipment.isEmpty || !space.isEmpty {
+            lines.append("SET-UP")
+            if !equipment.isEmpty { lines.append("Equipment: \(equipment.joined(separator: ", "))") }
+            if !space.isEmpty { lines.append("Space: \(space)") }
+            lines.append("")
+        }
+
+        let steps = drill.isMentalExercise ? drill.steps : drill.instructions
+        if !steps.isEmpty {
+            lines.append(drill.isMentalExercise ? "THE EXERCISE" : "HOW TO DO IT")
+            for (index, step) in steps.enumerated() {
+                lines.append("\(index + 1). \(step)")
+            }
+            lines.append("")
+        }
+
+        if !drill.coachingPoints.isEmpty {
+            lines.append("COACHING POINTS")
+            for point in drill.coachingPoints {
+                lines.append("• \(point)")
+            }
+            lines.append("")
+        }
+
+        lines.append("— shared from MF Elite")
+        return lines.joined(separator: "\n")
     }
 
     private var favoriteButton: some View {

@@ -122,13 +122,27 @@ struct ShareableImage: Identifiable {
 enum CardExporter {
     static func render(design: CardDesign, photo: UIImage?, player: CardPlayerInfo) -> UIImage? {
         let exportWidth: CGFloat = 1080
-        let canvas = PlayerCardCanvas(
-            design: design,
-            photo: photo,
-            player: player,
-            width: exportWidth
-        )
-        let renderer = ImageRenderer(content: canvas)
+        // Never expose a surname on a shared image — first name only.
+        var safePlayer = player
+        safePlayer.name = ShareText.firstName(player.name)
+        let content = VStack(spacing: 28) {
+            PlayerCardCanvas(
+                design: design,
+                photo: photo,
+                player: safePlayer,
+                width: exportWidth
+            )
+            Image("mf-logo-white")
+                .resizable()
+                .scaledToFit()
+                .frame(height: 40)
+                .opacity(0.9)
+                .padding(.bottom, 12)
+        }
+        .frame(width: exportWidth)
+        .padding(.vertical, 36)
+        .background(Color.black)
+        let renderer = ImageRenderer(content: content)
         renderer.scale = 1
         renderer.isOpaque = true
         return renderer.uiImage
