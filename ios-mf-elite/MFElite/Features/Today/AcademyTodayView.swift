@@ -27,6 +27,7 @@ struct AcademyTodayView: View {
     @State private var workoutIndexCache = TodayWorkoutIndexCache()
     @State private var activeSession: TrainingQueue?
     @State private var showBuilder = false
+    @State private var showQuickTrain = false
     @State private var router = AppActionRouter.shared
 
     /// Most recent workouts shown inline on the home strip before "See all".
@@ -82,6 +83,7 @@ struct AcademyTodayView: View {
                     salutation(vm)
                     dailyStandard(vm)
                     goalsCard(vm)
+                    quickTrainRow
                     todaysFocusCard(vm)
                     myWorkoutsSection
                     favoritesCard
@@ -124,6 +126,18 @@ struct AcademyTodayView: View {
         .sheet(isPresented: $showBuilder) {
             WorkoutBuilderView()
         }
+        .sheet(isPresented: $showQuickTrain) {
+            QuickTrainSheet { minutes in
+                showQuickTrain = false
+                // Let the sheet finish dismissing before presenting the player
+                // to avoid a sheet/fullScreenCover presentation conflict.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    startQuickTrain(minutes: minutes)
+                }
+            }
+            .presentationDetents([.medium, .large])
+            .presentationBackground(DS.Colors.Bg.base)
+        }
         .onChange(of: router.startTrainingToken) { _, _ in
             startRecommendedSession(vm)
         }
@@ -142,6 +156,57 @@ struct AcademyTodayView: View {
         guard !items.isEmpty else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         activeSession = TrainingQueue(items: Array(items), source: .workout, sourceName: "Recommended")
+    }
+
+    // MARK: - Quick Train
+
+    /// Tappable entry that opens the duration picker for a time-boxed session.
+    private var quickTrainRow: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            showQuickTrain = true
+        } label: {
+            HStack(spacing: DS.Spacing.s16) {
+                Image(systemName: "bolt.fill")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .frame(width: 52, height: 52)
+                    .background(DS.Colors.Bg.raised)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                    .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+
+                VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                    Text("Quick Train")
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text("Short on time? Train in 5, 10 or 20 min")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(DS.Spacing.s16)
+            .background(DS.Colors.Bg.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+            .overlay(RoundedRectangle(cornerRadius: DS.Radius.lg).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+        }
+        .buttonStyle(PressableButtonStyle())
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s24 + 4)
+    }
+
+    /// Build a time-boxed queue and start it in the existing session player,
+    /// logged under the "Quick Train" workout source so it fills the right rings.
+    private func startQuickTrain(minutes: Int) {
+        let items = viewModel.quickTrainItems(budgetSeconds: minutes * 60)
+        guard !items.isEmpty else { return }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        activeSession = TrainingQueue(items: items, source: .workout, sourceName: "Quick Train")
     }
 
     // MARK: - My Workouts strip

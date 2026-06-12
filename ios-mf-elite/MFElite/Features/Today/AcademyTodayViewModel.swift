@@ -481,6 +481,90 @@ final class AcademyTodayViewModel {
         return nil
     }
 
+    // MARK: - Quick Train
+
+    /// Total seconds a drill takes: work across all sets + 15s rest between sets.
+    static func estimatedSeconds(_ d: Drill) -> Int {
+        d.durationSec * d.sets + max(0, d.sets - 1) * 15
+    }
+
+    /// Assemble a time-boxed Quick Train queue.
+    ///
+    /// Fill order:
+    /// 1. For each INCOMPLETE daily goal (in ring order), the next unmastered
+    ///    drill of that discipline (same logic the tappable goals use).
+    /// 2. Then continue with next-unmastered drills across disciplines.
+    /// Drills are added while the remaining budget is positive; always include at
+    /// least one drill, and stop once the budget is exceeded (never by more than
+    /// one drill). Mental "journal" exercises are excluded — they don't time-box.
+    func quickTrainItems(budgetSeconds: Int) -> [DrillContext] {
+        var picked: [DrillContext] = []
+        var pickedIDs: Set<String> = []
+        var remaining = budgetSeconds
+
+        func eligible(_ drill: Drill) -> Bool {
+            !masteredDrillIDs.contains(drill.id)
+            && !pickedIDs.contains(drill.id)
+            && drill.exerciseKind != "journal"
+        }
+
+        func add(_ ctx: DrillContext) {
+            picked.append(ctx)
+            pickedIDs.insert(ctx.drill.id)
+            remaining -= Self.estimatedSeconds(ctx.drill)
+        }
+
+        /// True while another drill may still be appended (budget left, or nothing yet).
+        var canAddMore: Bool { picked.isEmpty || remaining > 0 }
+
+        // Phase 1 — one drill per incomplete daily goal, in ring order.
+        for goal in goalStates where !goal.done {
+            guard canAddMore else { break }
+            if let ctx = firstUnmasteredContext(forGoal: goal.id, eligible: eligible) {
+                add(ctx)
+            }
+        }
+
+        // Phase 2 — continue with next-unmastered drills across all disciplines.
+        disciplineLoop: for discipline in disciplines {
+            for category in sortedCategories(discipline) {
+                for level in sortedLevels(category) {
+                    for drill in sortedDrills(level) where eligible(drill) {
+                        guard canAddMore else { break disciplineLoop }
+                        add(DrillContext(drill: drill, level: level, category: category, discipline: discipline))
+                    }
+                }
+            }
+        }
+
+        return picked
+    }
+
+    /// First eligible (unmastered, non-journal) drill matching a daily goal,
+    /// mirroring the predicates used to build `goalStates`.
+    private func firstUnmasteredContext(
+        forGoal goalID: Int,
+        eligible: (Drill) -> Bool
+    ) -> DrillContext? {
+        let matches: (Discipline, Category) -> Bool
+        switch goalID {
+        case 0:  matches = { _, category in category.name == "Ball Mastery" }
+        case 1:  matches = { discipline, _ in discipline.name == "Physical" }
+        case 2:  matches = { discipline, _ in discipline.name == "Mental" }
+        default: return nil
+        }
+        for discipline in disciplines {
+            for category in sortedCategories(discipline) where matches(discipline, category) {
+                for level in sortedLevels(category) {
+                    for drill in sortedDrills(level) where eligible(drill) {
+                        return DrillContext(drill: drill, level: level, category: category, discipline: discipline)
+                    }
+                }
+            }
+        }
+        return nil
+    }
+
     // MARK: - Sorting helpers
 
     private func sortedCategories(_ discipline: Discipline) -> [Category] {
