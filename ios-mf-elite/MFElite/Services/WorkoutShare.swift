@@ -12,10 +12,13 @@ import UIKit
 
 /// Encodes/decodes a workout as a compact mfelite:// URL for QR sharing.
 enum WorkoutShare {
-    nonisolated struct Payload: Codable {
+    nonisolated struct Payload: Codable, Identifiable {
         var v: Int = 1
         var name: String
         var drills: [String] // drill IDs in order
+
+        /// Stable identity for SwiftUI sheet presentation, derived from contents.
+        var id: String { "\(name)|\(drills.joined(separator: ","))" }
     }
 
     static func url(for name: String, drillIDs: [String]) -> URL? {

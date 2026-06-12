@@ -9,6 +9,7 @@ struct MainTabView: View {
     @State private var selectedTab: AppTab = .today
     @State private var subscription = SubscriptionService.shared
     @State private var router = AppActionRouter.shared
+    @State private var importPayload: WorkoutShare.Payload?
 
     var body: some View {
         @Bindable var subscription = subscription
@@ -37,6 +38,13 @@ struct MainTabView: View {
         }
         .fullScreenCover(isPresented: $subscription.showPremiumWelcome) {
             PremiumWelcomeView()
+        }
+        .sheet(item: $importPayload) { payload in
+            WorkoutImportView(payload: payload)
+        }
+        .onOpenURL { url in
+            guard let payload = WorkoutShare.decode(url) else { return }
+            importPayload = payload
         }
     }
 

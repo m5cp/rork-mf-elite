@@ -64,6 +64,13 @@
 			);
 			target = XX1912BBFE1E73FB4DDA09XX /* MFEliteWidget */;
 		};
+		XX5108C7EBDEACED4A24075XX /* PBXFileSystemSynchronizedBuildFileExceptionSet */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 105FC5792E9EAD3100EA8BCF /* MFElite */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -114,6 +121,9 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MFElite;
 			sourceTree = "<group>";
+			exceptions = (
+				XX5108C7EBDEACED4A24075XX /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
+			);
 		};
 		105FC58C2E9EAD3200EA8BCF /* MFEliteTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -505,7 +515,9 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MFElite/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Scan a teammate's QR code to import their workout.";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "MF Elite sends daily training reminders and streak alerts to help you stay consistent.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "MF Elite saves your player card image to your photo library.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "MF Elite reads your training time so it can keep your Apple Health activity in sync.";
@@ -544,7 +556,9 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = MFElite/Info.plist;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Scan a teammate's QR code to import their workout.";
 				INFOPLIST_KEY_NSUserNotificationsUsageDescription = "MF Elite sends daily training reminders and streak alerts to help you stay consistent.";
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "MF Elite saves your player card image to your photo library.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "MF Elite reads your training time so it can keep your Apple Health activity in sync.";

@@ -321,6 +321,7 @@ struct WorkoutCard: View {
     let loggedToday: Set<String>
     let isExpanded: Bool
     let isFavorited: Bool
+    var isShared: Bool = false
     let onToggle: () -> Void
     let onStart: (Int) -> Void
     let onMarkComplete: () -> Void
@@ -374,6 +375,14 @@ struct WorkoutCard: View {
                             Text("\(resolved.count) drills")
                                 .style(.micro)
                                 .foregroundStyle(DS.Colors.Ink.quaternary)
+                            if isShared {
+                                Text("SHARED")
+                                    .style(.micro)
+                                    .foregroundStyle(DS.Colors.Ground.primary)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2)
+                                    .background(Color.white, in: Capsule())
+                            }
                             if isCompletedToday {
                                 HStack(spacing: 3) {
                                     Image(systemName: "checkmark")

@@ -18,18 +18,23 @@ final class CustomWorkout {
     var updatedAt: Date
     /// Ordered drill IDs. A drill may appear more than once for repeat blocks.
     var drillIDs: [String]
+    /// True when the workout was imported from another player's QR code.
+    /// Defaults to false so existing records migrate cleanly.
+    var isShared: Bool = false
 
     init(
         id: UUID = UUID(),
         title: String,
         createdAt: Date = Date(),
         updatedAt: Date = Date(),
-        drillIDs: [String]
+        drillIDs: [String],
+        isShared: Bool = false
     ) {
         self.id = id
         self.title = title
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.drillIDs = drillIDs
+        self.isShared = isShared
     }
 }

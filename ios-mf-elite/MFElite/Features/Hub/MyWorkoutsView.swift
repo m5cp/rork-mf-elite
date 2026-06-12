@@ -27,6 +27,8 @@ struct MyWorkoutsView: View {
     @State private var editingWorkout: CustomWorkout?
     @State private var workoutToDelete: CustomWorkout?
     @State private var sharingWorkout: ShareableWorkout?
+    @State private var showScanner = false
+    @State private var scannedPayload: WorkoutShare.Payload?
     @State private var markCompleteTarget: MarkCompleteTarget?
     @State private var lastLogResult: QuickLog.Result?
     @State private var favorites = FavoritesStore.shared
@@ -56,17 +58,19 @@ struct MyWorkoutsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: DS.Spacing.s16) {
                 header
+                scanButton
                 if workouts.isEmpty {
                     emptyCard
                 } else {
                     ForEach(workouts) { workout in
-                        let resolved = workout.drillIDs.compactMap { index[$0] }
+                        let resolved: [ResolvedDrill] = workout.drillIDs.compactMap { index[$0] }
                         WorkoutCard(
                             title: workout.title,
                             resolved: resolved,
                             loggedToday: doneToday,
                             isExpanded: expanded.contains(workout.id.uuidString),
                             isFavorited: favorites.isFavoriteWorkout(workout.id),
+                            isShared: workout.isShared,
                             onToggle: { toggle(workout.id.uuidString) },
                             onStart: { startIndex in start(name: workout.title, resolved: resolved, from: startIndex) },
                             onMarkComplete: {
@@ -109,6 +113,10 @@ struct MyWorkoutsView: View {
         .sheet(isPresented: $showBuilder) { WorkoutBuilderView() }
         .sheet(item: $editingWorkout) { workout in WorkoutBuilderView(editing: workout) }
         .sheet(item: $sharingWorkout) { workout in WorkoutShareView(workout: workout) }
+        .fullScreenCover(isPresented: $showScanner) {
+            WorkoutScannerView { payload in scannedPayload = payload }
+        }
+        .sheet(item: $scannedPayload) { payload in WorkoutImportView(payload: payload) }
         .alert("Delete workout?", isPresented: deleteAlertBinding, presenting: workoutToDelete) { workout in
             Button("Delete", role: .destructive) { delete(workout) }
             Button("Cancel", role: .cancel) {}
@@ -149,6 +157,41 @@ struct MyWorkoutsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, DS.Spacing.s4)
+    }
+
+    private var scanButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            showScanner = true
+        } label: {
+            HStack(spacing: DS.Spacing.s12) {
+                Image(systemName: "qrcode.viewfinder")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Scan a workout")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text("Import a teammate's QR code")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(DS.Spacing.s16)
+            .frame(maxWidth: .infinity)
+            .background(DS.Colors.Bg.card)
+            .clipShape(RoundedRectangle(cornerRadius: 18))
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 
     private var emptyCard: some View {
