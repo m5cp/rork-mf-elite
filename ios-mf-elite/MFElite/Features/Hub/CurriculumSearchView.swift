@@ -18,22 +18,30 @@ struct CurriculumSearchView: View {
 
     @State private var searchText: String = ""
     @State private var selectedDisciplineID: String?
+    @State private var equipmentFilter: EquipmentFilter?
+    @State private var timeFilter: TimeFilter?
 
     private var selectedDiscipline: Discipline? {
         disciplines.first { $0.id == selectedDisciplineID }
+    }
+
+    private var hasActiveFilters: Bool {
+        selectedDisciplineID != nil || equipmentFilter != nil || timeFilter != nil
     }
 
     private var viewModel: CurriculumSearchViewModel {
         CurriculumSearchViewModel(
             disciplines: disciplines,
             searchText: searchText,
-            selectedDiscipline: selectedDiscipline
+            selectedDiscipline: selectedDiscipline,
+            equipmentFilter: equipmentFilter,
+            timeFilter: timeFilter
         )
     }
 
     var body: some View {
         let vm = viewModel
-        let results = vm.hasQuery || selectedDiscipline != nil ? vm.searchDrills() : []
+        let results = vm.hasQuery || hasActiveFilters ? vm.searchDrills() : []
 
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -56,21 +64,64 @@ struct CurriculumSearchView: View {
     // MARK: - Filter chips
 
     private var filterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: DS.Spacing.s8) {
-                Chip(label: "All", active: selectedDisciplineID == nil) {
-                    selectedDisciplineID = nil
-                }
-                ForEach(disciplines) { discipline in
-                    DisciplineChip(
-                        discipline: discipline,
-                        active: selectedDisciplineID == discipline.id
-                    ) {
-                        selectedDisciplineID = selectedDisciplineID == discipline.id ? nil : discipline.id
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: DS.Spacing.s8) {
+                    Chip(label: "All", active: selectedDisciplineID == nil) {
+                        selectedDisciplineID = nil
+                    }
+                    ForEach(disciplines) { discipline in
+                        DisciplineChip(
+                            discipline: discipline,
+                            active: selectedDisciplineID == discipline.id
+                        ) {
+                            selectedDisciplineID = selectedDisciplineID == discipline.id ? nil : discipline.id
+                        }
                     }
                 }
+                .padding(.horizontal, DS.Spacing.s20)
             }
-            .padding(.horizontal, DS.Spacing.s20)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: DS.Spacing.s8) {
+                    Chip(label: "No equipment", active: equipmentFilter == .none) {
+                        equipmentFilter = equipmentFilter == .none ? nil : .none
+                    }
+                    Chip(label: "Ball only", active: equipmentFilter == .ballOnly) {
+                        equipmentFilter = equipmentFilter == .ballOnly ? nil : .ballOnly
+                    }
+                }
+                .padding(.horizontal, DS.Spacing.s20)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: DS.Spacing.s8) {
+                    Chip(label: "Under 5 min", active: timeFilter == .under5) {
+                        timeFilter = timeFilter == .under5 ? nil : .under5
+                    }
+                    Chip(label: "5–10 min", active: timeFilter == .mid) {
+                        timeFilter = timeFilter == .mid ? nil : .mid
+                    }
+                    Chip(label: "10+ min", active: timeFilter == .long) {
+                        timeFilter = timeFilter == .long ? nil : .long
+                    }
+                }
+                .padding(.horizontal, DS.Spacing.s20)
+            }
+
+            if hasActiveFilters {
+                Button {
+                    selectedDisciplineID = nil
+                    equipmentFilter = nil
+                    timeFilter = nil
+                } label: {
+                    Text("Clear filters")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
+                .padding(.horizontal, DS.Spacing.s20)
+                .padding(.top, DS.Spacing.s4)
+            }
         }
         .padding(.top, DS.Spacing.s12)
     }
@@ -79,7 +130,7 @@ struct CurriculumSearchView: View {
 
     @ViewBuilder
     private func content(vm: CurriculumSearchViewModel, results: [SearchResult]) -> some View {
-        if vm.hasQuery || selectedDiscipline != nil {
+        if vm.hasQuery || hasActiveFilters {
             if results.isEmpty {
                 emptyState
             } else {
