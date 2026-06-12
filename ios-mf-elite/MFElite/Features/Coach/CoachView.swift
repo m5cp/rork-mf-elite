@@ -35,6 +35,7 @@ struct CoachView: View {
                         retryState
                     default:
                         overviewSection
+                        approvalsSection
                         announcementsSection
                         workoutsSection
                         drillEditorSection
@@ -47,7 +48,10 @@ struct CoachView: View {
             }
             .background(DS.Colors.Bg.base)
             .scrollIndicators(.hidden)
-            .refreshable { await model.loadOverviewAndRoster(context: modelContext) }
+            .refreshable {
+            await model.loadOverviewAndRoster(context: modelContext)
+            await model.loadApprovals(context: modelContext)
+        }
             .navigationDestination(for: RosterPlayer.self) { player in
                 CoachPlayerDetailView(player: player, model: model)
             }
@@ -66,6 +70,7 @@ struct CoachView: View {
             if model.announcements.isEmpty {
                 await model.loadAnnouncements()
             }
+            await model.loadApprovals(context: modelContext)
         }
         .sheet(isPresented: $showAnnounce) {
             AnnouncementComposerView { title, body in
@@ -87,6 +92,34 @@ struct CoachView: View {
         .sheet(item: $shareText) { item in
             ShareSheet(items: [item.text])
                 .presentationDetents([.medium, .large])
+        }
+    }
+
+    // MARK: - Ballon d'Or approvals
+
+    @ViewBuilder
+    private var approvalsSection: some View {
+        if !model.pendingApprovals.isEmpty {
+            VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                HStack(spacing: DS.Spacing.s8) {
+                    Image(systemName: "trophy.fill")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(BallonDorTheme.gold)
+                    Eyebrow(text: "Ballon d'Or · Approvals")
+                }
+                Text("Players who've reached the final tier and await your invitation.")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                VStack(spacing: DS.Spacing.s8) {
+                    ForEach(model.pendingApprovals) { approval in
+                        BallonDorApprovalRow(
+                            approval: approval,
+                            onApprove: { Task { await model.approve(approval) } },
+                            onDecline: { Task { await model.decline(approval) } }
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -439,10 +472,22 @@ struct CoachRosterRow: View {
         HStack(spacing: DS.Spacing.s12) {
             Monogram(size: 44, initials: CoachFormat.initials(player.displayName), kit: nil)
             VStack(alignment: .leading, spacing: 2) {
-                Text(player.displayName)
-                    .style(.title3)
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                    .lineLimit(1)
+                HStack(spacing: DS.Spacing.s8) {
+                    Text(player.displayName)
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .lineLimit(1)
+                    if player.ballonDorApproved {
+                        Text("BALLON D'OR")
+                            .font(.system(size: 8, weight: .heavy, design: .monospaced))
+                            .tracking(0.5)
+                            .foregroundStyle(.black)
+                            .padding(.vertical, 2)
+                            .padding(.horizontal, 5)
+                            .background(BallonDorTheme.gold)
+                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                    }
+                }
                 Text(subtitle)
                     .style(.foot)
                     .foregroundStyle(DS.Colors.Ink.tertiary)
@@ -530,6 +575,117 @@ struct CoachWorkoutRow: View {
         let drills = "\(count) \(count == 1 ? "drill" : "drills")"
         let status = workout.active ? "Active" : "Inactive"
         return "\(status) · \(drills) · \(CoachFormat.shortDate(workout.createdAt))"
+    }
+}
+
+// MARK: - Ballon d'Or approval row
+
+/// Shared gold accent for the Ballon d'Or surfaces.
+enum BallonDorTheme {
+    static let gold = Color(red: 0.86, green: 0.71, blue: 0.36)
+}
+
+/// One pending request with a stats summary plus Approve / Not yet actions.
+struct BallonDorApprovalRow: View {
+    let approval: PendingApproval
+    let onApprove: () -> Void
+    let onDecline: () -> Void
+
+    @State private var showApproveConfirm = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            HStack(spacing: DS.Spacing.s12) {
+                Monogram(size: 40, initials: CoachFormat.initials(approval.displayName), kit: nil)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(approval.displayName)
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .lineLimit(1)
+                    Text(subtitle)
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
+                Spacer(minLength: 0)
+            }
+
+            HStack(spacing: DS.Spacing.s16) {
+                stat(value: "\(approval.xp.formatted())", label: "XP")
+                stat(value: "\(approval.streak)", label: "Streak")
+                stat(value: "\(approval.mastered)", label: "Mastered")
+                stat(value: "\(approval.minutes30d)", label: "Min · 30d")
+            }
+
+            HStack(spacing: DS.Spacing.s8) {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onDecline()
+                } label: {
+                    Text("Not yet")
+                        .style(.foot)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(DS.Colors.Ink.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, DS.Spacing.s12)
+                        .background(DS.Colors.Bg.raised)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(PressableButtonStyle())
+
+                Button {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    showApproveConfirm = true
+                } label: {
+                    HStack(spacing: DS.Spacing.s4 + 2) {
+                        Image(systemName: "trophy.fill")
+                            .font(.system(size: 11, weight: .bold))
+                        Text("Approve")
+                            .style(.foot)
+                            .fontWeight(.semibold)
+                    }
+                    .foregroundStyle(.black)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, DS.Spacing.s12)
+                    .background(BallonDorTheme.gold)
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+        }
+        .padding(DS.Spacing.s16)
+        .background(DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.md)
+                .stroke(BallonDorTheme.gold.opacity(0.35), lineWidth: 1)
+        )
+        .alert("Award the Ballon d'Or?", isPresented: $showApproveConfirm) {
+            Button("Cancel", role: .cancel) {}
+            Button("Approve") { onApprove() }
+        } message: {
+            Text("\(approval.displayName) will unlock the final tier with a full celebration. This is the academy's highest honour.")
+        }
+    }
+
+    private var subtitle: String {
+        var parts: [String] = []
+        if let kit = approval.kitNumber, !kit.isEmpty { parts.append("#\(kit)") }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        parts.append("Requested \(formatter.localizedString(for: approval.requestedAt, relativeTo: Date()))")
+        return parts.joined(separator: " · ")
+    }
+
+    private func stat(value: String, label: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(value)
+                .style(.num(size: 18))
+                .foregroundStyle(DS.Colors.Ink.primary)
+            Text(label.uppercased())
+                .style(.microSm)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

@@ -54,7 +54,8 @@ final class SyncEngine {
         "combine_results": "id",
         "drill_notes": "user_id,drill_id",
         "custom_workouts": "id",
-        "gameiq_completions": "user_id,lesson_id"
+        "gameiq_completions": "user_id,lesson_id",
+        "player_profiles": "id"
     ]
 
     /// Tables whose owner column is `user_id` rather than `player_id`. The signed-in
@@ -64,9 +65,11 @@ final class SyncEngine {
         "custom_workouts", "gameiq_completions"
     ]
 
-    /// The owner column for a table: `user_id` for the user-data tables, else `player_id`.
+    /// The owner column for a table: `id` for player_profiles (PK == user UUID),
+    /// `user_id` for the user-data tables, else `player_id`.
     private static func ownerColumn(for table: String) -> String {
-        userIDTables.contains(table) ? "user_id" : "player_id"
+        if table == "player_profiles" { return "id" }
+        return userIDTables.contains(table) ? "user_id" : "player_id"
     }
 
     private init() {
@@ -96,6 +99,7 @@ final class SyncEngine {
 
         // Initial pull + push for an already-signed-in session.
         pullPlayerStateOnLaunch()
+        pullBallonDor()
         flush()
     }
 
@@ -103,6 +107,7 @@ final class SyncEngine {
     func onForeground() {
         refreshPendingCount()
         pullPlayerStateOnLaunch()
+        pullBallonDor()
         flush()
     }
 
@@ -111,6 +116,7 @@ final class SyncEngine {
     func handleSignIn() {
         backoffUntil = nil
         flush()
+        pullBallonDor()
         if let context { SyncRestore.shared.checkForRestore(context: context) }
         maybeBackfill()
     }
@@ -147,7 +153,17 @@ final class SyncEngine {
     func syncNow() {
         backoffUntil = nil
         pullPlayerStateOnLaunch()
+        pullBallonDor()
         flush()
+    }
+
+    /// Reconcile the Ballon d'Or invitation state from the server (approval /
+    /// decline). Reads the local XP so a declined request can require fresh
+    /// progress before re-requesting.
+    func pullBallonDor() {
+        guard SupabaseAuth.shared.isSignedIn, let context else { return }
+        let xp = (try? context.fetch(FetchDescriptor<PlayerState>()).first?.xp) ?? 0
+        Task { await BallonDorStore.shared.pullFromRemote(currentXP: xp) }
     }
 
     // MARK: - Enqueue helpers (public API used by mutation sites)
@@ -181,6 +197,14 @@ final class SyncEngine {
             row["last_logged_at"] = ISO8601DateFormatter().string(from: date)
         }
         enqueueUpsert(table: "player_progress", row: row, coalesceKey: progress.drillID)
+    }
+
+    /// Enqueue the player's Ballon d'Or invitation request. A partial upsert to
+    /// player_profiles (merge-duplicates), durable through the outbox so it still
+    /// reaches the server if the player was offline when they qualified.
+    func enqueueBallonDorRequest(requestedAt: Date) {
+        let row: [String: Any] = ["ballon_dor_requested_at": Self.iso.string(from: requestedAt)]
+        enqueueUpsert(table: "player_profiles", row: row, coalesceKey: "*")
     }
 
     /// Convenience: snapshot the whole player after a logging pass — the player

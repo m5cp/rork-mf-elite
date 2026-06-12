@@ -187,6 +187,9 @@ final class SupabaseAuth {
         email = nil
         isSignedIn = false
         setCoach(false)
+        // Ballon d'Or approval is account-specific server state — reset it so it
+        // is re-pulled fresh on the next sign-in (never inherited across accounts).
+        BallonDorStore.shared.reset()
         SyncEngine.shared.handleSignOut()
         Keychain.delete(.accessToken)
         Keychain.delete(.refreshToken)

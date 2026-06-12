@@ -16,6 +16,7 @@ struct AcademyProgressionView: View {
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
     @Environment(SubscriptionService.self) private var subscription
+    @State private var ballonDor = BallonDorStore.shared
 
     private var totalCategories: Int {
         disciplines.reduce(0) { $0 + $1.categories.count }
@@ -33,11 +34,13 @@ struct AcademyProgressionView: View {
 
     var body: some View {
         let vm = viewModel
-        ScrollView {
+        let meets = BallonDor.meetsRequirements(xp: vm.xp, certCount: vm.certCount, totalCategories: totalCategories)
+        let bdState = ballonDor.state(meetsRequirements: meets)
+        return ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 header(vm)
                 nextRankCard(vm)
-                timelineSection(vm)
+                timelineSection(vm, bdState: bdState)
                 skillMasterySection(vm)
                 milestonesSection(vm)
             }
@@ -47,6 +50,16 @@ struct AcademyProgressionView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear { ballonDor.recordRequestIfNeeded(meets: meets, xp: vm.xp) }
+        .onChange(of: meets) { _, newValue in
+            ballonDor.recordRequestIfNeeded(meets: newValue, xp: vm.xp)
+        }
+        .fullScreenCover(isPresented: Binding(
+            get: { ballonDor.approved && !ballonDor.celebrationSeen },
+            set: { if !$0 { ballonDor.markCelebrationSeen() } }
+        )) {
+            BallonDorAwardView(coachName: ballonDor.approvedBy) {}
+        }
     }
 
     // MARK: - 1. Header
@@ -150,7 +163,7 @@ struct AcademyProgressionView: View {
 
     // MARK: - 3. Rank Timeline
 
-    private func timelineSection(_ vm: AcademyProgressionViewModel) -> some View {
+    private func timelineSection(_ vm: AcademyProgressionViewModel, bdState: BallonDorState) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Eyebrow(text: "The Pathway")
 
@@ -172,7 +185,11 @@ struct AcademyProgressionView: View {
                         node
                     }
                 }
-                ElevenNode()
+                BallonDorNode(
+                    state: bdState,
+                    coachName: ballonDor.approvedBy,
+                    requirementText: BallonDor.requirementSummary(totalCategories: totalCategories)
+                )
             }
             .padding(.top, DS.Spacing.s16)
         }
@@ -385,35 +402,87 @@ private struct RankNode: View {
     }
 }
 
-/// The invite-only top tier of the timeline.
-private struct ElevenNode: View {
+/// The invite-only top tier of the timeline. Reflects the Ballon d'Or state:
+/// locked (requirements shown), pending (coach review), or approved (unlocked).
+private struct BallonDorNode: View {
+    let state: BallonDorState
+    let coachName: String?
+    let requirementText: String
+
+    private static let gold = Color(red: 0.86, green: 0.71, blue: 0.36)
+    private var isApproved: Bool { state == .approved }
+
     var body: some View {
         HStack(alignment: .top, spacing: DS.Spacing.s16) {
             VStack(spacing: 0) {
                 Circle()
-                    .stroke(DS.Colors.Line.subtle, lineWidth: 1)
+                    .fill(isApproved ? AnyShapeStyle(Self.gold) : AnyShapeStyle(Color.clear))
                     .frame(width: 44, height: 44)
+                    .overlay(
+                        Circle().stroke(isApproved ? Self.gold : DS.Colors.Line.subtle, lineWidth: isApproved ? 0 : 1)
+                    )
                     .overlay(
                         Image(systemName: "trophy.fill")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(DS.Colors.Ink.disabled)
+                            .foregroundStyle(isApproved ? Color.black : (state == .locked ? DS.Colors.Ink.disabled : Self.gold))
                     )
             }
             .frame(width: 44)
 
             VStack(alignment: .leading, spacing: DS.Spacing.s4) {
-                Eyebrow(text: "Ballon d'Or")
+                HStack(spacing: DS.Spacing.s8) {
+                    Eyebrow(text: "Ballon d'Or")
+                    if isApproved { approvedChip } else if state == .pending || state == .eligible { reviewChip }
+                }
                 Text("Ballon d'Or")
                     .style(.title3)
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                Text("Coach MF Approved · Invite Only")
+                    .foregroundStyle(isApproved ? Self.gold : DS.Colors.Ink.primary)
+                Text(subtitle)
                     .style(.micro)
-                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                    .foregroundStyle(isApproved ? DS.Colors.Ink.secondary : DS.Colors.Ink.quaternary)
             }
 
             Spacer(minLength: 0)
         }
-        .opacity(0.7)
+        .opacity(state == .locked ? 0.7 : 1)
+    }
+
+    private var subtitle: String {
+        switch state {
+        case .locked:
+            return "Coach MF Approved · Invite Only · \(requirementText)"
+        case .eligible, .pending:
+            return "Coach review · Your invitation is being considered"
+        case .approved:
+            if let coachName, !coachName.isEmpty { return "Invited by Coach \(coachName)" }
+            return "Invitation granted"
+        }
+    }
+
+    private var reviewChip: some View {
+        HStack(spacing: DS.Spacing.s4) {
+            Image(systemName: "hourglass")
+                .font(.system(size: 8, weight: .bold))
+            Text("Pending")
+                .style(.microSm)
+        }
+        .foregroundStyle(Self.gold)
+        .padding(.vertical, 3)
+        .padding(.horizontal, 8)
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.pill)
+                .stroke(Self.gold.opacity(0.5), lineWidth: 1)
+        )
+    }
+
+    private var approvedChip: some View {
+        Text("Unlocked")
+            .style(.microSm)
+            .foregroundStyle(.black)
+            .padding(.vertical, 3)
+            .padding(.horizontal, 8)
+            .background(Self.gold)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
     }
 }
 

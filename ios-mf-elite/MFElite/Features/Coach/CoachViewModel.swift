@@ -40,6 +40,20 @@ struct RosterPlayer: Identifiable, Equatable, Hashable {
     var position: String?
     var email: String?
     var lastActive: Date?
+    /// True when the player holds the coach-approved Ballon d'Or tier.
+    var ballonDorApproved: Bool = false
+}
+
+/// One pending Ballon d'Or invitation request, with a stats summary for review.
+struct PendingApproval: Identifiable, Equatable {
+    let id: String            // player_profiles.id
+    var displayName: String
+    var kitNumber: String?
+    var requestedAt: Date
+    var xp: Int
+    var streak: Int
+    var mastered: Int
+    var minutes30d: Int
 }
 
 /// A discipline's mastered-drill count for a player.
@@ -204,6 +218,10 @@ final class CoachViewModel {
     var announcements: [TeamAnnouncement] = []
     var announcementsState: CoachLoadState = .idle
 
+    /// Players who have met the Ballon d'Or bar and are awaiting coach review.
+    var pendingApprovals: [PendingApproval] = []
+    var approvalsState: CoachLoadState = .idle
+
     /// Roster filtered + sorted (most recently active first).
     var filteredRoster: [RosterPlayer] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -226,7 +244,7 @@ final class CoachViewModel {
             table: "player_profiles",
             query: [
                 URLQueryItem(name: "is_example", value: "eq.false"),
-                URLQueryItem(name: "select", value: "id,display_name,username,kit_number,position,account_id")
+                URLQueryItem(name: "select", value: "id,display_name,username,kit_number,position,account_id,ballon_dor_approved")
             ]
         ) else {
             overviewState = overview == nil ? .failed : .loaded
@@ -291,7 +309,8 @@ final class CoachViewModel {
                 kitNumber: row["kit_number"] as? String,
                 position: row["position"] as? String,
                 email: emailByAccount[accountID],
-                lastActive: lastActive[id]
+                lastActive: lastActive[id],
+                ballonDorApproved: (row["ballon_dor_approved"] as? Bool) ?? false
             )
         }
 
@@ -492,6 +511,110 @@ final class CoachViewModel {
             values: ["active": false],
             match: [URLQueryItem(name: "drill_id", value: "eq.\(drillID)")]
         )
+    }
+
+    // MARK: - Ballon d'Or approvals
+
+    /// Load every player awaiting Ballon d'Or review, with a stats summary each.
+    func loadApprovals(context: ModelContext) async {
+        if pendingApprovals.isEmpty { approvalsState = .loading }
+        guard let rows = await SupabaseClient.shared.get(
+            table: "player_profiles",
+            query: [
+                URLQueryItem(name: "is_example", value: "eq.false"),
+                URLQueryItem(name: "ballon_dor_approved", value: "eq.false"),
+                URLQueryItem(name: "ballon_dor_requested_at", value: "not.is.null"),
+                URLQueryItem(name: "select", value: "id,display_name,kit_number,ballon_dor_requested_at"),
+                URLQueryItem(name: "order", value: "ballon_dor_requested_at.asc")
+            ]
+        ) else {
+            approvalsState = pendingApprovals.isEmpty ? .failed : .loaded
+            return
+        }
+
+        let day30 = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
+        var result: [PendingApproval] = []
+        for row in rows {
+            guard let id = row["id"] as? String else { continue }
+            let requestedAt = Self.parseDate(row["ballon_dor_requested_at"]) ?? Date()
+
+            async let stateRowsAsync = SupabaseClient.shared.get(
+                table: "player_state",
+                query: [URLQueryItem(name: "player_id", value: "eq.\(id)"), URLQueryItem(name: "limit", value: "1")]
+            )
+            async let masteredAsync = SupabaseClient.shared.get(
+                table: "player_progress",
+                query: [
+                    URLQueryItem(name: "player_id", value: "eq.\(id)"),
+                    URLQueryItem(name: "is_mastered", value: "eq.true"),
+                    URLQueryItem(name: "select", value: "drill_id")
+                ]
+            )
+            async let logsAsync = SupabaseClient.shared.get(
+                table: "session_logs",
+                query: [
+                    URLQueryItem(name: "user_id", value: "eq.\(id)"),
+                    URLQueryItem(name: "select", value: "duration_sec,completed_at"),
+                    URLQueryItem(name: "order", value: "completed_at.desc"),
+                    URLQueryItem(name: "limit", value: "500")
+                ]
+            )
+
+            let stateRow = (await stateRowsAsync)?.first
+            let masteredRows = await masteredAsync
+            let logRows = await logsAsync
+
+            var minutes30 = 0
+            for log in (logRows ?? []) {
+                let date = Self.parseDate(log["completed_at"]) ?? Date()
+                if date >= day30 { minutes30 += (log["duration_sec"] as? Int) ?? 0 }
+            }
+
+            result.append(PendingApproval(
+                id: id,
+                displayName: (row["display_name"] as? String) ?? "Player",
+                kitNumber: row["kit_number"] as? String,
+                requestedAt: requestedAt,
+                xp: (stateRow?["xp"] as? Int) ?? 0,
+                streak: (stateRow?["streak"] as? Int) ?? 0,
+                mastered: (masteredRows ?? []).count,
+                minutes30d: minutes30 / 60
+            ))
+        }
+        pendingApprovals = result
+        approvalsState = .loaded
+    }
+
+    /// Approve a player's Ballon d'Or invitation. Stamps the approval fields so
+    /// the unlock syncs down to the player. Optimistic local removal.
+    func approve(_ approval: PendingApproval) async {
+        let coachName = PlayerProfileStore.shared.displayName
+        let ok = await SupabaseClient.shared.update(
+            table: "player_profiles",
+            values: [
+                "ballon_dor_approved": true,
+                "ballon_dor_approved_at": SyncEngine.iso.string(from: Date()),
+                "ballon_dor_approved_by": coachName
+            ],
+            match: [URLQueryItem(name: "id", value: "eq.\(approval.id)")]
+        )
+        guard ok else { return }
+        pendingApprovals.removeAll { $0.id == approval.id }
+        if let index = roster.firstIndex(where: { $0.id == approval.id }) {
+            roster[index].ballonDorApproved = true
+        }
+    }
+
+    /// Decline ("Not yet") — clears the request so the player resets to locked and
+    /// can re-qualify later. Optimistic local removal.
+    func decline(_ approval: PendingApproval) async {
+        let ok = await SupabaseClient.shared.update(
+            table: "player_profiles",
+            values: ["ballon_dor_requested_at": NSNull()],
+            match: [URLQueryItem(name: "id", value: "eq.\(approval.id)")]
+        )
+        guard ok else { return }
+        pendingApprovals.removeAll { $0.id == approval.id }
     }
 
     // MARK: - Player detail
