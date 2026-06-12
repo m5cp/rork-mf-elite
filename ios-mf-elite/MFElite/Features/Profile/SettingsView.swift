@@ -204,6 +204,20 @@ struct SettingsView: View {
                         .buttonStyle(PressableButtonStyle())
                 }
                 .padding(.vertical, DS.Spacing.s16 - 2)
+
+                if sync.isBackfilling {
+                    Hairline()
+                    HStack(spacing: DS.Spacing.s8) {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(DS.Colors.Ink.tertiary)
+                        Text("Syncing your history\u{2026}")
+                            .style(.callout)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, DS.Spacing.s16 - 2)
+                }
             }
 
             Text("Sign in with Apple to back up your progress and restore it on another device. The app works fully offline either way.")

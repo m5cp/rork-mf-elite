@@ -224,15 +224,19 @@ struct WorkoutBuilderView: View {
         guard canSave else { return }
         let drillIDs = items.map(\.drillID)
         let trimmed = title.trimmingCharacters(in: .whitespaces)
+        let saved: CustomWorkout
         if let editing {
             editing.title = trimmed
             editing.drillIDs = drillIDs
             editing.updatedAt = Date()
+            saved = editing
         } else {
             let workout = CustomWorkout(title: trimmed, drillIDs: drillIDs)
             context.insert(workout)
+            saved = workout
         }
         try? context.save()
+        SyncEngine.shared.enqueueCustomWorkout(saved)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
     }

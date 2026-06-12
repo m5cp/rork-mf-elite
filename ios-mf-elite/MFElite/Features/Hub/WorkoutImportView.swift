@@ -175,6 +175,7 @@ struct WorkoutImportView: View {
         )
         context.insert(workout)
         try? context.save()
+        SyncEngine.shared.enqueueCustomWorkout(workout)
         didSave = true
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {

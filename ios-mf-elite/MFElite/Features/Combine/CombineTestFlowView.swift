@@ -250,8 +250,10 @@ struct CombineTestFlowView: View {
         wasPersonalBest = CombineStats.isPersonalBest(value, test: test, priorResults: priorResults)
         savedValue = value
 
-        modelContext.insert(CombineResult(testID: test.id, value: value))
+        let result = CombineResult(testID: test.id, value: value)
+        modelContext.insert(result)
         try? modelContext.save()
+        SyncEngine.shared.enqueueCombineResult(result)
 
         if wasPersonalBest {
             UINotificationFeedbackGenerator().notificationOccurred(.success)

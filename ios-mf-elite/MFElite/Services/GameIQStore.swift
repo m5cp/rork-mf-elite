@@ -62,6 +62,12 @@ enum GameIQStore {
                 xpEarned: xpReward
             )
             context.insert(entry)
+            SyncEngine.shared.enqueueSessionLog(entry)
+        }
+
+        // Mirror the lesson completion itself.
+        if let completedAt = lesson.completedAt {
+            SyncEngine.shared.enqueueGameIQCompletion(lessonID: lesson.id, completedAt: completedAt)
         }
 
         try? context.save()

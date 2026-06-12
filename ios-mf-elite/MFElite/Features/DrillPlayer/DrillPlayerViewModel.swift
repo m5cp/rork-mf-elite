@@ -395,6 +395,7 @@ final class DrillPlayerViewModel {
             completedFully: !loggedEarly
         )
         context.insert(entry)
+        SyncEngine.shared.enqueueSessionLog(entry)
 
         try? context.save()
 

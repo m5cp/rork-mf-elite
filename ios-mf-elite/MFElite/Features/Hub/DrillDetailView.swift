@@ -436,11 +436,15 @@ struct DrillDetailView: View {
             if let existing = drillNote {
                 context.delete(existing)
             }
+            SyncEngine.shared.enqueueDrillNoteDeletion(drillID: drill.id)
         } else if let existing = drillNote {
             existing.text = trimmed
             existing.updatedAt = Date()
+            SyncEngine.shared.enqueueDrillNote(drillID: drill.id, text: trimmed, updatedAt: existing.updatedAt)
         } else {
-            context.insert(DrillNote(drillID: drill.id, text: trimmed))
+            let note = DrillNote(drillID: drill.id, text: trimmed)
+            context.insert(note)
+            SyncEngine.shared.enqueueDrillNote(drillID: drill.id, text: trimmed, updatedAt: note.updatedAt)
         }
         try? context.save()
     }

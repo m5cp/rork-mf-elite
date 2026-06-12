@@ -120,6 +120,9 @@ enum QuickLog {
             entry.reflection = (trimmed?.isEmpty ?? true) ? nil : trimmed
         }
         try? context.save()
+        // Re-mirror the rated entries so the felt rating / reflection reach remote
+        // (same-id upsert; never creates a duplicate row).
+        for entry in entries { SyncEngine.shared.enqueueSessionLog(entry) }
     }
 
     // MARK: - Per-drill record
@@ -165,6 +168,7 @@ enum QuickLog {
             journalResponse: nil
         )
         context.insert(entry)
+        SyncEngine.shared.enqueueSessionLog(entry)
     }
 
     private static func masteredIDs(context: ModelContext) -> Set<String> {

@@ -43,13 +43,31 @@ final class SyncEngine {
 
     private enum DefaultsKeys {
         static let lastSynced = "MF_SYNC_LAST_SYNCED"
+        static let backfillDone = "MF_SYNC_BACKFILL_DONE"
     }
 
-    /// Tables we own and their upsert conflict keys (player_id injected at flush).
+    /// Tables we own and their upsert conflict keys (owner column injected at flush).
     private static let conflictKeys: [String: String] = [
         "player_state": "player_id",
-        "player_progress": "player_id,drill_id"
+        "player_progress": "player_id,drill_id",
+        "session_logs": "id",
+        "combine_results": "id",
+        "drill_notes": "user_id,drill_id",
+        "custom_workouts": "id",
+        "gameiq_completions": "user_id,lesson_id"
     ]
+
+    /// Tables whose owner column is `user_id` rather than `player_id`. The signed-in
+    /// UUID is injected into the right column at flush time.
+    private static let userIDTables: Set<String> = [
+        "session_logs", "combine_results", "drill_notes",
+        "custom_workouts", "gameiq_completions"
+    ]
+
+    /// The owner column for a table: `user_id` for the user-data tables, else `player_id`.
+    private static func ownerColumn(for table: String) -> String {
+        userIDTables.contains(table) ? "user_id" : "player_id"
+    }
 
     private init() {
         let epoch = UserDefaults.standard.double(forKey: DefaultsKeys.lastSynced)
@@ -94,6 +112,22 @@ final class SyncEngine {
         backoffUntil = nil
         flush()
         if let context { SyncRestore.shared.checkForRestore(context: context) }
+        maybeBackfill()
+    }
+
+    /// On the first sign-in for this device-account, enqueue all existing local
+    /// history so an offline-trained player uploads everything. Runs once (a flag
+    /// is reset on sign-out) and only when there is real local data to upload.
+    private func maybeBackfill() {
+        guard let context else { return }
+        guard !UserDefaults.standard.bool(forKey: DefaultsKeys.backfillDone) else { return }
+        let logCount = (try? context.fetchCount(FetchDescriptor<SessionLogEntry>())) ?? 0
+        let combineCount = (try? context.fetchCount(FetchDescriptor<CombineResult>())) ?? 0
+        let player = try? context.fetch(FetchDescriptor<PlayerState>()).first
+        let hasHistory = logCount > 0 || combineCount > 0 || (player?.xp ?? 0) > 0
+        guard hasHistory else { return }
+        UserDefaults.standard.set(true, forKey: DefaultsKeys.backfillDone)
+        backfillAllLocalData()
     }
 
     /// Called on sign-out: drop the outbox so a different account never inherits
@@ -104,6 +138,8 @@ final class SyncEngine {
         for op in ops { context.delete(op) }
         try? context.save()
         backoffUntil = nil
+        isBackfilling = false
+        UserDefaults.standard.removeObject(forKey: DefaultsKeys.backfillDone)
         refreshPendingCount()
     }
 
@@ -159,6 +195,100 @@ final class SyncEngine {
         }
     }
 
+    // MARK: - User-data table enqueue helpers
+
+    /// Enqueue a session log upsert (same UUID = idempotent). Append-only on the
+    /// server: rows are never deleted. Called on creation and again if a felt
+    /// rating / reflection is attached later (a same-id upsert just fills fields).
+    func enqueueSessionLog(_ entry: SessionLogEntry) {
+        var row: [String: Any] = [
+            "id": entry.id.uuidString,
+            "completed_at": Self.iso.string(from: entry.completedAt),
+            "drill_id": entry.drillID,
+            "drill_title": entry.drillTitle,
+            "discipline_id": entry.disciplineID,
+            "discipline_name": entry.disciplineName,
+            "category_id": entry.categoryID,
+            "category_name": entry.categoryName,
+            "level_number": entry.levelNumber,
+            "duration_sec": entry.durationSec,
+            "sets_completed": entry.setsCompleted,
+            "sets_skipped": entry.setsSkipped,
+            "completed_fully": entry.completedFully,
+            "source": entry.source,
+            "xp_earned": entry.xpEarned
+        ]
+        if let v = entry.sourceName { row["source_name"] = v }
+        if let v = entry.feltRating { row["felt_rating"] = v }
+        if let v = entry.reflection { row["reflection"] = v }
+        if let v = entry.journalResponse { row["journal_response"] = v }
+        enqueueGeneric(table: "session_logs", opType: "upsert", row: row,
+                       coalesce: ["id": entry.id.uuidString])
+    }
+
+    /// Enqueue a combine result upsert (same UUID). Append-only on the server.
+    func enqueueCombineResult(_ result: CombineResult) {
+        let row: [String: Any] = [
+            "id": result.id.uuidString,
+            "test_id": result.testID,
+            "value": result.value,
+            "recorded_at": Self.iso.string(from: result.recordedAt)
+        ]
+        enqueueGeneric(table: "combine_results", opType: "upsert", row: row,
+                       coalesce: ["id": result.id.uuidString])
+    }
+
+    /// Enqueue a drill note upsert keyed (user_id, drill_id). Empty notes delete.
+    func enqueueDrillNote(drillID: String, text: String, updatedAt: Date) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            enqueueDrillNoteDeletion(drillID: drillID)
+            return
+        }
+        let row: [String: Any] = [
+            "drill_id": drillID,
+            "text": trimmed,
+            "updated_at": Self.iso.string(from: updatedAt)
+        ]
+        enqueueGeneric(table: "drill_notes", opType: "upsert", row: row,
+                       coalesce: ["drill_id": drillID])
+    }
+
+    /// Enqueue deletion of a drill note (saving an empty note).
+    func enqueueDrillNoteDeletion(drillID: String) {
+        enqueueGeneric(table: "drill_notes", opType: "delete",
+                       row: ["drill_id": drillID], coalesce: ["drill_id": drillID])
+    }
+
+    /// Enqueue a custom workout upsert keyed by id (create or edit).
+    func enqueueCustomWorkout(_ workout: CustomWorkout) {
+        let row: [String: Any] = [
+            "id": workout.id.uuidString,
+            "name": workout.title,
+            "drill_ids": workout.drillIDs,
+            "is_shared_import": workout.isShared,
+            "updated_at": Self.iso.string(from: workout.updatedAt)
+        ]
+        enqueueGeneric(table: "custom_workouts", opType: "upsert", row: row,
+                       coalesce: ["id": workout.id.uuidString])
+    }
+
+    /// Enqueue deletion of a custom workout by id.
+    func enqueueCustomWorkoutDeletion(id: UUID) {
+        enqueueGeneric(table: "custom_workouts", opType: "delete",
+                       row: ["id": id.uuidString], coalesce: ["id": id.uuidString])
+    }
+
+    /// Enqueue a Game IQ lesson completion keyed (user_id, lesson_id).
+    func enqueueGameIQCompletion(lessonID: String, completedAt: Date) {
+        let row: [String: Any] = [
+            "lesson_id": lessonID,
+            "completed_at": Self.iso.string(from: completedAt)
+        ]
+        enqueueGeneric(table: "gameiq_completions", opType: "upsert", row: row,
+                       coalesce: ["lesson_id": lessonID])
+    }
+
     // MARK: - Outbox writes
 
     private func enqueueUpsert(table: String, row: [String: Any], coalesceKey: String) {
@@ -168,6 +298,19 @@ final class SyncEngine {
         coalesce(table: table, key: coalesceKey, context: context)
 
         context.insert(PendingOp(table: table, opType: "upsert", payloadJSON: data))
+        try? context.save()
+        refreshPendingCount()
+        flush()
+    }
+
+    /// Generic outbox write for the user-data tables. Coalesces any pending op for
+    /// the same table whose payload matches every key/value in `coalesce`, so the
+    /// newest idempotent snapshot supersedes older ones.
+    private func enqueueGeneric(table: String, opType: String, row: [String: Any], coalesce: [String: String]) {
+        guard let context else { return }
+        guard let data = try? JSONSerialization.data(withJSONObject: row) else { return }
+        coalesceMatching(table: table, match: coalesce, context: context)
+        context.insert(PendingOp(table: table, opType: opType, payloadJSON: data))
         try? context.save()
         refreshPendingCount()
         flush()
@@ -186,6 +329,20 @@ final class SyncEngine {
                       drillID == Self.drillUUID(from: key) {
                 context.delete(op)
             }
+        }
+    }
+
+    /// Delete pending ops for `table` whose payload matches all `match` columns.
+    private func coalesceMatching(table: String, match: [String: String], context: ModelContext) {
+        guard !match.isEmpty else { return }
+        let existing = (try? context.fetch(FetchDescriptor<PendingOp>())) ?? []
+        for op in existing where op.table == table {
+            guard let dict = try? JSONSerialization.jsonObject(with: op.payloadJSON) as? [String: Any] else { continue }
+            let matches = match.allSatisfy { key, value in
+                guard let raw = dict[key] else { return false }
+                return "\(raw)" == value
+            }
+            if matches { context.delete(op) }
         }
     }
 
@@ -217,7 +374,7 @@ final class SyncEngine {
                     context.delete(op)
                     continue
                 }
-                payload["player_id"] = playerID
+                payload[Self.ownerColumn(for: op.table)] = playerID
 
                 let success: Bool
                 if op.opType == "delete" {
@@ -368,6 +525,9 @@ final class SyncEngine {
         }
         try? context.save()
         WidgetBridge.refresh(context: context)
+
+        // Pull-merge the five user-data tables alongside core progress.
+        await restoreUserDataFromRemote(context: context)
         markSynced()
     }
 
@@ -405,6 +565,226 @@ final class SyncEngine {
 
     static func dateString(_ date: Date) -> String { dateOnly.string(from: date) }
     static func date(from string: String) -> Date? { dateOnly.date(from: string) }
+
+    /// Shared ISO-8601 formatter for timestamp columns.
+    static let iso = ISO8601DateFormatter()
+
+    private static func parseISO(_ value: Any?) -> Date? {
+        guard let s = value as? String else { return nil }
+        return iso.date(from: s) ?? ISO8601DateFormatter.withFractional.date(from: s)
+    }
+
+    // MARK: - Backfill (first sign-in with existing local history)
+
+    /// Whether the one-time history backfill is currently draining.
+    private(set) var isBackfilling: Bool = false
+
+    /// Enqueue ALL existing local user data so an offline-trained player uploads
+    /// their full history on first sign-in. Idempotent: every op upserts by a
+    /// stable key, so re-running never duplicates remote rows.
+    func backfillAllLocalData() {
+        guard SupabaseAuth.shared.isSignedIn, let context else { return }
+        isBackfilling = true
+
+        let logs = (try? context.fetch(FetchDescriptor<SessionLogEntry>())) ?? []
+        for entry in logs { enqueueSessionLog(entry) }
+
+        let combine = (try? context.fetch(FetchDescriptor<CombineResult>())) ?? []
+        for result in combine { enqueueCombineResult(result) }
+
+        let notes = (try? context.fetch(FetchDescriptor<DrillNote>())) ?? []
+        for note in notes {
+            enqueueDrillNote(drillID: note.drillID, text: note.text, updatedAt: note.updatedAt)
+        }
+
+        let workouts = (try? context.fetch(FetchDescriptor<CustomWorkout>())) ?? []
+        for workout in workouts { enqueueCustomWorkout(workout) }
+
+        let lessons = (try? context.fetch(FetchDescriptor<GameIQLesson>())) ?? []
+        for lesson in lessons where lesson.completedAt != nil {
+            enqueueGameIQCompletion(lessonID: lesson.id, completedAt: lesson.completedAt!)
+        }
+
+        // Also snapshot player state + every touched drill so nothing is missed.
+        if let player = try? context.fetch(FetchDescriptor<PlayerState>()).first {
+            enqueuePlayerState(player)
+        }
+        let progress = (try? context.fetch(FetchDescriptor<DrillProgress>())) ?? []
+        for p in progress where p.passesLogged > 0 || p.isMastered { enqueueDrillProgress(p) }
+
+        refreshPendingCount()
+        flush()
+        // Clear the banner once the outbox finishes draining.
+        scheduleBackfillCompletionCheck()
+    }
+
+    private func scheduleBackfillCompletionCheck() {
+        Task {
+            // Poll until the queue drains (or 2 minutes pass), then drop the banner.
+            for _ in 0..<60 {
+                try? await Task.sleep(for: .seconds(2))
+                if pendingCount == 0 { break }
+            }
+            isBackfilling = false
+        }
+    }
+
+    // MARK: - Pull-merge for user-data tables (restore)
+
+    /// Pull the five user-data tables and merge them into local SwiftData. Called
+    /// by the restore flow after player_state + player_progress are restored.
+    func restoreUserDataFromRemote(context: ModelContext) async {
+        guard let userID = SupabaseAuth.shared.userID else { return }
+        await mergeSessionLogs(userID: userID, context: context)
+        await mergeCombineResults(userID: userID, context: context)
+        await mergeDrillNotes(userID: userID, context: context)
+        await mergeCustomWorkouts(userID: userID, context: context)
+        await mergeGameIQCompletions(userID: userID, context: context)
+        try? context.save()
+        WidgetBridge.refresh(context: context)
+    }
+
+    /// Union by id — append-only, no conflicts possible.
+    private func mergeSessionLogs(userID: String, context: ModelContext) async {
+        let rows = await SupabaseClient.shared.get(
+            table: "session_logs",
+            query: [URLQueryItem(name: "user_id", value: "eq.\(userID)")]
+        ) ?? []
+        guard !rows.isEmpty else { return }
+        let existing = (try? context.fetch(FetchDescriptor<SessionLogEntry>())) ?? []
+        let knownIDs = Set(existing.map(\.id))
+        for row in rows {
+            guard let idStr = row["id"] as? String, let id = UUID(uuidString: idStr),
+                  !knownIDs.contains(id) else { continue }
+            let entry = SessionLogEntry(
+                id: id,
+                completedAt: Self.parseISO(row["completed_at"]) ?? Date(),
+                drillID: (row["drill_id"] as? String) ?? "",
+                drillTitle: (row["drill_title"] as? String) ?? "",
+                disciplineID: (row["discipline_id"] as? String) ?? "",
+                disciplineName: (row["discipline_name"] as? String) ?? "",
+                categoryID: (row["category_id"] as? String) ?? "",
+                categoryName: (row["category_name"] as? String) ?? "",
+                levelNumber: (row["level_number"] as? Int) ?? 1,
+                durationSec: (row["duration_sec"] as? Int) ?? 0,
+                setsCompleted: (row["sets_completed"] as? Int) ?? 1,
+                source: (row["source"] as? String) ?? SessionSource.single.rawValue,
+                sourceName: row["source_name"] as? String,
+                xpEarned: (row["xp_earned"] as? Int) ?? 0,
+                journalResponse: row["journal_response"] as? String,
+                feltRating: row["felt_rating"] as? Int,
+                reflection: row["reflection"] as? String,
+                setsSkipped: (row["sets_skipped"] as? Int) ?? 0,
+                completedFully: (row["completed_fully"] as? Bool) ?? true
+            )
+            context.insert(entry)
+        }
+    }
+
+    /// Union by id — append-only.
+    private func mergeCombineResults(userID: String, context: ModelContext) async {
+        let rows = await SupabaseClient.shared.get(
+            table: "combine_results",
+            query: [URLQueryItem(name: "user_id", value: "eq.\(userID)")]
+        ) ?? []
+        guard !rows.isEmpty else { return }
+        let existing = (try? context.fetch(FetchDescriptor<CombineResult>())) ?? []
+        let knownIDs = Set(existing.map(\.id))
+        for row in rows {
+            guard let idStr = row["id"] as? String, let id = UUID(uuidString: idStr),
+                  !knownIDs.contains(id) else { continue }
+            let value = (row["value"] as? Double) ?? Double((row["value"] as? String) ?? "") ?? 0
+            let result = CombineResult(
+                id: id,
+                testID: (row["test_id"] as? String) ?? "",
+                value: value,
+                recordedAt: Self.parseISO(row["recorded_at"]) ?? Date()
+            )
+            context.insert(result)
+        }
+    }
+
+    /// Newest updated_at per (user, drill) wins.
+    private func mergeDrillNotes(userID: String, context: ModelContext) async {
+        let rows = await SupabaseClient.shared.get(
+            table: "drill_notes",
+            query: [URLQueryItem(name: "user_id", value: "eq.\(userID)")]
+        ) ?? []
+        guard !rows.isEmpty else { return }
+        let existing = (try? context.fetch(FetchDescriptor<DrillNote>())) ?? []
+        var byID = Dictionary(existing.map { ($0.drillID, $0) }, uniquingKeysWith: { a, _ in a })
+        for row in rows {
+            guard let drillID = row["drill_id"] as? String,
+                  let text = row["text"] as? String else { continue }
+            let updatedAt = Self.parseISO(row["updated_at"]) ?? .distantPast
+            if let local = byID[drillID] {
+                if updatedAt > local.updatedAt {
+                    local.text = text
+                    local.updatedAt = updatedAt
+                }
+            } else {
+                let note = DrillNote(drillID: drillID, text: text, updatedAt: updatedAt)
+                context.insert(note)
+                byID[drillID] = note
+            }
+        }
+    }
+
+    /// Newest updated_at per workout id wins.
+    private func mergeCustomWorkouts(userID: String, context: ModelContext) async {
+        let rows = await SupabaseClient.shared.get(
+            table: "custom_workouts",
+            query: [URLQueryItem(name: "user_id", value: "eq.\(userID)")]
+        ) ?? []
+        guard !rows.isEmpty else { return }
+        let existing = (try? context.fetch(FetchDescriptor<CustomWorkout>())) ?? []
+        var byID = Dictionary(existing.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for row in rows {
+            guard let idStr = row["id"] as? String, let id = UUID(uuidString: idStr) else { continue }
+            let name = (row["name"] as? String) ?? "Workout"
+            let drillIDs = (row["drill_ids"] as? [String]) ?? []
+            let isShared = (row["is_shared_import"] as? Bool) ?? false
+            let updatedAt = Self.parseISO(row["updated_at"]) ?? .distantPast
+            if let local = byID[id] {
+                if updatedAt > local.updatedAt {
+                    local.title = name
+                    local.drillIDs = drillIDs
+                    local.isShared = isShared
+                    local.updatedAt = updatedAt
+                }
+            } else {
+                let workout = CustomWorkout(id: id, title: name, updatedAt: updatedAt,
+                                           drillIDs: drillIDs, isShared: isShared)
+                context.insert(workout)
+                byID[id] = workout
+            }
+        }
+    }
+
+    /// Union by lesson_id — stamp completedAt locally if missing.
+    private func mergeGameIQCompletions(userID: String, context: ModelContext) async {
+        let rows = await SupabaseClient.shared.get(
+            table: "gameiq_completions",
+            query: [URLQueryItem(name: "user_id", value: "eq.\(userID)")]
+        ) ?? []
+        guard !rows.isEmpty else { return }
+        let lessons = (try? context.fetch(FetchDescriptor<GameIQLesson>())) ?? []
+        let byID = Dictionary(lessons.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        for row in rows {
+            guard let lessonID = row["lesson_id"] as? String, let lesson = byID[lessonID] else { continue }
+            let completedAt = Self.parseISO(row["completed_at"]) ?? Date()
+            if lesson.completedAt == nil { lesson.completedAt = completedAt }
+        }
+    }
+}
+
+nonisolated extension ISO8601DateFormatter {
+    /// Variant that also parses fractional-second timestamps (Postgres timestamptz).
+    static let withFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
 }
 
 /// Decoded remote player_state row (PostgREST returns loosely-typed JSON).

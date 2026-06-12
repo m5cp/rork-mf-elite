@@ -264,12 +264,15 @@ struct RoutinesView: View {
         let copy = CustomWorkout(title: "\(workout.title) Copy", drillIDs: workout.drillIDs)
         context.insert(copy)
         try? context.save()
+        SyncEngine.shared.enqueueCustomWorkout(copy)
     }
 
     private func delete(_ workout: CustomWorkout) {
         favorites.removeWorkout(workout.id)
+        let id = workout.id
         context.delete(workout)
         try? context.save()
+        SyncEngine.shared.enqueueCustomWorkoutDeletion(id: id)
         workoutToDelete = nil
     }
 
