@@ -17,6 +17,7 @@ struct ParentReportView: View {
     @Query private var progress: [DrillProgress]
     @Query(sort: \CombineTest.sortIndex) private var combineTests: [CombineTest]
     @Query private var combineResults: [CombineResult]
+    @Query(sort: \GameIQLesson.sortIndex) private var gameIQLessons: [GameIQLesson]
 
     @State private var profile = PlayerProfileStore.shared
 
@@ -40,6 +41,7 @@ struct ParentReportView: View {
                 narrative(vm)
                 attendance(vm)
                 combineSection
+                gameIQReportSection
                 coachNote(vm)
                 ctas
             }
@@ -300,6 +302,31 @@ struct ParentReportView: View {
         case .improved: return "arrow.up"
         case .same:     return "minus"
         case .declined: return "arrow.down"
+        }
+    }
+
+    // MARK: - Game IQ section
+
+    @ViewBuilder
+    private var gameIQReportSection: some View {
+        if !gameIQLessons.isEmpty {
+            let completed = gameIQLessons.filter { $0.isCompleted }.count
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(text: "Game IQ")
+                HStack(alignment: .firstTextBaseline, spacing: DS.Spacing.s8) {
+                    Text("Lessons completed")
+                        .style(.callout)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Spacer(minLength: DS.Spacing.s8)
+                    Text("\(completed) of \(gameIQLessons.count)")
+                        .font(DS.Typography.num(size: 16))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                }
+                .padding(.top, DS.Spacing.s12)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s24 + 4)
         }
     }
 

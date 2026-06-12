@@ -23,6 +23,7 @@ struct AcademyTodayView: View {
     @Query(sort: \CustomWorkout.updatedAt, order: .reverse) private var workouts: [CustomWorkout]
     @Query(sort: \CombineTest.sortIndex) private var combineTests: [CombineTest]
     @Query private var combineResults: [CombineResult]
+    @Query(sort: \GameIQLesson.sortIndex) private var gameIQLessons: [GameIQLesson]
     @Environment(SubscriptionService.self) private var subscription
     @State private var profile = PlayerProfileStore.shared
     @State private var favorites = FavoritesStore.shared
@@ -32,6 +33,7 @@ struct AcademyTodayView: View {
     @State private var showQuickTrain = false
     @State private var router = AppActionRouter.shared
     @State private var retestStore = CombineRetestStore.shared
+    @State private var activeLesson: GameIQLesson?
 
     /// Most recent workouts shown inline on the home strip before "See all".
     private let homeWorkoutLimit = 6
@@ -70,7 +72,8 @@ struct AcademyTodayView: View {
             streak: players.first?.streak ?? 0,
             progress: progress,
             sessions: sessions,
-            positionCode: profile.positionCode
+            positionCode: profile.positionCode,
+            gameIQLessons: gameIQLessons
         )
     }
 
@@ -129,6 +132,9 @@ struct AcademyTodayView: View {
         }
         .fullScreenCover(item: $activeSession) { queue in
             SessionPlayerView(queue: queue)
+        }
+        .fullScreenCover(item: $activeLesson) { lesson in
+            GameIQLessonView(lesson: lesson) { activeLesson = nil }
         }
         .sheet(isPresented: $showBuilder) {
             WorkoutBuilderView()
@@ -797,30 +803,82 @@ struct AcademyTodayView: View {
             VStack(spacing: 0) {
                 let recs = vm.recommendations
                 ForEach(Array(recs.enumerated()), id: \.element.id) { index, rec in
-                    let locked = subscription.isLevelNumberLocked(rec.level.number)
-                    if locked {
+                    let isLast = index == recs.count - 1
+                    if vm.isTactical(rec.discipline), let lesson = vm.tacticalLessonSuggestion {
                         Button {
-                            subscription.presentPaywall()
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            activeLesson = lesson
                         } label: {
-                            recommendationRow(rec, isLocked: true, isLast: index == recs.count - 1)
+                            gameIQRecommendationRow(lesson, isLast: isLast)
                         }
                         .buttonStyle(PressableButtonStyle())
                     } else {
-                        NavigationLink(value: DrillRoute(
-                            discipline: rec.discipline,
-                            category: rec.category,
-                            level: rec.level,
-                            drill: rec.drill
-                        )) {
-                            recommendationRow(rec, isLast: index == recs.count - 1)
+                        let locked = subscription.isLevelNumberLocked(rec.level.number)
+                        if locked {
+                            Button {
+                                subscription.presentPaywall()
+                            } label: {
+                                recommendationRow(rec, isLocked: true, isLast: isLast)
+                            }
+                            .buttonStyle(PressableButtonStyle())
+                        } else {
+                            NavigationLink(value: DrillRoute(
+                                discipline: rec.discipline,
+                                category: rec.category,
+                                level: rec.level,
+                                drill: rec.drill
+                            )) {
+                                recommendationRow(rec, isLast: isLast)
+                            }
+                            .buttonStyle(PressableButtonStyle())
                         }
-                        .buttonStyle(PressableButtonStyle())
                     }
                 }
             }
             .padding(.top, DS.Spacing.s12)
         }
         .padding(.top, DS.Spacing.s24 + 4)
+    }
+
+    /// A Tactical recommendation row that opens a Game IQ lesson instead of a drill.
+    private func gameIQRecommendationRow(_ lesson: GameIQLesson, isLast: Bool) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: DS.Spacing.s16) {
+                Image(systemName: "brain.head.profile")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .frame(width: 44, height: 44)
+                    .background(DS.Colors.Bg.card)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+                    )
+
+                VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                    Text(lesson.title)
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text("Tactical · Game IQ: \(lesson.title)")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .lineLimit(1)
+                }
+
+                Spacer(minLength: DS.Spacing.s8)
+
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(.vertical, DS.Spacing.s12 + 2)
+
+            if !isLast {
+                Hairline()
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .contentShape(Rectangle())
     }
 
     private func recommendationRow(_ rec: Recommendation, isLocked: Bool = false, isLast: Bool) -> some View {

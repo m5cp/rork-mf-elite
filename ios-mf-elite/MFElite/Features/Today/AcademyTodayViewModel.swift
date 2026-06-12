@@ -70,6 +70,10 @@ final class AcademyTodayViewModel {
     private let recentSessionsByDiscipline: [String: Int]
     /// The player's position code (e.g. "ST", "CB"), used to bias the focus.
     private let positionCode: String
+    /// Game IQ lessons, used to alternate the Tactical recommendation with lessons.
+    private let gameIQLessons: [GameIQLesson]
+    /// Most recent Tactical drill completion (excludes Game IQ lesson log entries).
+    private let lastTacticalDrillDate: Date?
 
     init(
         disciplines: [Discipline],
@@ -77,7 +81,8 @@ final class AcademyTodayViewModel {
         streak: Int,
         progress: [DrillProgress],
         sessions: [SessionLogEntry] = [],
-        positionCode: String = ""
+        positionCode: String = "",
+        gameIQLessons: [GameIQLesson] = []
     ) {
         let sorted = disciplines.sorted { $0.sortIndex < $1.sortIndex }
         self.disciplines = sorted
@@ -131,6 +136,37 @@ final class AcademyTodayViewModel {
             recentMap[entry.disciplineID, default: 0] += 1
         }
         self.recentSessionsByDiscipline = recentMap
+
+        self.gameIQLessons = gameIQLessons
+        self.lastTacticalDrillDate = sessions
+            .filter { ($0.disciplineName == "Tactical" || $0.disciplineID == "d-tact") && $0.sourceName != "Game IQ" }
+            .map(\.completedAt)
+            .max()
+    }
+
+    // MARK: - Game IQ alternation
+
+    /// True for the Tactical discipline, used to swap its recommendation for a lesson.
+    func isTactical(_ discipline: Discipline) -> Bool {
+        discipline.name == "Tactical" || discipline.id == "d-tact"
+    }
+
+    /// The next uncompleted Game IQ lesson to surface in place of the Tactical
+    /// drill recommendation, or nil when none remain or it's a drill's turn.
+    /// Alternation rule: a lesson is offered only when the most recent Tactical
+    /// completion was a drill (so completions cycle drill → lesson → drill …).
+    var tacticalLessonSuggestion: GameIQLesson? {
+        guard let next = gameIQLessons
+            .filter({ !$0.isCompleted })
+            .sorted(by: { $0.sortIndex < $1.sortIndex })
+            .first else { return nil }
+        let lastLessonDate = gameIQLessons.compactMap(\.completedAt).max()
+        let mostRecentWasDrill: Bool = {
+            guard let drillDate = lastTacticalDrillDate else { return false }
+            guard let lessonDate = lastLessonDate else { return true }
+            return drillDate > lessonDate
+        }()
+        return mostRecentWasDrill ? next : nil
     }
 
     // MARK: - Salutation

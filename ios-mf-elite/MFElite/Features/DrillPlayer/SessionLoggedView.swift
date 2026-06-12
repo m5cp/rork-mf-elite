@@ -24,6 +24,9 @@ struct SessionLoggedView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.requestReview) private var requestReview
     @Query private var allProgress: [DrillProgress]
+    @Query(sort: \GameIQLesson.sortIndex) private var gameIQLessons: [GameIQLesson]
+
+    @State private var activeLesson: GameIQLesson?
 
     @State private var nextSession: TrainingQueue?
     @State private var celebrate = false
@@ -62,6 +65,14 @@ struct SessionLoggedView: View {
             }
         }
         return nil
+    }
+
+    /// After a single TACTICAL drill, the uncompleted Game IQ lesson that deepens
+    /// the drill's category, surfaced instead of the next-drill suggestion.
+    private var upNextLesson: GameIQLesson? {
+        guard queue.source == .single else { return nil }
+        guard discipline.name == "Tactical" || discipline.id == "d-tact" else { return nil }
+        return gameIQLessons.first { $0.relatedCategoryID == category.id && !$0.isCompleted }
     }
 
     private var headerEyebrow: String {
@@ -138,7 +149,10 @@ struct SessionLoggedView: View {
                 }
                 .padding(.top, DS.Spacing.s32)
 
-                if let upNext {
+                if let lesson = upNextLesson {
+                    gameIQUpNextCard(lesson)
+                        .padding(.top, DS.Spacing.s32)
+                } else if let upNext {
                     upNextCard(upNext)
                         .padding(.top, DS.Spacing.s32)
                 }
@@ -165,6 +179,9 @@ struct SessionLoggedView: View {
         }
         .fullScreenCover(item: $nextSession) { queue in
             SessionPlayerView(queue: queue)
+        }
+        .fullScreenCover(item: $activeLesson) { lesson in
+            GameIQLessonView(lesson: lesson) { activeLesson = nil }
         }
         .sheet(isPresented: $showNotificationPrompt) {
             NotificationPromptSheet()
@@ -285,6 +302,31 @@ struct SessionLoggedView: View {
                 PrimaryButton(label: "Train it now", hint: nil) {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                     nextSession = TrainingQueue(items: [next], source: .single, sourceName: nil)
+                }
+                .padding(.top, DS.Spacing.s4)
+            }
+        }
+    }
+
+    /// Game IQ suggestion shown after a tactical drill: take the matching lesson next.
+    private func gameIQUpNextCard(_ lesson: GameIQLesson) -> some View {
+        Card(raised: true) {
+            VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                Eyebrow(text: "Level Up Your Game IQ")
+
+                Text(lesson.title)
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text("\(lesson.keyPoints.count) points · \(lesson.quiz.count)-question quiz")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+
+                PrimaryButton(label: "Take the lesson", hint: nil) {
+                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    activeLesson = lesson
                 }
                 .padding(.top, DS.Spacing.s4)
             }
