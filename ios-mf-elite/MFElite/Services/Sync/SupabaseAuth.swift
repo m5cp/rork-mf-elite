@@ -182,6 +182,7 @@ final class SupabaseAuth {
         expiresAt = nil
         email = nil
         isSignedIn = false
+        SyncEngine.shared.handleSignOut()
         Keychain.delete(.accessToken)
         Keychain.delete(.refreshToken)
         Keychain.delete(.userID)

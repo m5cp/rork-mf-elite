@@ -29,12 +29,14 @@ struct MFEliteApp: App {
             DrillNote.self,
             CombineTest.self,
             CombineResult.self,
-            GameIQLesson.self
+            GameIQLesson.self,
+            PendingOp.self
         ])
         container = MFEliteApp.makeContainer(for: schema)
         SeedData.seedIfNeeded(context: container.mainContext)
         CombineSeed.seedIfNeeded(context: container.mainContext)
         GameIQSeed.seedIfNeeded(context: container.mainContext)
+        SyncEngine.shared.configure(context: container.mainContext)
     }
 
     /// Builds the SwiftData container. If the on-disk store can't be opened
@@ -102,6 +104,8 @@ struct MFEliteApp: App {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .background {
                 scheduleStreakRiskIfNeeded()
+            } else if newPhase == .active {
+                SyncEngine.shared.onForeground()
             }
         }
     }

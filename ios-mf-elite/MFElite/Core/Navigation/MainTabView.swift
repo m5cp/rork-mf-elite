@@ -9,6 +9,7 @@ struct MainTabView: View {
     @State private var selectedTab: AppTab = .today
     @State private var subscription = SubscriptionService.shared
     @State private var router = AppActionRouter.shared
+    @State private var restore = SyncRestore.shared
     @State private var importPayload: WorkoutShare.Payload?
 
     var body: some View {
@@ -39,6 +40,9 @@ struct MainTabView: View {
         .fullScreenCover(isPresented: $subscription.showPremiumWelcome) {
             PremiumWelcomeView()
         }
+        .fullScreenCover(item: restorePresentation) { item in
+            RestoreProgressView(remote: item.state)
+        }
         .sheet(item: $importPayload) { payload in
             WorkoutImportView(payload: payload)
         }
@@ -46,6 +50,14 @@ struct MainTabView: View {
             guard let payload = WorkoutShare.decode(url) else { return }
             importPayload = payload
         }
+    }
+
+    /// Binds the restore prompt to the coordinator's pending remote state.
+    private var restorePresentation: Binding<RemotePlayerStateItem?> {
+        Binding(
+            get: { restore.pending.map(RemotePlayerStateItem.init) },
+            set: { if $0 == nil { restore.dismissPending() } }
+        )
     }
 
     @ViewBuilder

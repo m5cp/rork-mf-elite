@@ -69,6 +69,14 @@ enum QuickLog {
 
         try? context.save()
 
+        // Mirror the updated player state + touched drills to the cloud (no-op
+        // when signed out / offline; fully background).
+        SyncEngine.shared.syncAfterLogging(
+            player: player,
+            touchedDrillIDs: contexts.map { $0.drill.id },
+            context: context
+        )
+
         // Submit updated total XP to Game Center leaderboards.
         if let player {
             GameCenterService.shared.submitXP(player.xp)

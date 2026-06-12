@@ -50,7 +50,10 @@ struct AppleSignInButton: View {
                     rawNonce: nonce,
                     fullName: fullName
                 )
-                if ok { onSignedIn() }
+                if ok {
+                    SyncEngine.shared.handleSignIn()
+                    onSignedIn()
+                }
             }
         case .failure(let error):
             print("[AppleSignInButton] Sign-in cancelled or failed: \(error.localizedDescription)")

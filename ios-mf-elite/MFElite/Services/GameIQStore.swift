@@ -69,6 +69,7 @@ enum GameIQStore {
         // Mirror to Game Center / widgets so the new XP and ring state propagate.
         if let player {
             GameCenterService.shared.submitXP(player.xp)
+            SyncEngine.shared.enqueuePlayerState(player)
         }
         WidgetBridge.refresh(context: context)
 

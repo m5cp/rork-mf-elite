@@ -398,6 +398,14 @@ final class DrillPlayerViewModel {
 
         try? context.save()
 
+        // Mirror player state + this drill's progress to the cloud (background,
+        // fails soft when signed out / offline).
+        SyncEngine.shared.syncAfterLogging(
+            player: player,
+            touchedDrillIDs: [drill.id],
+            context: context
+        )
+
         // Submit updated total XP to Game Center leaderboards.
         if let player {
             GameCenterService.shared.submitXP(player.xp)

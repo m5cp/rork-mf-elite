@@ -31,6 +31,7 @@ struct SettingsView: View {
     @State private var health = HealthKitService.shared
     @State private var gate = ParentGate.shared
     @State private var auth = SupabaseAuth.shared
+    @State private var sync = SyncEngine.shared
 
     @State private var showSignInSheet = false
     @State private var showSignOutConfirm = false
@@ -182,6 +183,29 @@ struct SettingsView: View {
                 }
             }
             .padding(.vertical, DS.Spacing.s16 - 2)
+
+            if auth.isSignedIn {
+                Hairline()
+                HStack(spacing: DS.Spacing.s12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(lastSyncedText)
+                            .style(.callout)
+                            .foregroundStyle(DS.Colors.Ink.secondary)
+                        if sync.pendingCount > 0 {
+                            Text("\(sync.pendingCount) change\(sync.pendingCount == 1 ? "" : "s") waiting to upload")
+                                .style(.foot)
+                                .foregroundStyle(DS.Colors.Ink.tertiary)
+                        }
+                    }
+                    Spacer(minLength: DS.Spacing.s12)
+                    Button("Sync now") { sync.syncNow() }
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.secondary)
+                        .buttonStyle(PressableButtonStyle())
+                }
+                .padding(.vertical, DS.Spacing.s16 - 2)
+            }
+
             Text("Sign in with Apple to back up your progress and restore it on another device. The app works fully offline either way.")
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.quaternary)
@@ -193,6 +217,13 @@ struct SettingsView: View {
     private var syncStatusDetail: String {
         if auth.isSignedIn { return auth.email ?? "Apple account" }
         return "Not backed up"
+    }
+
+    private var lastSyncedText: String {
+        guard let date = sync.lastSyncedAt else { return "Not synced yet" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return "Last synced \(formatter.localizedString(for: date, relativeTo: Date()))"
     }
 
     // MARK: - Subscription
