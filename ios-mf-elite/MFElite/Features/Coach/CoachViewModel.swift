@@ -90,6 +90,8 @@ final class CoachViewModel {
     var overview: CoachOverview?
     var roster: [RosterPlayer] = []
     var searchText: String = ""
+    /// When the overview + roster last finished loading, for the "updated" label.
+    var lastLoadedAt: Date?
 
     /// Per-player detail cache + load state, keyed by player id.
     var detailState: [String: CoachLoadState] = [:]
@@ -191,6 +193,7 @@ final class CoachViewModel {
             sessionsThisWeek: sessionsThisWeek
         )
         overviewState = .loaded
+        lastLoadedAt = Date()
     }
 
     // MARK: - Player detail

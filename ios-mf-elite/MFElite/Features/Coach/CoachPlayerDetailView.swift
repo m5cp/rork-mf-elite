@@ -49,6 +49,20 @@ struct CoachPlayerDetailView: View {
         .scrollIndicators(.hidden)
         .navigationTitle(player.displayName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            if let detail {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ShareLink(
+                        item: CoachExport.report(for: player, detail: detail),
+                        preview: SharePreview("\(player.displayName) — MF Elite report")
+                    ) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ink.secondary)
+                    }
+                }
+            }
+        }
         .refreshable { await model.loadDetail(for: player, context: modelContext, force: true) }
         .task { await model.loadDetail(for: player, context: modelContext) }
     }

@@ -57,13 +57,43 @@ struct CoachView: View {
     // MARK: - Header
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-            Eyebrow(text: "Coach Mode")
-            Text("Your Team")
-                .style(.title1)
-                .foregroundStyle(DS.Colors.Ink.primary)
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                Eyebrow(text: "Coach Mode")
+                Text("Your Team")
+                    .style(.title1)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Text(updatedText)
+                    .style(.cap)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            Spacer(minLength: DS.Spacing.s12)
+            Button {
+                Task { await model.loadOverviewAndRoster(context: modelContext) }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+                    .frame(width: 44, height: 44)
+                    .background(DS.Colors.Bg.card)
+                    .clipShape(Circle())
+                    .overlay(Circle().stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                    .rotationEffect(.degrees(model.overviewState == .loading ? 360 : 0))
+                    .animation(model.overviewState == .loading
+                        ? .linear(duration: 0.9).repeatForever(autoreverses: false)
+                        : .default, value: model.overviewState)
+            }
+            .buttonStyle(PressableButtonStyle())
+            .disabled(model.overviewState == .loading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var updatedText: String {
+        guard let date = model.lastLoadedAt else { return "Pull to refresh" }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return "Updated \(formatter.localizedString(for: date, relativeTo: Date()))"
     }
 
     private var offlineBanner: some View {
