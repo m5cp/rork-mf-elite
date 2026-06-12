@@ -62,10 +62,13 @@ struct CombineScorecardView: View {
         let todayText: String
         let deltaText: String?
         let delta: CombineDelta?
+        let tierCaption: String?
     }
 
     private var rows: [ScoreRow] {
         let calendar = Calendar.current
+        let age = PlayerProfileStore.shared.age
+        let benchmarks = CombineBenchmarks.shared
         return tests.sorted { $0.sortIndex < $1.sortIndex }.compactMap { test in
             let testResults = results
                 .filter { $0.testID == test.id }
@@ -88,13 +91,21 @@ struct CombineScorecardView: View {
                 }
             }
 
+            var tierCaption: String?
+            if let age,
+               let male = benchmarks.standing(testID: test.id, value: today.value, age: age, female: false),
+               let female = benchmarks.standing(testID: test.id, value: today.value, age: age, female: true) {
+                tierCaption = "M: \(male.tier.label) · W: \(female.tier.label)"
+            }
+
             return ScoreRow(
                 id: test.id,
                 name: test.name,
                 unit: test.unit,
                 todayText: CombineFormat.value(today.value, unit: test.unit),
                 deltaText: deltaText,
-                delta: delta
+                delta: delta,
+                tierCaption: tierCaption
             )
         }
     }
@@ -151,6 +162,12 @@ struct CombineScorecardView: View {
                 Text(row.unit)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.black.opacity(0.4))
+                if let tierCaption = row.tierCaption {
+                    Text(tierCaption)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.black.opacity(0.55))
+                        .padding(.top, 1)
+                }
             }
 
             Spacer(minLength: 0)

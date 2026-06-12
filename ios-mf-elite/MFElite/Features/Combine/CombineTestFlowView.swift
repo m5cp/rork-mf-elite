@@ -265,43 +265,53 @@ struct CombineTestFlowView: View {
 
     private var resultStage: some View {
         VStack(spacing: 0) {
-            Spacer()
+            ScrollView {
+                VStack(spacing: DS.Spacing.s24) {
+                    celebration
+                        .padding(.horizontal, DS.Spacing.s40)
+                        .padding(.top, DS.Spacing.s48)
 
-            VStack(spacing: DS.Spacing.s24) {
-                ZStack {
-                    Circle()
-                        .fill(Color.white.opacity(wasPersonalBest ? 0.10 : 0.05))
-                        .frame(width: 160, height: 160)
-                        .blur(radius: 40)
-                    Image(systemName: wasPersonalBest ? "trophy.fill" : "checkmark")
-                        .font(.system(size: 48, weight: .bold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                    CombineStandingCard(test: test, value: savedValue)
+                        .padding(.horizontal, DS.Spacing.s20)
                 }
-
-                VStack(spacing: DS.Spacing.s8) {
-                    Eyebrow(text: wasPersonalBest ? "New Personal Best" : "Logged")
-                    Text("\(CombineFormat.value(savedValue, unit: test.unit))")
-                        .style(.hero)
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                    Text(test.unit)
-                        .style(.title3)
-                        .foregroundStyle(DS.Colors.Ink.tertiary)
-                    Text(wasPersonalBest
-                         ? "That's your best \(test.name) yet."
-                         : "Logged. Previous best stands.")
-                        .style(.callout)
-                        .foregroundStyle(DS.Colors.Ink.tertiary)
-                        .multilineTextAlignment(.center)
-                        .padding(.top, DS.Spacing.s4)
-                }
+                .padding(.bottom, DS.Spacing.s24)
             }
-            .padding(.horizontal, DS.Spacing.s40)
-
-            Spacer()
+            .scrollIndicators(.hidden)
 
             PrimaryButton(label: "Done") { dismiss() }
                 .padding(.horizontal, DS.Spacing.s20)
                 .padding(.bottom, DS.Spacing.s40)
+        }
+    }
+
+    private var celebration: some View {
+        VStack(spacing: DS.Spacing.s24) {
+            ZStack {
+                Circle()
+                    .fill(Color.white.opacity(wasPersonalBest ? 0.10 : 0.05))
+                    .frame(width: 160, height: 160)
+                    .blur(radius: 40)
+                Image(systemName: wasPersonalBest ? "trophy.fill" : "checkmark")
+                    .font(.system(size: 48, weight: .bold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+            }
+
+            VStack(spacing: DS.Spacing.s8) {
+                Eyebrow(text: wasPersonalBest ? "New Personal Best" : "Logged")
+                Text("\(CombineFormat.value(savedValue, unit: test.unit))")
+                    .style(.hero)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Text(test.unit)
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                Text(wasPersonalBest
+                     ? "That's your best \(test.name) yet."
+                     : "Logged. Previous best stands.")
+                    .style(.callout)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, DS.Spacing.s4)
+            }
         }
     }
 }

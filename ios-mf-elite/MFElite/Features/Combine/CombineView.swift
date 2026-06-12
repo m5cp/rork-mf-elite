@@ -18,7 +18,6 @@ struct CombineView: View {
     @Query(sort: \CombineTest.sortIndex) private var tests: [CombineTest]
     @Query private var results: [CombineResult]
 
-    @State private var activeTest: CombineTest?
     @State private var showScorecard = false
 
     private var technical: [CombineTest] { tests.filter { $0.category == "technical" } }
@@ -46,8 +45,8 @@ struct CombineView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("MF Combine")
         .navigationBarTitleDisplayMode(.inline)
-        .fullScreenCover(item: $activeTest) { test in
-            CombineTestFlowView(test: test)
+        .navigationDestination(for: CombineTest.self) { test in
+            CombineTestDetailView(test: test)
         }
         .sheet(isPresented: $showScorecard) {
             CombineScorecardView(tests: tests, results: results)
@@ -110,13 +109,13 @@ struct CombineView: View {
                 .padding(.bottom, DS.Spacing.s4)
 
             ForEach(Array(sectionTests.enumerated()), id: \.element.id) { index, test in
-                Button {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    activeTest = test
-                } label: {
+                NavigationLink(value: test) {
                     row(for: test)
                 }
                 .buttonStyle(PressableButtonStyle())
+                .simultaneousGesture(TapGesture().onEnded {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                })
 
                 if index != sectionTests.count - 1 {
                     Hairline()
