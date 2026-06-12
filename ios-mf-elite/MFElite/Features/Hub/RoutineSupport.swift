@@ -328,6 +328,7 @@ struct WorkoutCard: View {
     let onEdit: () -> Void
     let onDuplicate: () -> Void
     let onDelete: () -> Void
+    let onShare: () -> Void
 
     private var isCompletedToday: Bool {
         !resolved.isEmpty && resolved.allSatisfy { loggedToday.contains($0.drill.id) }
@@ -349,6 +350,7 @@ struct WorkoutCard: View {
                             Menu {
                                 Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
                                 Button { onDuplicate() } label: { Label("Duplicate", systemImage: "plus.square.on.square") }
+                                Button { onShare() } label: { Label("Share", systemImage: "qrcode") }
                                 Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
                                 Button { onMarkComplete() } label: { Label("Mark complete", systemImage: "checkmark.circle") }
                             } label: {

@@ -25,6 +25,7 @@ struct FavoritesView: View {
     @State private var expanded: Set<String> = []
     @State private var activeSession: TrainingQueue?
     @State private var markCompleteTarget: MarkCompleteTarget?
+    @State private var sharingWorkout: ShareableWorkout?
     @State private var lastLogResult: QuickLog.Result?
 
     private struct MarkCompleteTarget: Identifiable {
@@ -83,6 +84,7 @@ struct FavoritesView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("Favorites")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $sharingWorkout) { workout in WorkoutShareView(workout: workout) }
         .fullScreenCover(item: $activeSession) { queue in
             SessionPlayerView(queue: queue)
         }
@@ -176,7 +178,8 @@ struct FavoritesView: View {
                     onDuplicate: {},
                     onDelete: {
                         withAnimation(DS.Motion.standardSpring) { favorites.toggleWorkout(workout.id) }
-                    }
+                    },
+                    onShare: { shareWorkout(workout, resolved: resolved) }
                 )
                 .padding(.horizontal, DS.Spacing.s20)
             }
@@ -238,6 +241,17 @@ struct FavoritesView: View {
         let slice = Array(resolved.dropFirst(startIndex))
         guard !slice.isEmpty else { return }
         activeSession = TrainingQueue(items: slice.map(\.context), source: source, sourceName: name)
+    }
+
+    private func shareWorkout(_ workout: CustomWorkout, resolved: [ResolvedDrill]) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        sharingWorkout = ShareableWorkout(
+            id: workout.id,
+            title: workout.title,
+            drillIDs: workout.drillIDs,
+            drillCount: resolved.count,
+            minutes: estimatedMinutes(resolved)
+        )
     }
 
     private func markComplete(_ target: MarkCompleteTarget) {

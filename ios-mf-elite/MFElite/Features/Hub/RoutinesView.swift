@@ -24,6 +24,7 @@ struct RoutinesView: View {
     @State private var showBuilder = false
     @State private var editingWorkout: CustomWorkout?
     @State private var workoutToDelete: CustomWorkout?
+    @State private var sharingWorkout: ShareableWorkout?
     @State private var markCompleteTarget: MarkCompleteTarget?
     @State private var lastLogResult: QuickLog.Result?
     @State private var favorites = FavoritesStore.shared
@@ -76,6 +77,7 @@ struct RoutinesView: View {
         .sheet(isPresented: $showBuilder) {
             WorkoutBuilderView()
         }
+        .sheet(item: $sharingWorkout) { workout in WorkoutShareView(workout: workout) }
         .sheet(item: $editingWorkout) { workout in
             WorkoutBuilderView(editing: workout)
         }
@@ -203,7 +205,8 @@ struct RoutinesView: View {
                         },
                         onEdit: { editingWorkout = workout },
                         onDuplicate: { duplicate(workout) },
-                        onDelete: { workoutToDelete = workout }
+                        onDelete: { workoutToDelete = workout },
+                        onShare: { share(workout, resolved: resolved) }
                     )
                 }
             }
@@ -240,6 +243,17 @@ struct RoutinesView: View {
         }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         showBuilder = true
+    }
+
+    private func share(_ workout: CustomWorkout, resolved: [ResolvedDrill]) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        sharingWorkout = ShareableWorkout(
+            id: workout.id,
+            title: workout.title,
+            drillIDs: workout.drillIDs,
+            drillCount: resolved.count,
+            minutes: estimatedMinutes(resolved)
+        )
     }
 
     private func duplicate(_ workout: CustomWorkout) {
