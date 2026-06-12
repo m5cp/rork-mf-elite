@@ -59,6 +59,34 @@ enum CombineStats {
         return improved ? .improved : .declined
     }
 
+    /// The two most recent attempts' direction for a test (latest vs the one
+    /// before it), honoring `lowerIsBetter`. `nil` when fewer than two attempts.
+    static func recentTrend(_ test: CombineTest, results: [CombineResult]) -> CombineDelta? {
+        let sorted = results
+            .filter { $0.testID == test.id }
+            .sorted { $0.recordedAt < $1.recordedAt }
+        guard sorted.count >= 2 else { return nil }
+        return delta(sorted[sorted.count - 1].value, previous: sorted[sorted.count - 2].value, test: test)
+    }
+
+    /// The most recent calendar day on which EVERY test has at least one result —
+    /// i.e. the last day a full combine was completed. `nil` when no full combine
+    /// has ever happened.
+    static func lastFullCombineDay(tests: [CombineTest], results: [CombineResult]) -> Date? {
+        guard !tests.isEmpty else { return nil }
+        let calendar = Calendar.current
+        let allTestIDs = Set(tests.map(\.id))
+        var byDay: [Date: Set<String>] = [:]
+        for result in results {
+            let day = calendar.startOfDay(for: result.recordedAt)
+            byDay[day, default: []].insert(result.testID)
+        }
+        return byDay
+            .filter { $0.value.isSuperset(of: allTestIDs) }
+            .keys
+            .max()
+    }
+
     /// True when every test has at least one result recorded on `day`.
     static func combineComplete(tests: [CombineTest], results: [CombineResult], on day: Date = Date()) -> Bool {
         guard !tests.isEmpty else { return false }

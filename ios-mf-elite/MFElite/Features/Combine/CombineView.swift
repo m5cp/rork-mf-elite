@@ -14,6 +14,11 @@ import SwiftData
 /// Navigation route into the MF Combine hub.
 struct CombineRoute: Hashable {}
 
+/// Navigation route to a single test's full attempt history.
+struct CombineHistoryRoute: Hashable {
+    let test: CombineTest
+}
+
 struct CombineView: View {
     @Query(sort: \CombineTest.sortIndex) private var tests: [CombineTest]
     @Query private var results: [CombineResult]
@@ -47,6 +52,9 @@ struct CombineView: View {
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: CombineTest.self) { test in
             CombineTestDetailView(test: test)
+        }
+        .navigationDestination(for: CombineHistoryRoute.self) { route in
+            CombineTestHistoryView(test: route.test)
         }
         .sheet(isPresented: $showScorecard) {
             CombineScorecardView(tests: tests, results: results)

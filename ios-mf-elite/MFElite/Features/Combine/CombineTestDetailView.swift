@@ -126,7 +126,22 @@ struct CombineTestDetailView: View {
     @ViewBuilder
     private var trendSection: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-            Eyebrow(text: "Progress")
+            HStack {
+                Eyebrow(text: "Progress")
+                Spacer()
+                if !history.isEmpty {
+                    NavigationLink(value: CombineHistoryRoute(test: test)) {
+                        HStack(spacing: 3) {
+                            Text("History")
+                                .style(.micro)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                }
+            }
 
             if history.count < 2 {
                 Text(history.isEmpty

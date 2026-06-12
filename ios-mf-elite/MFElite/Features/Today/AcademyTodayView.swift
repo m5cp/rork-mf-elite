@@ -21,6 +21,8 @@ struct AcademyTodayView: View {
     @Query private var progress: [DrillProgress]
     @Query private var sessions: [SessionLogEntry]
     @Query(sort: \CustomWorkout.updatedAt, order: .reverse) private var workouts: [CustomWorkout]
+    @Query(sort: \CombineTest.sortIndex) private var combineTests: [CombineTest]
+    @Query private var combineResults: [CombineResult]
     @Environment(SubscriptionService.self) private var subscription
     @State private var profile = PlayerProfileStore.shared
     @State private var favorites = FavoritesStore.shared
@@ -29,6 +31,7 @@ struct AcademyTodayView: View {
     @State private var showBuilder = false
     @State private var showQuickTrain = false
     @State private var router = AppActionRouter.shared
+    @State private var retestStore = CombineRetestStore.shared
 
     /// Most recent workouts shown inline on the home strip before "See all".
     private let homeWorkoutLimit = 6
@@ -81,6 +84,7 @@ struct AcademyTodayView: View {
                         completeProfileBanner
                     }
                     salutation(vm)
+                    combineRetestNudge
                     dailyStandard(vm)
                     goalsCard(vm)
                     quickTrainRow
@@ -119,6 +123,9 @@ struct AcademyTodayView: View {
             .navigationDestination(for: FavoritesRoute.self) { _ in
                 FavoritesView()
             }
+            .navigationDestination(for: CombineRoute.self) { _ in
+                CombineView()
+            }
         }
         .fullScreenCover(item: $activeSession) { queue in
             SessionPlayerView(queue: queue)
@@ -156,6 +163,58 @@ struct AcademyTodayView: View {
         guard !items.isEmpty else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         activeSession = TrainingQueue(items: Array(items), source: .workout, sourceName: "Recommended")
+    }
+
+    // MARK: - Combine retest nudge
+
+    /// A dismissable prompt to re-run the full combine once the last completed
+    /// combine is 28+ days old. Tapping opens the combine; dismissing hides it
+    /// until the next cycle.
+    @ViewBuilder
+    private var combineRetestNudge: some View {
+        let lastFullDay = CombineStats.lastFullCombineDay(tests: combineTests, results: combineResults)
+        if retestStore.shouldShow(lastFullDay: lastFullDay), let lastFullDay {
+            Card(padding: DS.Spacing.s16) {
+                HStack(spacing: DS.Spacing.s12) {
+                    Image(systemName: "stopwatch")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .frame(width: 40, height: 40)
+                        .background(DS.Colors.Bg.raised)
+                        .clipShape(Circle())
+
+                    NavigationLink(value: CombineRoute()) {
+                        VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                            Text("Combine retest week")
+                                .style(.callout)
+                                .foregroundStyle(DS.Colors.Ink.primary)
+                            Text("See how far you've come.")
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Ink.tertiary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressableButtonStyle())
+
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        withAnimation(DS.Motion.standardSpring) {
+                            retestStore.dismiss(for: lastFullDay)
+                        }
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .accessibilityLabel("Dismiss")
+                }
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s16)
+        }
     }
 
     // MARK: - Quick Train

@@ -22,6 +22,7 @@ struct ProgressTabView: View {
     @Query private var progress: [DrillProgress]
     @Query private var sessions: [SessionLogEntry]
     @Query private var combineResults: [CombineResult]
+    @Query(sort: \CombineTest.sortIndex) private var combineTests: [CombineTest]
 
     @State private var selectedDay: IdentifiableDate?
     @State private var gameCenter = GameCenterService.shared
@@ -49,6 +50,7 @@ struct ProgressTabView: View {
                         disciplineBreakdown(vm)
                     }
                     combineEntry
+                    combineTrendStrip
                     quickLinks
                 }
                 .padding(.bottom, 120)
@@ -451,6 +453,65 @@ struct ProgressTabView: View {
         .buttonStyle(PressableButtonStyle())
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32 - 4)
+    }
+
+    // MARK: - MF Combine trend strip
+
+    /// A compact row of all 8 tests, each with a tiny arrow showing the latest
+    /// result versus the previous one (lowerIsBetter-aware). Hidden until at
+    /// least one result exists.
+    @ViewBuilder
+    private var combineTrendStrip: some View {
+        if !combineResults.isEmpty {
+            VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                Eyebrow(text: "Combine Trends")
+
+                let columns = Array(repeating: GridItem(.flexible(), spacing: DS.Spacing.s8), count: 4)
+                LazyVGrid(columns: columns, spacing: DS.Spacing.s12) {
+                    ForEach(combineTests) { test in
+                        combineTrendCell(test)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s32 - 4)
+        }
+    }
+
+    private func combineTrendCell(_ test: CombineTest) -> some View {
+        let best = CombineStats.personalBest(test, results: combineResults)
+        let trend = CombineStats.recentTrend(test, results: combineResults)
+        return VStack(spacing: DS.Spacing.s4) {
+            HStack(spacing: 3) {
+                Text(best.map { CombineFormat.value($0, unit: test.unit) } ?? "—")
+                    .font(DS.Typography.num(size: 17))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                if let trend {
+                    Image(systemName: trendSymbol(trend))
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(trend.tint)
+                }
+            }
+            Text(test.name)
+                .style(.microSm)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, DS.Spacing.s12)
+        .background(DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+    }
+
+    private func trendSymbol(_ delta: CombineDelta) -> String {
+        switch delta {
+        case .improved: return "arrow.up"
+        case .same:     return "minus"
+        case .declined: return "arrow.down"
+        }
     }
 
     // MARK: - 6. Quick links

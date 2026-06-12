@@ -15,6 +15,10 @@ struct ParentReportView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
+    @Query(sort: \CombineTest.sortIndex) private var combineTests: [CombineTest]
+    @Query private var combineResults: [CombineResult]
+
+    @State private var profile = PlayerProfileStore.shared
 
     private var viewModel: ParentReportViewModel {
         ParentReportViewModel(
@@ -35,6 +39,7 @@ struct ParentReportView: View {
                 pillars(vm)
                 narrative(vm)
                 attendance(vm)
+                combineSection
                 coachNote(vm)
                 ctas
             }
@@ -203,6 +208,98 @@ struct ParentReportView: View {
                             style: StrokeStyle(lineWidth: 1.5, dash: [3, 2])
                         )
                 )
+        }
+    }
+
+    // MARK: - Combine section
+
+    /// Tests that have at least one recorded result, in sort order.
+    private var combineTestsWithData: [CombineTest] {
+        combineTests.filter { test in
+            combineResults.contains { $0.testID == test.id }
+        }
+    }
+
+    @ViewBuilder
+    private var combineSection: some View {
+        if !combineTestsWithData.isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Eyebrow(text: "MF Combine")
+
+                VStack(spacing: 0) {
+                    ForEach(Array(combineTestsWithData.enumerated()), id: \.element.id) { index, test in
+                        combineRow(test)
+                        if index != combineTestsWithData.count - 1 {
+                            Hairline()
+                        }
+                    }
+                }
+                .padding(.top, DS.Spacing.s8)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s24 + 4)
+        }
+    }
+
+    private func combineRow(_ test: CombineTest) -> some View {
+        let latest = CombineStats.latest(test.id, results: combineResults)
+        let best = CombineStats.personalBest(test, results: combineResults)
+        let trend = CombineStats.recentTrend(test, results: combineResults)
+        let tiers = combineTierCaption(test, value: latest?.value)
+        return VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+            HStack(spacing: DS.Spacing.s8) {
+                Text(test.name)
+                    .style(.callout)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                if let trend {
+                    Image(systemName: combineTrendSymbol(trend))
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(trend.tint)
+                }
+                Spacer(minLength: DS.Spacing.s8)
+                if let latest {
+                    Text("\(CombineFormat.value(latest.value, unit: test.unit)) \(test.unit)")
+                        .font(DS.Typography.num(size: 16))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                }
+            }
+            HStack(spacing: DS.Spacing.s8) {
+                if let latest {
+                    Text("Latest \(CombineFormat.relative(latest.recordedAt))")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                if let best {
+                    Text("· Best \(CombineFormat.value(best, unit: test.unit))")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+            }
+            if let tiers {
+                Text(tiers)
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, DS.Spacing.s12)
+    }
+
+    private func combineTierCaption(_ test: CombineTest, value: Double?) -> String? {
+        guard let value,
+              let age = profile.age,
+              let male = CombineBenchmarks.shared.standing(testID: test.id, value: value, age: age, female: false),
+              let female = CombineBenchmarks.shared.standing(testID: test.id, value: value, age: age, female: true)
+        else { return nil }
+        return "M: \(male.tier.label) · W: \(female.tier.label)"
+    }
+
+    private func combineTrendSymbol(_ delta: CombineDelta) -> String {
+        switch delta {
+        case .improved: return "arrow.up"
+        case .same:     return "minus"
+        case .declined: return "arrow.down"
         }
     }
 
