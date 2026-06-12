@@ -21,6 +21,7 @@ struct ProgressTabView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var progress: [DrillProgress]
     @Query private var sessions: [SessionLogEntry]
+    @Query private var combineResults: [CombineResult]
 
     @State private var selectedDay: IdentifiableDate?
     @State private var gameCenter = GameCenterService.shared
@@ -47,6 +48,7 @@ struct ProgressTabView: View {
                         intensity(vm)
                         disciplineBreakdown(vm)
                     }
+                    combineEntry
                     quickLinks
                 }
                 .padding(.bottom, 120)
@@ -56,6 +58,7 @@ struct ProgressTabView: View {
             .navigationBarHidden(true)
             .navigationDestination(for: WeeklyRoute.self) { _ in HistoryCalendarView() }
             .navigationDestination(for: AcademyProgressionRoute.self) { _ in AcademyProgressionView() }
+            .navigationDestination(for: CombineRoute.self) { _ in CombineView() }
             .sheet(item: $selectedDay) { wrapped in
                 DayDetailView(date: wrapped.date)
                     .presentationDetents([.large])
@@ -407,6 +410,45 @@ struct ProgressTabView: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s32 - 4)
+    }
+
+    // MARK: - MF Combine entry
+
+    private var combineEntry: some View {
+        let lastDate = CombineStats.lastCombineDate(combineResults)
+        return NavigationLink(value: CombineRoute()) {
+            Card {
+                HStack(spacing: DS.Spacing.s16) {
+                    Image(systemName: "stopwatch")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .frame(width: 44, height: 44)
+                        .background(DS.Colors.Bg.raised)
+                        .clipShape(Circle())
+
+                    VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                        Eyebrow(text: "MF Combine")
+                        Text("Test your baseline")
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text(lastDate == nil
+                             ? "8 tests · about 30 minutes"
+                             : "Last combine \(CombineFormat.relative(lastDate!))")
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+            }
+        }
+        .buttonStyle(PressableButtonStyle())
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32 - 4)
     }
