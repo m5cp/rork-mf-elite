@@ -25,7 +25,8 @@ struct MFEliteApp: App {
             DrillProgress.self,
             PlayerState.self,
             SessionLogEntry.self,
-            CustomWorkout.self
+            CustomWorkout.self,
+            DrillNote.self
         ])
         container = MFEliteApp.makeContainer(for: schema)
         SeedData.seedIfNeeded(context: container.mainContext)

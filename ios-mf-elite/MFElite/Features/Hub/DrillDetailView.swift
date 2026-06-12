@@ -28,13 +28,19 @@ struct DrillDetailView: View {
     @Environment(\.modelContext) private var context
     @Query private var progress: [DrillProgress]
     @Query private var sessions: [SessionLogEntry]
+    @Query private var notes: [DrillNote]
     @State private var activeSession: TrainingQueue?
     @State private var showLogConfirm = false
     @State private var lastLogResult: QuickLog.Result?
     @State private var favorites = FavoritesStore.shared
+    @State private var showNoteEditor = false
 
     private var drillProgress: DrillProgress? {
         progress.first { $0.drillID == drill.id }
+    }
+
+    private var drillNote: DrillNote? {
+        notes.first { $0.drillID == drill.id }
     }
 
     // MARK: - Personal history (this drill)
@@ -88,6 +94,7 @@ struct DrillDetailView: View {
                     coachingSection
                     challengeSection
                 }
+                notesSection
                 accountabilitySection(vm)
                 bottomCTA(vm)
             }
@@ -98,6 +105,11 @@ struct DrillDetailView: View {
         .navigationBarHidden(true)
         .fullScreenCover(item: $activeSession) { queue in
             SessionPlayerView(queue: queue)
+        }
+        .sheet(isPresented: $showNoteEditor) {
+            DrillNoteEditorView(existing: drillNote?.text ?? "") { newText in
+                saveNote(newText)
+            }
         }
         .confirmationDialog(
             drill.isMentalExercise ? "Log this exercise?" : "Log this drill?",
@@ -353,6 +365,84 @@ struct DrillDetailView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("How it felt: \(rounded) of 5")
+    }
+
+    // MARK: - My Notes
+
+    private var notesSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "MY NOTES")
+            Card {
+                if let note = drillNote {
+                    VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                        Text(note.text)
+                            .style(.callout)
+                            .foregroundStyle(DS.Colors.Ink.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        HStack {
+                            Text("Edited \(noteEditedLabel(note.updatedAt))")
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Ink.tertiary)
+                            Spacer()
+                            Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                showNoteEditor = true
+                            } label: {
+                                Text("Edit")
+                                    .style(.foot)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(DS.Colors.Ink.primary)
+                            }
+                            .buttonStyle(PressableButtonStyle())
+                        }
+                    }
+                } else {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        showNoteEditor = true
+                    } label: {
+                        HStack(spacing: DS.Spacing.s8) {
+                            Image(systemName: "square.and.pencil")
+                                .font(.system(size: 15, weight: .medium))
+                            Text("Add a note")
+                                .style(.callout)
+                                .fontWeight(.semibold)
+                            Spacer()
+                        }
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                }
+            }
+            .padding(.top, DS.Spacing.s12 + 2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s24 + 4)
+    }
+
+    private func noteEditedLabel(_ date: Date) -> String {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .full
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    /// Saves, updates, or deletes (on empty) the private note for this drill.
+    private func saveNote(_ rawText: String) {
+        let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            if let existing = drillNote {
+                context.delete(existing)
+            }
+        } else if let existing = drillNote {
+            existing.text = trimmed
+            existing.updatedAt = Date()
+        } else {
+            context.insert(DrillNote(drillID: drill.id, text: trimmed))
+        }
+        try? context.save()
     }
 
     // MARK: - Set-Up
