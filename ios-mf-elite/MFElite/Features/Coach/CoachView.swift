@@ -14,6 +14,7 @@ struct CoachView: View {
     @Environment(\.modelContext) private var modelContext
     @State private var model = CoachViewModel()
     @State private var sync = SyncEngine.shared
+    @State private var showPublish = false
 
     var body: some View {
         NavigationStack {
@@ -32,6 +33,7 @@ struct CoachView: View {
                         retryState
                     default:
                         overviewSection
+                        workoutsSection
                         rosterSection
                     }
                 }
@@ -50,6 +52,62 @@ struct CoachView: View {
         .task {
             if model.overview == nil {
                 await model.loadOverviewAndRoster(context: modelContext)
+            }
+            if model.publishedWorkouts.isEmpty {
+                await model.loadPublishedWorkouts()
+            }
+        }
+        .sheet(isPresented: $showPublish) {
+            WorkoutBuilderView { title, note, drillIDs in
+                Task { await model.publishWorkout(title: title, note: note, drillIDs: drillIDs) }
+            }
+        }
+    }
+
+    // MARK: - Workouts (Coach's Workout of the Day)
+
+    private var workoutsSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Workouts")
+
+            Button {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                showPublish = true
+            } label: {
+                HStack(spacing: DS.Spacing.s12) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Publish a workout")
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("Send a featured session to your whole team")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                .padding(DS.Spacing.s16)
+                .frame(maxWidth: .infinity)
+                .background(DS.Colors.Bg.card)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
+
+            if !model.publishedWorkouts.isEmpty {
+                VStack(spacing: DS.Spacing.s8) {
+                    ForEach(model.publishedWorkouts) { workout in
+                        CoachWorkoutRow(workout: workout) { active in
+                            Task { await model.setWorkoutActive(workout, active: active) }
+                        }
+                    }
+                }
             }
         }
     }
@@ -291,6 +349,55 @@ struct CoachRosterRow: View {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .abbreviated
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+// MARK: - Published workout row
+
+/// One coach-published workout with an active/inactive toggle. Deactivating it
+/// stops players seeing it; nothing else changes anywhere.
+struct CoachWorkoutRow: View {
+    let workout: CoachPublishedWorkout
+    let onToggleActive: (Bool) -> Void
+
+    var body: some View {
+        HStack(spacing: DS.Spacing.s12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(workout.title)
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .lineLimit(1)
+                Text(subtitle)
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: DS.Spacing.s8)
+            Toggle("", isOn: Binding(
+                get: { workout.active },
+                set: { newValue in
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    onToggleActive(newValue)
+                }
+            ))
+            .labelsHidden()
+            .tint(DS.Colors.Ink.primary)
+        }
+        .padding(DS.Spacing.s12)
+        .background(DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.md)
+                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+        )
+        .opacity(workout.active ? 1 : 0.6)
+    }
+
+    private var subtitle: String {
+        let count = workout.drillIDs.count
+        let drills = "\(count) \(count == 1 ? "drill" : "drills")"
+        let status = workout.active ? "Active" : "Inactive"
+        return "\(status) · \(drills) · \(CoachFormat.shortDate(workout.createdAt))"
     }
 }
 

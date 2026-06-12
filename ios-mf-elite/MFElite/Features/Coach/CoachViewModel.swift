@@ -66,6 +66,16 @@ struct SessionHistoryItem: Identifiable, Equatable {
     let feltRating: Int?
 }
 
+/// One workout the coach has published, for the WORKOUTS list.
+struct CoachPublishedWorkout: Identifiable, Equatable {
+    let id: String          // coach_workouts.id (uuid text)
+    var title: String
+    var note: String
+    var drillIDs: [String]
+    var active: Bool
+    var createdAt: Date
+}
+
 /// Full per-player detail assembled for the coach.
 struct CoachPlayerDetail: Equatable {
     var xp: Int
@@ -96,6 +106,10 @@ final class CoachViewModel {
     /// Per-player detail cache + load state, keyed by player id.
     var detailState: [String: CoachLoadState] = [:]
     var detailCache: [String: CoachPlayerDetail] = [:]
+
+    /// Coach-published featured workouts (newest first).
+    var publishedWorkouts: [CoachPublishedWorkout] = []
+    var workoutsState: CoachLoadState = .idle
 
     /// Roster filtered + sorted (most recently active first).
     var filteredRoster: [RosterPlayer] {
@@ -194,6 +208,69 @@ final class CoachViewModel {
         )
         overviewState = .loaded
         lastLoadedAt = Date()
+    }
+
+    // MARK: - Published workouts (Coach's Workout of the Day)
+
+    /// Load every workout this coach has published (active and inactive), newest first.
+    func loadPublishedWorkouts() async {
+        guard let createdBy = SupabaseAuth.shared.userID else {
+            workoutsState = .failed
+            return
+        }
+        if publishedWorkouts.isEmpty { workoutsState = .loading }
+        guard let rows = await SupabaseClient.shared.get(
+            table: "coach_workouts",
+            query: [
+                URLQueryItem(name: "created_by", value: "eq.\(createdBy)"),
+                URLQueryItem(name: "order", value: "created_at.desc")
+            ]
+        ) else {
+            workoutsState = publishedWorkouts.isEmpty ? .failed : .loaded
+            return
+        }
+        publishedWorkouts = rows.compactMap { row in
+            guard let id = row["id"] as? String else { return nil }
+            return CoachPublishedWorkout(
+                id: id,
+                title: (row["title"] as? String) ?? "Workout",
+                note: (row["note"] as? String) ?? "",
+                drillIDs: (row["drill_ids"] as? [String]) ?? [],
+                active: (row["active"] as? Bool) ?? true,
+                createdAt: Self.parseDate(row["created_at"]) ?? Date()
+            )
+        }
+        workoutsState = .loaded
+    }
+
+    /// Publish a new featured workout to the team. Fails soft.
+    func publishWorkout(title: String, note: String, drillIDs: [String]) async {
+        guard let createdBy = SupabaseAuth.shared.userID else { return }
+        let coachName = PlayerProfileStore.shared.displayName
+        let row: [String: Any] = [
+            "title": title,
+            "note": note,
+            "drill_ids": drillIDs,
+            "coach_name": coachName,
+            "active": true,
+            "created_by": createdBy
+        ]
+        await SupabaseClient.shared.insert(table: "coach_workouts", values: row)
+        await loadPublishedWorkouts()
+    }
+
+    /// Toggle a published workout active/inactive. Inactive workouts disappear
+    /// from players' Today card; nothing else changes.
+    func setWorkoutActive(_ workout: CoachPublishedWorkout, active: Bool) async {
+        // Optimistic local update so the toggle feels instant.
+        if let index = publishedWorkouts.firstIndex(where: { $0.id == workout.id }) {
+            publishedWorkouts[index].active = active
+        }
+        await SupabaseClient.shared.update(
+            table: "coach_workouts",
+            values: ["active": active],
+            match: [URLQueryItem(name: "id", value: "eq.\(workout.id)")]
+        )
     }
 
     // MARK: - Player detail

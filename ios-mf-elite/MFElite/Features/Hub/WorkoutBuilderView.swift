@@ -30,17 +30,29 @@ struct WorkoutBuilderView: View {
 
     /// The workout being edited, or nil when creating a new one.
     let editing: CustomWorkout?
+    /// When set, the builder publishes instead of saving a local CustomWorkout:
+    /// it shows a note field, caps drills at 8, and hands (title, note, drillIDs)
+    /// to this closure. Used by Coach Mode to publish a featured workout.
+    let onPublish: ((String, String, [String]) -> Void)?
 
     @State private var title: String
+    @State private var note: String
     @State private var items: [BuilderItem]
     @State private var showPicker = false
     @State private var indexCache = BuilderIndexCache()
 
-    private let titleLimit = 30
+    private let titleLimit = 40
+    private let noteLimit = 140
+    /// Coach-published workouts are capped to keep the routine focused.
+    private let coachMaxDrills = 8
 
-    init(editing: CustomWorkout? = nil) {
+    private var isPublishing: Bool { onPublish != nil }
+
+    init(editing: CustomWorkout? = nil, onPublish: ((String, String, [String]) -> Void)? = nil) {
         self.editing = editing
+        self.onPublish = onPublish
         _title = State(initialValue: editing?.title ?? "")
+        _note = State(initialValue: "")
         _items = State(initialValue: (editing?.drillIDs ?? []).map { BuilderItem(drillID: $0) })
     }
 
@@ -72,7 +84,9 @@ struct WorkoutBuilderView: View {
     }
 
     private var canSave: Bool {
-        items.count >= 2 && !title.trimmingCharacters(in: .whitespaces).isEmpty
+        guard items.count >= 2, !title.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
+        if isPublishing { return items.count <= coachMaxDrills }
+        return true
     }
 
     var body: some View {
@@ -82,6 +96,7 @@ struct WorkoutBuilderView: View {
 
                 List {
                     nameSection
+                    if isPublishing { noteSection }
                     drillsSection
                     Section { Color.clear.frame(height: 80).listRowBackground(Color.clear) }
                 }
@@ -91,7 +106,7 @@ struct WorkoutBuilderView: View {
 
                 bottomBar
             }
-            .navigationTitle(editing == nil ? "New Workout" : "Edit Workout")
+            .navigationTitle(navTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -99,7 +114,7 @@ struct WorkoutBuilderView: View {
                         .foregroundStyle(DS.Colors.Ink.secondary)
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { save() }
+                    Button(isPublishing ? "Publish" : "Save") { save() }
                         .fontWeight(.bold)
                         .foregroundStyle(canSave ? DS.Colors.Ink.primary : DS.Colors.Ink.quaternary)
                         .disabled(!canSave)
@@ -114,11 +129,16 @@ struct WorkoutBuilderView: View {
         .preferredColorScheme(.dark)
     }
 
+    private var navTitle: String {
+        if isPublishing { return "Publish Workout" }
+        return editing == nil ? "New Workout" : "Edit Workout"
+    }
+
     // MARK: - Sections
 
     private var nameSection: some View {
         Section {
-            TextField("Name your workout", text: $title)
+            TextField(isPublishing ? "e.g. First Touch Friday" : "Name your workout", text: $title)
                 .font(.system(size: 17, weight: .semibold))
                 .foregroundStyle(DS.Colors.Ink.primary)
                 .onChange(of: title) { _, newValue in
@@ -129,6 +149,24 @@ struct WorkoutBuilderView: View {
                 .listRowBackground(DS.Colors.Bg.card)
         } header: {
             Text("Name")
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+        }
+    }
+
+    private var noteSection: some View {
+        Section {
+            TextField("e.g. 30 minutes, focus on your weak foot", text: $note, axis: .vertical)
+                .lineLimit(2...4)
+                .font(.system(size: 15))
+                .foregroundStyle(DS.Colors.Ink.primary)
+                .onChange(of: note) { _, newValue in
+                    if newValue.count > noteLimit {
+                        note = String(newValue.prefix(noteLimit))
+                    }
+                }
+                .listRowBackground(DS.Colors.Bg.card)
+        } header: {
+            Text("Note to players (optional)")
                 .foregroundStyle(DS.Colors.Ink.tertiary)
         }
     }
@@ -175,7 +213,10 @@ struct WorkoutBuilderView: View {
                 .foregroundStyle(DS.Colors.Ink.tertiary)
         } footer: {
             if items.count < 2 {
-                Text("Add at least 2 drills to save.")
+                Text("Add at least 2 drills to \(isPublishing ? "publish" : "save").")
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            } else if isPublishing && items.count > coachMaxDrills {
+                Text("Keep it to \(coachMaxDrills) drills or fewer.")
                     .foregroundStyle(DS.Colors.Ink.quaternary)
             } else {
                 Text("Drills run back-to-back, top to bottom. Drag to reorder.")
@@ -224,6 +265,14 @@ struct WorkoutBuilderView: View {
         guard canSave else { return }
         let drillIDs = items.map(\.drillID)
         let trimmed = title.trimmingCharacters(in: .whitespaces)
+
+        if let onPublish {
+            onPublish(trimmed, note.trimmingCharacters(in: .whitespacesAndNewlines), drillIDs)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            dismiss()
+            return
+        }
+
         let saved: CustomWorkout
         if let editing {
             editing.title = trimmed

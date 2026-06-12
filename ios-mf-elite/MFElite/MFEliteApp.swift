@@ -30,7 +30,8 @@ struct MFEliteApp: App {
             CombineTest.self,
             CombineResult.self,
             GameIQLesson.self,
-            PendingOp.self
+            PendingOp.self,
+            CoachWorkout.self
         ])
         container = MFEliteApp.makeContainer(for: schema)
         SeedData.seedIfNeeded(context: container.mainContext)
