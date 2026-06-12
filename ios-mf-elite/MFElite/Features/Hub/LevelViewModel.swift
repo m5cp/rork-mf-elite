@@ -33,9 +33,17 @@ final class LevelViewModel {
         self.masteredDrillIDs = masteredDrillIDs
     }
 
-    /// Drills sorted by sortIndex.
+    /// Drill ids the player has logged at least one pass on.
+    private var trainedIDs: Set<String> {
+        Set(passesByDrill.filter { $0.value > 0 }.keys)
+    }
+
+    /// Drills sorted by sortIndex, excluding coach-hidden drills the player has
+    /// never trained (their history is preserved elsewhere).
     var drills: [Drill] {
-        level.drills.sorted { $0.sortIndex < $1.sortIndex }
+        level.drills
+            .filter { $0.isSelectable(trainedIDs: trainedIDs) }
+            .sorted { $0.sortIndex < $1.sortIndex }
     }
 
     func passesLogged(for drill: Drill) -> Int {

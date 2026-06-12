@@ -39,9 +39,16 @@ struct CurriculumSearchView: View {
         )
     }
 
+    /// Drill ids the player has logged at least one pass on.
+    private var trainedIDs: Set<String> {
+        Set(progress.filter { $0.passesLogged > 0 }.map { $0.drillID })
+    }
+
     var body: some View {
         let vm = viewModel
-        let results = vm.hasQuery || hasActiveFilters ? vm.searchDrills() : []
+        let trained = trainedIDs
+        let results = (vm.hasQuery || hasActiveFilters ? vm.searchDrills() : [])
+            .filter { $0.drill.isSelectable(trainedIDs: trained) }
 
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
@@ -275,6 +282,9 @@ private struct ResultRow: View {
                     Text(result.drill.title)
                         .style(.title3)
                         .foregroundStyle(DS.Colors.Ink.primary)
+                    if result.drill.isCoachNew {
+                        CoachNewTag(coachName: result.drill.coachEditedBy)
+                    }
                     Text(breadcrumb)
                         .style(.micro)
                         .foregroundStyle(DS.Colors.Ink.tertiary)

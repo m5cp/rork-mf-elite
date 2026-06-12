@@ -83,6 +83,35 @@ enum SeedData {
         loadBundle()?.dailyQuotes ?? []
     }
 
+    /// The original bundled DTO for a drill id, used to restore content when a
+    /// coach reverts an edit. Returns nil for coach-authored ("COACH-…") drills.
+    static func bundledDrillDTO(id: String) -> CurriculumBundle.DrillDTO? {
+        guard let bundle = loadBundle() else { return nil }
+        for discipline in bundle.disciplines {
+            for category in discipline.categories {
+                for level in category.levels {
+                    if let drill = level.drills.first(where: { $0.id == id }) { return drill }
+                }
+            }
+        }
+        return nil
+    }
+
+    /// Apply a bundled DTO's content onto an existing Drill (used on edit-revert).
+    @MainActor
+    static func restoreDrill(_ drill: Drill, from dto: CurriculumBundle.DrillDTO) {
+        drill.title = dto.title
+        drill.focus = dto.focus
+        drill.how = dto.how
+        drill.durationSec = dto.durationSec
+        drill.sets = dto.sets
+        drill.coachingPoints = dto.coachingPoints
+        drill.instructions = dto.instructions ?? []
+        drill.equipment = dto.equipment ?? []
+        drill.space = dto.space
+        drill.coachEditedBy = nil
+    }
+
     private static func loadBundle() -> CurriculumBundle? {
         guard let url = Bundle.main.url(forResource: "curriculum", withExtension: "json"),
               let data = try? Data(contentsOf: url) else {

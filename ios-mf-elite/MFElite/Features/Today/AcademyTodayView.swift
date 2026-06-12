@@ -163,6 +163,7 @@ struct AcademyTodayView: View {
         }
         .task {
             await CoachWorkoutFeed.refresh(context: modelContext)
+            await CurriculumOverlay.applyAndMaybeRefresh(context: modelContext)
         }
         .sheet(isPresented: $showBuilder) {
             WorkoutBuilderView()

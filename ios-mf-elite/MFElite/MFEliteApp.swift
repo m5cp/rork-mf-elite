@@ -31,7 +31,8 @@ struct MFEliteApp: App {
             CombineResult.self,
             GameIQLesson.self,
             PendingOp.self,
-            CoachWorkout.self
+            CoachWorkout.self,
+            CurriculumEditCache.self
         ])
         container = MFEliteApp.makeContainer(for: schema)
         SeedData.seedIfNeeded(context: container.mainContext)

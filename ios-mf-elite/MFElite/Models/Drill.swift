@@ -34,9 +34,34 @@ final class Drill {
     /// Optional playing area the drill needs (e.g. "5x5 yards"). `nil` when unspecified.
     var space: String?
 
+    // MARK: - Coach curriculum overlay (additive; never affects progress)
+
+    /// Set true by a coach "hide" edit. Hidden drills are excluded from selection
+    /// lists only for players who have not yet trained them; history is untouched.
+    var isCoachHidden: Bool = false
+    /// When a coach-authored "new" drill first appeared on this device. Drives the
+    /// 7-day "NEW — Coach …" tag. `nil` for built-in curriculum drills.
+    var coachNewSince: Date?
+    /// Display name of the coach who last edited / authored this drill, if any.
+    var coachEditedBy: String?
+
     /// True when this drill is a step-driven mental exercise rather than a
     /// timer-based physical drill.
     var isMentalExercise: Bool { exerciseKind != nil }
+
+    /// True while a coach-authored "new" drill is still within its 7-day window.
+    var isCoachNew: Bool {
+        guard let coachNewSince else { return false }
+        return Date().timeIntervalSince(coachNewSince) < 7 * 24 * 60 * 60
+    }
+
+    /// Whether this drill should appear in a player's selection lists. Coach-hidden
+    /// drills are excluded unless the player already trained them, so anyone with
+    /// history keeps seeing (and re-training) it. `trainedIDs` are drill ids with
+    /// at least one logged pass.
+    func isSelectable(trainedIDs: Set<String>) -> Bool {
+        !isCoachHidden || trainedIDs.contains(id)
+    }
 
     /// A single "SET-UP" summary combining equipment and space, or `nil` when the
     /// content provides neither. Equipment items are comma-joined, then the space

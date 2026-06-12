@@ -76,6 +76,84 @@ struct CoachPublishedWorkout: Identifiable, Equatable {
     var createdAt: Date
 }
 
+/// Editable content for the coach drill editor. Mirrors the editable subset of
+/// a `Drill`; arrays are kept as cleaned, non-empty lines.
+struct DrillEditFields: Equatable {
+    var title: String
+    var focus: String
+    var how: String
+    var instructions: [String]
+    var coachingPoints: [String]
+    var durationSec: Int
+    var sets: Int
+    var equipment: [String]
+    var space: String
+
+    /// Build from an existing drill (for the edit screen).
+    init(drill: Drill) {
+        title = drill.title
+        focus = drill.focus
+        how = drill.how
+        instructions = drill.instructions
+        coachingPoints = drill.coachingPoints
+        durationSec = drill.durationSec
+        sets = drill.sets
+        equipment = drill.equipment
+        space = drill.space ?? ""
+    }
+
+    /// Empty fields for the "add a new drill" screen.
+    init() {
+        title = ""; focus = ""; how = ""
+        instructions = []; coachingPoints = []
+        durationSec = 300; sets = 1
+        equipment = []; space = ""
+    }
+
+    private func clean(_ list: [String]) -> [String] {
+        list.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty }
+    }
+
+    /// The full content payload for a new drill.
+    func fullPayload() -> [String: Any] {
+        var payload: [String: Any] = [
+            "title": title.trimmingCharacters(in: .whitespacesAndNewlines),
+            "focus": focus.trimmingCharacters(in: .whitespacesAndNewlines),
+            "how": how.trimmingCharacters(in: .whitespacesAndNewlines),
+            "instructions": clean(instructions),
+            "coachingPoints": clean(coachingPoints),
+            "durationSec": durationSec,
+            "sets": sets,
+            "equipment": clean(equipment)
+        ]
+        let trimmedSpace = space.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedSpace.isEmpty { payload["space"] = trimmedSpace }
+        return payload
+    }
+
+    /// Only the fields that differ from `original`, for a minimal edit payload.
+    func changedPayload(from original: Drill) -> [String: Any] {
+        var payload: [String: Any] = [:]
+        let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if t != original.title { payload["title"] = t }
+        let f = focus.trimmingCharacters(in: .whitespacesAndNewlines)
+        if f != original.focus { payload["focus"] = f }
+        let h = how.trimmingCharacters(in: .whitespacesAndNewlines)
+        if h != original.how { payload["how"] = h }
+        let inst = clean(instructions)
+        if inst != original.instructions { payload["instructions"] = inst }
+        let cp = clean(coachingPoints)
+        if cp != original.coachingPoints { payload["coachingPoints"] = cp }
+        if durationSec != original.durationSec { payload["durationSec"] = durationSec }
+        if sets != original.sets { payload["sets"] = sets }
+        let eq = clean(equipment)
+        if eq != original.equipment { payload["equipment"] = eq }
+        let sp = space.trimmingCharacters(in: .whitespacesAndNewlines)
+        if sp != (original.space ?? "") { payload["space"] = sp }
+        return payload
+    }
+}
+
 /// Full per-player detail assembled for the coach.
 struct CoachPlayerDetail: Equatable {
     var xp: Int
@@ -270,6 +348,67 @@ final class CoachViewModel {
             table: "coach_workouts",
             values: ["active": active],
             match: [URLQueryItem(name: "id", value: "eq.\(workout.id)")]
+        )
+    }
+
+    // MARK: - Drill editor (curriculum overlay)
+
+    /// Publish an edit to an existing drill. Only the fields that actually changed
+    /// from `original` are sent, as a `kind = "edit"` overlay row keyed by drill id.
+    /// Returns true when at least one change was published.
+    @discardableResult
+    func publishDrillEdit(original: Drill, edited: DrillEditFields) async -> Bool {
+        let payload = edited.changedPayload(from: original)
+        guard !payload.isEmpty else { return false }
+        let coachName = PlayerProfileStore.shared.displayName
+        let row: [String: Any] = [
+            "drill_id": original.id,
+            "kind": "edit",
+            "payload": payload,
+            "updated_by": coachName,
+            "active": true
+        ]
+        await SupabaseClient.shared.upsert(table: "curriculum_edits", values: row, onConflict: "drill_id")
+        return true
+    }
+
+    /// Publish a brand-new coach-authored drill into a category/level. Generates a
+    /// stable "COACH-…" id so it never collides with the bundled curriculum.
+    func publishNewDrill(categoryID: String, levelNumber: Int, fields: DrillEditFields) async {
+        let coachName = PlayerProfileStore.shared.displayName
+        let id = "COACH-" + UUID().uuidString.prefix(8).uppercased()
+        let row: [String: Any] = [
+            "drill_id": id,
+            "kind": "new",
+            "payload": fields.fullPayload(),
+            "updated_by": coachName,
+            "active": true,
+            "category_id": categoryID,
+            "level_number": levelNumber
+        ]
+        await SupabaseClient.shared.upsert(table: "curriculum_edits", values: row, onConflict: "drill_id")
+    }
+
+    /// Hide a drill (rare). Players who haven't trained it stop seeing it in
+    /// selection lists; their history and mastery are untouched.
+    func hideDrill(_ drill: Drill) async {
+        let coachName = PlayerProfileStore.shared.displayName
+        let row: [String: Any] = [
+            "drill_id": drill.id,
+            "kind": "hide",
+            "payload": [String: Any](),
+            "updated_by": coachName,
+            "active": true
+        ]
+        await SupabaseClient.shared.upsert(table: "curriculum_edits", values: row, onConflict: "drill_id")
+    }
+
+    /// Revert any active overlay on a drill back to the original (deactivates the row).
+    func revertDrillEdit(drillID: String) async {
+        await SupabaseClient.shared.update(
+            table: "curriculum_edits",
+            values: ["active": false],
+            match: [URLQueryItem(name: "drill_id", value: "eq.\(drillID)")]
         )
     }
 

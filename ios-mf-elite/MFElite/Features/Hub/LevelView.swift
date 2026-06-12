@@ -197,6 +197,27 @@ struct LevelView: View {
 
 // MARK: - DrillRow
 
+/// A small "NEW — Coach <name>" badge shown on coach-authored drills for 7 days.
+struct CoachNewTag: View {
+    let coachName: String?
+
+    var body: some View {
+        Text(label)
+            .font(.system(size: 9, weight: .bold))
+            .tracking(0.5)
+            .foregroundStyle(DS.Colors.Ground.primary)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Color.white)
+            .clipShape(Capsule())
+    }
+
+    private var label: String {
+        if let coachName, !coachName.isEmpty { return "NEW · COACH \(coachName.uppercased())" }
+        return "NEW"
+    }
+}
+
 private struct DrillRow: View {
     let drill: Drill
     let passesLogged: Int
@@ -214,6 +235,10 @@ private struct DrillRow: View {
                     Text(drill.title)
                         .style(.title3)
                         .foregroundStyle(DS.Colors.Ink.primary)
+
+                    if drill.isCoachNew {
+                        CoachNewTag(coachName: drill.coachEditedBy)
+                    }
 
                     Text(drill.focus)
                         .style(.micro)

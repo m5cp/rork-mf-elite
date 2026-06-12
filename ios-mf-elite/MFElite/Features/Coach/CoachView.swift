@@ -34,6 +34,7 @@ struct CoachView: View {
                     default:
                         overviewSection
                         workoutsSection
+                        drillEditorSection
                         rosterSection
                     }
                 }
@@ -46,6 +47,9 @@ struct CoachView: View {
             .refreshable { await model.loadOverviewAndRoster(context: modelContext) }
             .navigationDestination(for: RosterPlayer.self) { player in
                 CoachPlayerDetailView(player: player, model: model)
+            }
+            .navigationDestination(for: CoachDrillEditorRoute.self) { _ in
+                CoachDrillEditorView(model: model)
             }
         }
         .preferredColorScheme(.dark)
@@ -109,6 +113,40 @@ struct CoachView: View {
                     }
                 }
             }
+        }
+    }
+
+    // MARK: - Drill editor
+
+    private var drillEditorSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Drill Editor")
+            NavigationLink(value: CoachDrillEditorRoute()) {
+                HStack(spacing: DS.Spacing.s12) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Improve the drills")
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("Edit content, add new drills, or hide one")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                .padding(DS.Spacing.s16)
+                .frame(maxWidth: .infinity)
+                .background(DS.Colors.Bg.card)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
         }
     }
 

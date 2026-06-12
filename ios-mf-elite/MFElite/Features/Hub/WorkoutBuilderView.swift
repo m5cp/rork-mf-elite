@@ -317,8 +317,14 @@ private struct DrillPickerView: View {
     let onAdd: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Query private var progress: [DrillProgress]
     @State private var searchText = ""
     @State private var addedCount = 0
+
+    /// Drill ids the player has trained at least once.
+    private var trainedIDs: Set<String> {
+        Set(progress.filter { $0.passesLogged > 0 }.map { $0.drillID })
+    }
 
     private var viewModel: CurriculumSearchViewModel {
         CurriculumSearchViewModel(disciplines: disciplines, searchText: searchText)
@@ -413,14 +419,15 @@ private struct DrillPickerView: View {
     }
 
     private func drillCount(in category: Category) -> Int {
-        category.levels.reduce(0) { $0 + $1.drills.count }
+        let trained = trainedIDs
+        return category.levels.reduce(0) { $0 + $1.drills.filter { $0.isSelectable(trainedIDs: trained) }.count }
     }
 
     // MARK: Search results
 
     @ViewBuilder
     private var searchResults: some View {
-        let results = viewModel.searchDrills()
+        let results = viewModel.searchDrills().filter { $0.drill.isSelectable(trainedIDs: trainedIDs) }
         if results.isEmpty {
             emptyState
         } else {
@@ -539,10 +546,18 @@ private struct PickerCategoryView: View {
     let discipline: Discipline
     let onAdd: (String) -> Void
 
+    @Query private var progress: [DrillProgress]
+
+    private var trainedIDs: Set<String> {
+        Set(progress.filter { $0.passesLogged > 0 }.map { $0.drillID })
+    }
+
     private var drills: [Drill] {
-        category.levels
+        let trained = trainedIDs
+        return category.levels
             .sorted(by: { $0.sortIndex < $1.sortIndex })
             .flatMap { $0.drills.sorted(by: { $0.sortIndex < $1.sortIndex }) }
+            .filter { $0.isSelectable(trainedIDs: trained) }
     }
 
     var body: some View {
