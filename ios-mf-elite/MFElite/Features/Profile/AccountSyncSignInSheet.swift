@@ -11,6 +11,8 @@ import SwiftUI
 struct AccountSyncSignInSheet: View {
     let onDone: () -> Void
 
+    @State private var showEmailSignIn = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s16) {
             Eyebrow(text: "Sync")
@@ -28,6 +30,10 @@ struct AccountSyncSignInSheet: View {
 
             AppleSignInButton { onDone() }
 
+            SecondaryButton(label: "Continue with email") {
+                showEmailSignIn = true
+            }
+
             GhostButton(label: "Not now") { onDone() }
                 .frame(maxWidth: .infinity)
         }
@@ -35,6 +41,11 @@ struct AccountSyncSignInSheet: View {
         .padding(.bottom, DS.Spacing.s24)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(DS.Colors.Bg.base)
+        .sheet(isPresented: $showEmailSignIn) {
+            EmailSignInView { onDone() }
+                .presentationDetents([.medium, .large])
+                .preferredColorScheme(.dark)
+        }
     }
 }
 

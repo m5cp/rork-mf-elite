@@ -13,6 +13,7 @@ struct OnboardingAccountView: View {
     let state: OnboardingState
 
     @State private var auth = SupabaseAuth.shared
+    @State private var showEmailSignIn = false
 
     var body: some View {
         ZStack {
@@ -89,6 +90,9 @@ struct OnboardingAccountView: View {
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     state.advance()
                 }
+                SecondaryButton(label: "Continue with email") {
+                    showEmailSignIn = true
+                }
                 GhostButton(label: "Not now — train offline") {
                     state.advance()
                 }
@@ -96,6 +100,13 @@ struct OnboardingAccountView: View {
             }
         }
         .padding(.bottom, DS.Spacing.s24)
+        .sheet(isPresented: $showEmailSignIn) {
+            EmailSignInView {
+                state.advance()
+            }
+            .presentationDetents([.medium, .large])
+            .preferredColorScheme(.dark)
+        }
     }
 }
 

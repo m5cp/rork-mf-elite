@@ -23,6 +23,30 @@ nonisolated enum SupabaseAuthError: Error {
     case decodeFailed
 }
 
+/// Outcome of an email + password sign-in / sign-up attempt. Drives UI error copy.
+nonisolated enum EmailAuthResult: Equatable {
+    case success
+    case emailInUse
+    case invalidCredentials
+    case weakPassword
+    case failed
+}
+
+/// Supabase GoTrue error body shape (varies across versions — all fields optional).
+nonisolated private struct SupabaseAuthErrorBody: Decodable {
+    let errorCode: String?
+    let msg: String?
+    let error: String?
+    let errorDescription: String?
+
+    enum CodingKeys: String, CodingKey {
+        case errorCode = "error_code"
+        case msg
+        case error
+        case errorDescription = "error_description"
+    }
+}
+
 /// Supabase token endpoint response shape.
 nonisolated private struct SupabaseTokenResponse: Decodable {
     let accessToken: String
@@ -121,6 +145,102 @@ final class SupabaseAuth {
             print("[SupabaseAuth] Token exchange error: \(error.localizedDescription)")
             return false
         }
+    }
+
+    // MARK: - Email + password
+
+    /// Create a new account with email + password, then sign in. Fails soft.
+    @discardableResult
+    func signUpEmail(email: String, password: String) async -> EmailAuthResult {
+        if password.count < 6 { return .weakPassword }
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let url = URL(string: "\(SupabaseConfig.url)/auth/v1/signup") else { return .failed }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(SupabaseConfig.apiKey, forHTTPHeaderField: "apikey")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": trimmed, "password": password])
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { return .failed }
+            if (200..<300).contains(http.statusCode) {
+                if let token = try? JSONDecoder().decode(SupabaseTokenResponse.self, from: data) {
+                    applySession(token)
+                    await syncProfilesAfterSignIn()
+                    await refreshCoachStatus()
+                    return .success
+                }
+                // Signup succeeded but returned no session (e.g. email confirmation):
+                // fall through to a password sign-in to obtain tokens.
+                return await signInEmail(email: trimmed, password: password)
+            }
+            let result = Self.classifyAuthError(data)
+            print("[SupabaseAuth] Email sign-up failed: HTTP \(http.statusCode) -> \(result)")
+            return result
+        } catch {
+            print("[SupabaseAuth] Email sign-up error: \(error.localizedDescription)")
+            return .failed
+        }
+    }
+
+    /// Sign in to an existing account with email + password. Fails soft.
+    @discardableResult
+    func signInEmail(email: String, password: String) async -> EmailAuthResult {
+        let trimmed = email.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard var components = URLComponents(string: "\(SupabaseConfig.url)/auth/v1/token") else { return .failed }
+        components.queryItems = [URLQueryItem(name: "grant_type", value: "password")]
+        guard let url = components.url else { return .failed }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(SupabaseConfig.apiKey, forHTTPHeaderField: "apikey")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": trimmed, "password": password])
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else { return .failed }
+            if (200..<300).contains(http.statusCode) {
+                guard let token = try? JSONDecoder().decode(SupabaseTokenResponse.self, from: data) else {
+                    return .failed
+                }
+                applySession(token)
+                await syncProfilesAfterSignIn()
+                await refreshCoachStatus()
+                return .success
+            }
+            let result = Self.classifyAuthError(data)
+            print("[SupabaseAuth] Email sign-in failed: HTTP \(http.statusCode) -> \(result)")
+            return result
+        } catch {
+            print("[SupabaseAuth] Email sign-in error: \(error.localizedDescription)")
+            return .failed
+        }
+    }
+
+    /// Map a GoTrue error body to a user-facing result.
+    private static func classifyAuthError(_ data: Data) -> EmailAuthResult {
+        guard let body = try? JSONDecoder().decode(SupabaseAuthErrorBody.self, from: data) else {
+            return .failed
+        }
+        let haystack = [body.errorCode, body.msg, body.error, body.errorDescription]
+            .compactMap { $0 }
+            .joined(separator: " ")
+            .lowercased()
+
+        if haystack.contains("already") || haystack.contains("user_already_exists") || haystack.contains("email_exists") {
+            return .emailInUse
+        }
+        if haystack.contains("weak_password") || haystack.contains("at least") || haystack.contains("6 characters") {
+            return .weakPassword
+        }
+        if haystack.contains("invalid") || haystack.contains("credential") || haystack.contains("grant") {
+            return .invalidCredentials
+        }
+        return .failed
     }
 
     // MARK: - Token lifecycle
