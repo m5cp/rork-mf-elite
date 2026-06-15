@@ -238,6 +238,19 @@ final class DrillPlayerViewModel {
         completeSet()
     }
 
+    /// Skip the remaining rest and start the next set immediately.
+    func skipRest() {
+        guard case let .resting(nextSetIndex) = phase else { return }
+        invalidateTimer()
+        if nextSetIndex <= drill.sets {
+            currentSetIndex = nextSetIndex
+            phase = .active(setIndex: nextSetIndex)
+            startTicking(from: setDuration) { [weak self] in
+                self?.completeSet()
+            }
+        }
+    }
+
     /// Log the drill immediately regardless of how many sets were completed.
     /// Awards XP and updates progress just like a normal completion.
     func logDrillEarly() {

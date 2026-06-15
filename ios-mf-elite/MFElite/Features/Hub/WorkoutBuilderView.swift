@@ -83,6 +83,16 @@ struct WorkoutBuilderView: View {
         items.compactMap { index[$0.drillID]?.drill }
     }
 
+    /// Selected drills resolved to their full context, for the live minutes estimate.
+    private var resolvedItems: [ResolvedDrill] {
+        items.compactMap { item in
+            guard let ctx = index[item.drillID] else { return nil }
+            return ResolvedDrill(
+                drill: ctx.drill, level: ctx.level, category: ctx.category, discipline: ctx.discipline
+            )
+        }
+    }
+
     private var canSave: Bool {
         guard items.count >= 2, !title.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
         if isPublishing { return items.count <= coachMaxDrills }
@@ -247,9 +257,10 @@ struct WorkoutBuilderView: View {
                 Text("\(items.count) \(items.count == 1 ? "drill" : "drills")")
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(DS.Colors.Ink.primary)
-                Text("~\(estimatedSessionMinutes(forDrills: resolvedDrills)) min")
+                Text("~\(estimatedMinutes(resolvedItems)) min")
                     .style(.micro)
                     .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .animation(DS.Motion.standardSpring, value: items.count)
             }
             Spacer()
         }
@@ -320,14 +331,12 @@ private struct DrillPickerView: View {
     @Query private var progress: [DrillProgress]
     @State private var searchText = ""
     @State private var addedCount = 0
+    @State private var filterDisciplineID: String?
+    @State private var filterLevel: Int?
 
     /// Drill ids the player has trained at least once.
     private var trainedIDs: Set<String> {
         Set(progress.filter { $0.passesLogged > 0 }.map { $0.drillID })
-    }
-
-    private var viewModel: CurriculumSearchViewModel {
-        CurriculumSearchViewModel(disciplines: disciplines, searchText: searchText)
     }
 
     var body: some View {
@@ -337,8 +346,9 @@ private struct DrillPickerView: View {
 
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        if hasQuery {
-                            searchResults
+                        filterBar
+                        if isFiltering {
+                            filteredResults
                         } else {
                             categoryBrowse
                         }
@@ -388,6 +398,126 @@ private struct DrillPickerView: View {
         !searchText.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
+    /// Show the flat, filtered drill list whenever a query or any filter is active.
+    private var isFiltering: Bool {
+        hasQuery || filterDisciplineID != nil || filterLevel != nil
+    }
+
+    // MARK: Filters
+
+    private var availableLevels: [Int] {
+        let nums = Set(disciplines.flatMap { $0.categories.flatMap { $0.levels.map(\.number) } })
+        return nums.sorted()
+    }
+
+    private var filterBar: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            ScrollView(.horizontal) {
+                HStack(spacing: DS.Spacing.s8) {
+                    filterChip("All sports", selected: filterDisciplineID == nil) {
+                        filterDisciplineID = nil
+                    }
+                    ForEach(disciplines) { discipline in
+                        filterChip(discipline.name, selected: filterDisciplineID == discipline.id) {
+                            filterDisciplineID = filterDisciplineID == discipline.id ? nil : discipline.id
+                        }
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+            .contentMargins(.horizontal, DS.Spacing.s20)
+
+            ScrollView(.horizontal) {
+                HStack(spacing: DS.Spacing.s8) {
+                    filterChip("All levels", selected: filterLevel == nil) {
+                        filterLevel = nil
+                    }
+                    ForEach(availableLevels, id: \.self) { lvl in
+                        filterChip("Level \(lvl)", selected: filterLevel == lvl) {
+                            filterLevel = filterLevel == lvl ? nil : lvl
+                        }
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+            .contentMargins(.horizontal, DS.Spacing.s20)
+        }
+        .padding(.top, DS.Spacing.s12)
+        .padding(.bottom, DS.Spacing.s4)
+    }
+
+    private func filterChip(_ label: String, selected: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            withAnimation(DS.Motion.standardSpring) { action() }
+        } label: {
+            Text(label)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(selected ? DS.Colors.Ground.primary : DS.Colors.Ink.secondary)
+                .padding(.vertical, 7)
+                .padding(.horizontal, 14)
+                .background(selected ? Color.white : DS.Colors.Bg.raised)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(DS.Colors.Line.hairline, lineWidth: 1))
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+
+    /// One drill flattened with its parents and level number, for filtered results.
+    private struct FlatDrill: Identifiable {
+        let drill: Drill
+        let category: Category
+        let discipline: Discipline
+        let levelNumber: Int
+        var id: String { drill.id }
+    }
+
+    private var filteredDrills: [FlatDrill] {
+        let trained = trainedIDs
+        let query = searchText.trimmingCharacters(in: .whitespaces)
+        var out: [FlatDrill] = []
+        for discipline in disciplines where filterDisciplineID == nil || discipline.id == filterDisciplineID {
+            for category in discipline.categories.sorted(by: { $0.sortIndex < $1.sortIndex }) {
+                for level in category.levels.sorted(by: { $0.number < $1.number })
+                where filterLevel == nil || level.number == filterLevel {
+                    for drill in level.drills.sorted(by: { $0.sortIndex < $1.sortIndex })
+                    where drill.isSelectable(trainedIDs: trained) {
+                        if query.isEmpty || drill.title.localizedCaseInsensitiveContains(query) {
+                            out.append(FlatDrill(
+                                drill: drill, category: category,
+                                discipline: discipline, levelNumber: level.number
+                            ))
+                        }
+                    }
+                }
+            }
+        }
+        return out
+    }
+
+    @ViewBuilder
+    private var filteredResults: some View {
+        let results = filteredDrills
+        if results.isEmpty {
+            emptyState
+        } else {
+            ForEach(results) { result in
+                NavigationLink(value: PickerDrillRoute(
+                    drill: result.drill,
+                    category: result.category,
+                    discipline: result.discipline
+                )) {
+                    PickerDrillRow(
+                        drill: result.drill,
+                        breadcrumb: "\(result.discipline.name) · \(result.category.name) · Level \(result.levelNumber)",
+                        isLast: result.id == results.last?.id
+                    ) { addDrill(result.drill.id) }
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+        }
+    }
+
     // MARK: Root — category hero cards
 
     private var categoryBrowse: some View {
@@ -421,31 +551,6 @@ private struct DrillPickerView: View {
     private func drillCount(in category: Category) -> Int {
         let trained = trainedIDs
         return category.levels.reduce(0) { $0 + $1.drills.filter { $0.isSelectable(trainedIDs: trained) }.count }
-    }
-
-    // MARK: Search results
-
-    @ViewBuilder
-    private var searchResults: some View {
-        let results = viewModel.searchDrills().filter { $0.drill.isSelectable(trainedIDs: trainedIDs) }
-        if results.isEmpty {
-            emptyState
-        } else {
-            ForEach(results) { result in
-                NavigationLink(value: PickerDrillRoute(
-                    drill: result.drill,
-                    category: result.category,
-                    discipline: result.discipline
-                )) {
-                    PickerDrillRow(
-                        drill: result.drill,
-                        breadcrumb: "\(result.discipline.name) · \(result.category.name)",
-                        isLast: result.id == results.last?.id
-                    ) { addDrill(result.drill.id) }
-                }
-                .buttonStyle(PressableButtonStyle())
-            }
-        }
     }
 
     private var addedBar: some View {

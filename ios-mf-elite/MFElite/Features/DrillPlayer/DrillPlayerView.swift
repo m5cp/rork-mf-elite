@@ -97,6 +97,11 @@ struct DrillPlayerView: View {
                 )
             }
         }
+        .safeAreaInset(edge: .top) {
+            if queue.isChained {
+                sessionProgressBar
+            }
+        }
         .preferredColorScheme(.dark)
         .onChange(of: viewModel.phase) { _, newPhase in
             announce(newPhase)
@@ -122,6 +127,25 @@ struct DrillPlayerView: View {
                  ? "Your completed drills are saved. You can log this one now or quit without logging."
                  : "You can log this drill now or quit without logging.")
         }
+    }
+
+    /// A thin full-session progress bar across the very top of the player,
+    /// visualizing queue.position / queue.count.
+    private var sessionProgressBar: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Rectangle()
+                    .fill(DS.Colors.Line.subtle)
+                Rectangle()
+                    .fill(Color.white)
+                    .frame(width: geo.size.width * CGFloat(queue.position) / CGFloat(max(1, queue.count)))
+                    .animation(DS.Motion.standardSpring, value: queue.position)
+            }
+        }
+        .frame(height: 3)
+        .accessibilityElement()
+        .accessibilityLabel("Session progress")
+        .accessibilityValue("Drill \(queue.position) of \(queue.count)")
     }
 
     // MARK: - Phase 1: Get Ready
@@ -358,45 +382,70 @@ struct DrillPlayerView: View {
             Spacer()
 
             if !isResting {
-                HStack(spacing: DS.Spacing.s32) {
-                    IconButton(systemName: "forward.end.fill", size: 48) {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        viewModel.skipSet()
+                VStack(spacing: DS.Spacing.s16) {
+                    HStack(spacing: DS.Spacing.s32) {
+                        IconButton(systemName: "forward.end.fill", size: 48) {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            viewModel.skipSet()
+                        }
+
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            viewModel.pauseResume()
+                        } label: {
+                            Circle()
+                                .fill(Color.white)
+                                .frame(width: 84, height: 84)
+                                .overlay(
+                                    Image(systemName: viewModel.isPaused ? "play.fill" : "pause.fill")
+                                        .font(.system(size: 30, weight: .bold))
+                                        .foregroundStyle(DS.Colors.Ground.primary)
+                                        .offset(x: viewModel.isPaused ? 2 : 0)
+                                )
+                                .floatingElevation()
+                        }
+                        .buttonStyle(PressableButtonStyle())
+
+                        IconButton(systemName: "stop.fill", size: 48) {
+                            showStopConfirm = true
+                        }
                     }
 
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        viewModel.pauseResume()
-                    } label: {
-                        Circle()
-                            .fill(Color.white)
-                            .frame(width: 84, height: 84)
-                            .overlay(
-                                Image(systemName: viewModel.isPaused ? "play.fill" : "pause.fill")
-                                    .font(.system(size: 30, weight: .bold))
-                                    .foregroundStyle(DS.Colors.Ground.primary)
-                                    .offset(x: viewModel.isPaused ? 2 : 0)
-                            )
-                            .floatingElevation()
-                    }
-                    .buttonStyle(PressableButtonStyle())
-
-                    IconButton(systemName: "stop.fill", size: 48) {
-                        showStopConfirm = true
+                    if queue.upNext != nil {
+                        skipDrillButton
                     }
                 }
                 .padding(.bottom, DS.Spacing.s48 + DS.Spacing.s12)
             } else {
                 VStack(spacing: DS.Spacing.s16) {
-                    if let upNextLine {
+                    if let detail = upNextDetail {
                         VStack(spacing: DS.Spacing.s4) {
                             Eyebrow(text: "Up Next")
                                 .foregroundStyle(DS.Colors.Ink.quaternary)
-                            Text(upNextLine)
+                            Text(detail)
                                 .style(.callout)
                                 .foregroundStyle(DS.Colors.Ink.secondary)
+                                .multilineTextAlignment(.center)
                         }
                     }
+
+                    Button {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        withAnimation(DS.Motion.standardSpring) {
+                            viewModel.skipRest()
+                        }
+                    } label: {
+                        Text("Start now")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(DS.Colors.Ground.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 50)
+                            .background(Color.white)
+                            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+                            .pillLightElevation()
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .padding(.horizontal, DS.Spacing.s20)
 
                     Button {
                         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -420,15 +469,32 @@ struct DrillPlayerView: View {
         }
     }
 
-    /// During rest, surface what comes next: the next set, or — if this was the
-    /// final set and the queue has another drill — the next drill's title.
-    private var upNextLine: String? {
+    /// A small text button that skips the current drill entirely and advances to
+    /// the next drill in the queue (separate from skipSet, which only skips the
+    /// current set).
+    private var skipDrillButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            viewModel.stopSession()
+            onAdvance()
+        } label: {
+            Label("Skip drill", systemImage: "forward.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityHint("Skips this drill and moves to the next one")
+    }
+
+    /// During rest, surface what comes next with its time: the next set, or — if
+    /// this was the final set and the queue has another drill — the next drill.
+    private var upNextDetail: String? {
         guard case let .resting(nextSetIndex) = viewModel.phase else { return nil }
         if nextSetIndex <= drill.sets {
-            return "Set \(nextSetIndex) of \(drill.sets)"
+            return "Set \(nextSetIndex) of \(drill.sets) · \(Int(viewModel.setDuration))s"
         }
         if let next = queue.upNext {
-            return next.drill.title
+            return "\(next.drill.title) · ~\(estimatedSessionMinutes(forDrills: [next.drill])) min"
         }
         return nil
     }
