@@ -340,7 +340,7 @@ private struct PathwayRow: View {
 
 // MARK: - MoreRow
 
-private struct MoreRow: View {
+struct MoreRow: View {
     let icon: String
     let label: String
     let detail: String

@@ -10,6 +10,7 @@ import SwiftUI
 /// The tabs of the app. The `coach` tab is only shown to authorized coaches.
 enum AppTab: Int, CaseIterable, Identifiable {
     case today
+    case train
     case hub
     case progress
     case profile
@@ -20,6 +21,7 @@ enum AppTab: Int, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .today:    return "TODAY"
+        case .train:    return "TRAIN"
         case .hub:      return "MF HUB"
         case .progress: return "PROGRESS"
         case .profile:  return "PROFILE"
@@ -29,7 +31,9 @@ enum AppTab: Int, CaseIterable, Identifiable {
 
     /// The tabs visible for the current role. Players never see the Coach tab.
     static func visible(isCoach: Bool) -> [AppTab] {
-        isCoach ? allCases : allCases.filter { $0 != .coach }
+        var tabs: [AppTab] = [.today, .train, .hub, .progress, .profile]
+        if isCoach { tabs.append(.coach) }
+        return tabs
     }
 }
 
@@ -46,6 +50,7 @@ struct TabBarIcon: View {
             let path: Path
             switch tab {
             case .today:    path = housePath(in: canvasSize)
+            case .train:    path = targetPath(in: canvasSize)
             case .hub:      path = gridPath(in: canvasSize)
             case .progress: path = chartPath(in: canvasSize)
             case .profile:  path = personPath(in: canvasSize)
@@ -101,6 +106,17 @@ struct TabBarIcon: View {
         p.addLine(to: CGPoint(x: w * 0.58, y: h * 0.62))
         p.addLine(to: CGPoint(x: w * 0.58, y: baseY))
 
+        return p
+    }
+
+    private func targetPath(in s: CGSize) -> Path {
+        var p = Path()
+        let w = s.width, h = s.height
+        let c = CGPoint(x: w * 0.5, y: h * 0.5)
+        let rOuter = w * 0.34
+        let rInner = w * 0.16
+        p.addEllipse(in: CGRect(x: c.x - rOuter, y: c.y - rOuter, width: rOuter * 2, height: rOuter * 2))
+        p.addEllipse(in: CGRect(x: c.x - rInner, y: c.y - rInner, width: rInner * 2, height: rInner * 2))
         return p
     }
 
