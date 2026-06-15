@@ -18,7 +18,7 @@ struct AccessibilityView: View {
                 ),
                 LegalSection(
                     heading: "Accessibility Features",
-                    body: "MF Elite includes the following accessibility features:\n\nVoiceOver Support: All screens, buttons, drills, and navigation elements include accessibility labels and hints for full VoiceOver compatibility.\n\nDynamic Type: The App supports Dynamic Type, allowing text to scale according to your device's preferred text size settings.\n\nHigh Contrast: The App uses a high-contrast dark theme with white text on dark backgrounds, meeting WCAG AA contrast ratio requirements.\n\nHaptic Feedback: Key actions such as starting drills, completing sets, and logging progress provide haptic feedback for tactile confirmation.\n\nReduced Motion: The App respects the iOS Reduce Motion setting and reduces or eliminates animations when enabled.\n\nButton Sizing: All interactive elements meet or exceed the minimum 44×44 point touch target size recommended by Apple's Human Interface Guidelines."
+                    body: "MF Elite includes the following accessibility features:\n\nVoiceOver Support: All screens, buttons, drills, and navigation elements include accessibility labels and hints for full VoiceOver compatibility. Set and rest transitions during a session are announced aloud so you can train without watching the screen.\n\nDynamic Type: The App supports Dynamic Type, allowing text to scale according to your device's preferred text size settings.\n\nHigh Contrast: The App uses a high-contrast dark theme with white text on dark backgrounds, meeting WCAG AA contrast ratio requirements.\n\nHaptic Feedback: Key actions such as starting drills, completing sets, and logging progress provide haptic feedback for tactile confirmation.\n\nReduced Motion: The App respects the iOS Reduce Motion setting and reduces or eliminates animations when enabled.\n\nButton Sizing: All interactive elements meet or exceed the minimum 44×44 point touch target size recommended by Apple's Human Interface Guidelines."
                 ),
                 LegalSection(
                     heading: "Standards We Follow",
@@ -26,7 +26,7 @@ struct AccessibilityView: View {
                 ),
                 LegalSection(
                     heading: "Known Limitations",
-                    body: "While we strive for full accessibility, some features may have limitations:\n\nTimer-based drill sessions rely on visual countdown displays. We are working on enhanced audio cues for future updates.\n\nSome decorative visual elements (coaching point animations, celebration screens) may not convey equivalent information through assistive technologies.\n\nWe are continuously improving and welcome feedback on areas where accessibility can be enhanced."
+                    body: "While we strive for full accessibility, some features may have limitations:\n\nTimer-based drill sessions use visual countdown displays alongside VoiceOver announcements for set and rest changes; some intermediate timer values are conveyed visually only.\n\nSome decorative visual elements (coaching point animations, celebration screens) may not convey equivalent information through assistive technologies.\n\nWe are continuously improving and welcome feedback on areas where accessibility can be enhanced."
                 ),
                 LegalSection(
                     heading: "Feedback",

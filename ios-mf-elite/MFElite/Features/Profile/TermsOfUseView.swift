@@ -18,7 +18,7 @@ struct TermsOfUseView: View {
                 ),
                 LegalSection(
                     heading: "2. Account and Data",
-                    body: "The App stores training data locally on your device. We do not create accounts or store personal data on remote servers in the current version.\n\nDeleting the App or resetting your device will permanently erase all training progress, achievements, and settings. We cannot recover lost data.\n\nYou are responsible for maintaining the security of your device and any data stored on it."
+                    body: "You can create an optional account (with email and password, or with Sign in with Apple) to sync your profile and training data across devices. When signed in, your profile and training data are stored on your device and synced to our backend. You are responsible for keeping your account credentials and device secure.\n\nDeleting the App or resetting your device erases data stored on that device. To delete data synced to your account, contact us at mf.elitetraining@gmail.com.\n\nOur collection and use of your information is described in our Privacy Policy, which is part of these Terms."
                 ),
                 LegalSection(
                     heading: "3. Subscriptions and Payments",
