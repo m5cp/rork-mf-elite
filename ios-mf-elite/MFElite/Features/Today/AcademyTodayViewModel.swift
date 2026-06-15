@@ -70,6 +70,9 @@ final class AcademyTodayViewModel {
     private let recentSessionsByDiscipline: [String: Int]
     /// The player's position code (e.g. "ST", "CB"), used to bias the focus.
     private let positionCode: String
+    /// Lowest mastery-level number the plan biases toward for players with no
+    /// progress yet. 1 = no bias. Lower content is never locked.
+    private let startingLevelBias: Int
     /// Game IQ lessons, used to alternate the Tactical recommendation with lessons.
     private let gameIQLessons: [GameIQLesson]
     /// Most recent Tactical drill completion (excludes Game IQ lesson log entries).
@@ -84,8 +87,10 @@ final class AcademyTodayViewModel {
         progress: [DrillProgress],
         sessions: [SessionLogEntry] = [],
         positionCode: String = "",
+        startingLevelBias: Int = 1,
         gameIQLessons: [GameIQLesson] = []
     ) {
+        self.startingLevelBias = max(1, startingLevelBias)
         let sorted = disciplines.sorted { $0.sortIndex < $1.sortIndex }
         self.disciplines = sorted
         self.xp = xp
@@ -513,9 +518,10 @@ final class AcademyTodayViewModel {
                 }
             }
         }
-        // No progress yet — surface the very first drill.
+        // No progress yet — surface the first drill at/above the player's
+        // starting level (lower levels stay reachable, never locked).
         if let category = sortedCategories(discipline).first,
-           let level = sortedLevels(category).first,
+           let level = biasedLevels(category).first,
            let drill = sortedDrills(level).first {
             return Recommendation(
                 drill: drill, category: category, level: level,
@@ -569,10 +575,11 @@ final class AcademyTodayViewModel {
             }
         }
 
-        // Phase 2 — continue with next-unmastered drills across all disciplines.
+        // Phase 2 — continue with next-unmastered drills across all disciplines,
+        // biased to start near the player's level.
         disciplineLoop: for discipline in disciplines {
             for category in sortedCategories(discipline) {
-                for level in sortedLevels(category) {
+                for level in biasedLevels(category) {
                     for drill in sortedDrills(level) where eligible(drill) {
                         guard canAddMore else { break disciplineLoop }
                         add(DrillContext(drill: drill, level: level, category: category, discipline: discipline))
@@ -599,7 +606,7 @@ final class AcademyTodayViewModel {
         }
         for discipline in disciplines {
             for category in sortedCategories(discipline) where matches(discipline, category) {
-                for level in sortedLevels(category) {
+                for level in biasedLevels(category) {
                     for drill in sortedDrills(level) where eligible(drill) {
                         return DrillContext(drill: drill, level: level, category: category, discipline: discipline)
                     }
@@ -743,6 +750,18 @@ final class AcademyTodayViewModel {
 
     private func sortedLevels(_ category: Category) -> [MasteryLevel] {
         category.levels.sorted { $0.number < $1.number }
+    }
+
+    /// Levels of a category ordered so a brand-new plan starts near the player's
+    /// reported level: levels at/above the starting bias come first (ascending),
+    /// then any below it. Nothing is removed — lower levels stay reachable.
+    private func biasedLevels(_ category: Category) -> [MasteryLevel] {
+        let sorted = sortedLevels(category)
+        guard startingLevelBias > 1 else { return sorted }
+        let atOrAbove = sorted.filter { $0.number >= startingLevelBias }
+        guard !atOrAbove.isEmpty else { return sorted }
+        let below = sorted.filter { $0.number < startingLevelBias }
+        return atOrAbove + below
     }
 
     private func sortedDrills(_ level: MasteryLevel) -> [Drill] {

@@ -18,7 +18,7 @@ struct OnboardingNumberView: View {
             Color.black.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                ChapterEyebrow(number: 4, label: "Your Number")
+                ChapterEyebrow(number: 5, label: "Your Number")
                     .padding(.top, DS.Spacing.s12)
 
                 Text("Pick your number.")
@@ -76,7 +76,7 @@ struct OnboardingNumberView: View {
             }
             .opacity(number.isEmpty ? 0.4 : 1)
             .disabled(number.isEmpty)
-            StepBar(filled: 5, total: OnboardingStep.stepTotal)
+            StepBar(filled: 6, total: OnboardingStep.stepTotal)
         }
         .padding(.bottom, DS.Spacing.s24)
     }

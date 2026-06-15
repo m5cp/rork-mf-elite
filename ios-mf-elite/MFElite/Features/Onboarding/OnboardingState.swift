@@ -14,26 +14,65 @@ enum OnboardingStep: Int, CaseIterable {
     case code
     case identify
     case position
+    case level
     case pledge
     case account
     case number
     case passport
 
-    /// Total filled segments for the StepBar. Players see 6 chapters; the
+    /// Total filled segments for the StepBar. Players see 7 chapters; the
     /// splash screen is not a counted step.
-    static let stepTotal = 6
+    static let stepTotal = 7
 
-    /// 1-of-6 progress index for the StepBar (splash excluded).
+    /// 1-of-7 progress index for the StepBar (splash excluded).
     var stepIndex: Int {
         switch self {
         case .splash:   return 0
         case .code:     return 1
         case .identify: return 2
         case .position: return 3
-        case .pledge:   return 4
-        case .account:  return 4
-        case .number:   return 5
-        case .passport: return 6
+        case .level:    return 4
+        case .pledge:   return 5
+        case .account:  return 5
+        case .number:   return 6
+        case .passport: return 7
+        }
+    }
+}
+
+/// The player's self-reported starting skill level, captured during onboarding.
+/// Biases the default recommendation and the session generator toward an
+/// appropriate starting point — it never locks any content.
+enum TrainingLevel: String, CaseIterable, Identifiable {
+    case newToTraining
+    case developing
+    case experienced
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .newToTraining: return "New to training"
+        case .developing:    return "Developing"
+        case .experienced:   return "Experienced"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .newToTraining: return "Just starting structured solo work."
+        case .developing:    return "Train sometimes — building consistency."
+        case .experienced:   return "Train regularly and know the basics cold."
+        }
+    }
+
+    /// The lowest mastery-level number the plan should bias toward when the
+    /// player has no progress yet. Lower content is never locked.
+    var startingLevelBias: Int {
+        switch self {
+        case .newToTraining: return 1
+        case .developing:    return 2
+        case .experienced:   return 3
         }
     }
 }
@@ -104,6 +143,7 @@ final class OnboardingState {
     var birthYear: Int? = nil
     var selectedPosition: PitchPosition? = nil
     var foot: String = "Right"
+    var trainingLevel: TrainingLevel? = nil
     var pledgeTier: PledgeTier = .standard
     var kitNumber: String = ""
 

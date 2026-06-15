@@ -26,7 +26,7 @@ struct OnboardingPassportView: View {
             DiagonalStripes(opacity: 0.4)
 
             VStack(alignment: .leading, spacing: 0) {
-                ChapterEyebrow(number: 5, label: "Welcome")
+                ChapterEyebrow(number: 6, label: "Welcome")
                     .padding(.top, DS.Spacing.s12)
 
                 Text("Welcome to MF, \(firstName).")

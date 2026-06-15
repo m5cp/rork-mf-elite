@@ -80,6 +80,7 @@ struct AcademyTodayView: View {
             progress: progress,
             sessions: sessions,
             positionCode: profile.positionCode,
+            startingLevelBias: profile.startingLevelBias,
             gameIQLessons: gameIQLessons
         )
     }
@@ -187,6 +188,14 @@ struct AcademyTodayView: View {
         }
         .onChange(of: router.startTrainingToken) { _, _ in
             startRecommendedSession(vm)
+        }
+        .onChange(of: router.starterSessionToken) { _, _ in
+            startStarterSession()
+        }
+        .onAppear {
+            // A freshly-onboarded player is dropped straight into a short starter
+            // session instead of an empty Today screen.
+            if router.starterSessionToken > 0 { startStarterSession() }
         }
     }
 
@@ -514,6 +523,18 @@ struct AcademyTodayView: View {
         guard !items.isEmpty else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         activeSession = TrainingQueue(items: items, source: .workout, sourceName: "Quick Train")
+    }
+
+    /// Launch the one-time 5-minute starter Quick Train for a new player, then
+    /// clear the token so it never fires again.
+    private func startStarterSession() {
+        guard activeSession == nil, router.starterSessionToken > 0 else { return }
+        router.consumeStarterSession()
+        // Defer slightly so the onboarding cover finishes dismissing before the
+        // session player is presented, avoiding a presentation conflict.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            startQuickTrain(minutes: 5)
+        }
     }
 
     // MARK: - My Workouts strip

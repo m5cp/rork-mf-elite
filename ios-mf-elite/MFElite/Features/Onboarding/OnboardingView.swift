@@ -32,6 +32,8 @@ struct OnboardingView: View {
                     OnboardingIdentifyView(state: state)
                 case .position:
                     OnboardingPositionView(state: state)
+                case .level:
+                    OnboardingLevelView(state: state)
                 case .pledge:
                     OnboardingPledgeView(state: state)
                 case .account:
@@ -125,6 +127,7 @@ struct OnboardingView: View {
             positionCode: state.positionCode,
             foot: state.foot,
             classYear: state.classYear ?? 0,
+            trainingLevel: state.trainingLevel,
             skipped: skipped
         )
 
@@ -138,6 +141,11 @@ struct OnboardingView: View {
         }
 
         onComplete()
+
+        // Drop the new player straight into one short starter session instead of
+        // an empty Today screen. The Today tab observes this and launches a
+        // 5-minute Quick Train once it appears.
+        AppActionRouter.shared.requestStarterSession()
     }
 
     // MARK: - Skip confirmation

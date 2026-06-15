@@ -388,6 +388,7 @@ final class SupabaseAuth {
             "kit_number": profile.kitNumber
         ]
         if profile.classYear > 0 { row["class_year"] = profile.classYear }
+        if !profile.trainingLevel.isEmpty { row["training_level"] = profile.trainingLevel }
         await SupabaseClient.shared.upsert(table: "player_profiles", values: row, onConflict: "id")
     }
 

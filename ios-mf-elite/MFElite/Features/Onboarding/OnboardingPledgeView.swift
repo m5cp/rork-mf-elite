@@ -17,7 +17,7 @@ struct OnboardingPledgeView: View {
             Color.black.ignoresSafeArea()
 
             VStack(alignment: .leading, spacing: 0) {
-                ChapterEyebrow(number: 3, label: "The Pledge")
+                ChapterEyebrow(number: 4, label: "The Pledge")
                     .padding(.top, DS.Spacing.s12)
 
                 Text("How much will you give?")
@@ -91,7 +91,7 @@ struct OnboardingPledgeView: View {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
                 state.advance()
             }
-            StepBar(filled: 4, total: OnboardingStep.stepTotal)
+            StepBar(filled: 5, total: OnboardingStep.stepTotal)
         }
         .padding(.bottom, DS.Spacing.s24)
     }

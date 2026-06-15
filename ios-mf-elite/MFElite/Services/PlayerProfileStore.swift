@@ -42,6 +42,7 @@ final class PlayerProfileStore {
         static let foot = "MF_PLAYER_FOOT"
         static let classYear = "MF_PLAYER_CLASS_YEAR"
         static let birthYear = "MF_PLAYER_BIRTH_YEAR"
+        static let trainingLevel = "MF_PLAYER_TRAINING_LEVEL"
         static let skipped = "MF_ONBOARDING_SKIPPED"
         static let promptDismissed = "MF_PROFILE_PROMPT_DISMISSED"
         static let sessionCount = "MF_SESSION_COUNT"
@@ -85,6 +86,11 @@ final class PlayerProfileStore {
     var birthYear: Int {
         didSet { defaults.set(birthYear, forKey: Keys.birthYear) }
     }
+    /// Self-reported starting skill level captured at onboarding. Empty when unset.
+    /// Biases the default recommendation and session generator; never locks content.
+    var trainingLevel: String {
+        didSet { defaults.set(trainingLevel, forKey: Keys.trainingLevel) }
+    }
     /// True when the player bypassed onboarding and is running on defaults.
     var onboardingSkipped: Bool {
         didSet { defaults.set(onboardingSkipped, forKey: Keys.skipped) }
@@ -113,6 +119,7 @@ final class PlayerProfileStore {
         foot = defaults.string(forKey: Keys.foot) ?? "Right"
         classYear = defaults.integer(forKey: Keys.classYear)
         birthYear = defaults.integer(forKey: Keys.birthYear)
+        trainingLevel = defaults.string(forKey: Keys.trainingLevel) ?? ""
         onboardingSkipped = defaults.bool(forKey: Keys.skipped)
         profilePromptDismissed = defaults.bool(forKey: Keys.promptDismissed)
         sessionCount = defaults.integer(forKey: Keys.sessionCount)
@@ -179,6 +186,13 @@ final class PlayerProfileStore {
 
     func incrementSession() { sessionCount += 1 }
 
+    /// The lowest mastery-level number the plan should bias toward when the player
+    /// has no progress yet, derived from the captured training level. Defaults to
+    /// 1 (no bias) when unset. Lower content is never locked.
+    var startingLevelBias: Int {
+        TrainingLevel(rawValue: trainingLevel)?.startingLevelBias ?? 1
+    }
+
     /// Initials derived from the display name (max two letters, uppercased).
     var initials: String {
         let parts = displayName
@@ -202,6 +216,7 @@ final class PlayerProfileStore {
         foot: String = "Right",
         classYear: Int = 0,
         birthYear: Int = 0,
+        trainingLevel: TrainingLevel? = nil,
         skipped: Bool = false
     ) {
         displayName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -212,6 +227,7 @@ final class PlayerProfileStore {
         self.foot = foot
         self.classYear = classYear
         if birthYear > 0 { self.birthYear = birthYear }
+        if let trainingLevel { self.trainingLevel = trainingLevel.rawValue }
         onboardingSkipped = skipped
         hasCompletedOnboarding = true
     }
@@ -244,6 +260,7 @@ final class PlayerProfileStore {
         foot = "Right"
         classYear = 0
         birthYear = 0
+        trainingLevel = ""
         onboardingSkipped = false
         profilePromptDismissed = false
         clearAvatar()

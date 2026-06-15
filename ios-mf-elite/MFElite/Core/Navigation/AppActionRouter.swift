@@ -22,6 +22,10 @@ final class AppActionRouter {
     /// launch a fresh recommended session even if it's already visible.
     private(set) var startTrainingToken = 0
 
+    /// Bumped once when a freshly-onboarded player should be dropped into a short
+    /// starter session (a 5-minute Quick Train) instead of an empty Today screen.
+    private(set) var starterSessionToken = 0
+
     private init() {}
 
     /// Open the Today tab and launch the recommended session.
@@ -33,5 +37,17 @@ final class AppActionRouter {
     /// Open the Today tab (the training home) without auto-launching a session.
     func requestOpenToday() {
         pendingTab = .today
+    }
+
+    /// Open the Today tab and launch a short starter Quick Train for a new player.
+    func requestStarterSession() {
+        pendingTab = .today
+        starterSessionToken += 1
+    }
+
+    /// Clear the starter-session request once it has been launched so it fires
+    /// only once per onboarding completion.
+    func consumeStarterSession() {
+        starterSessionToken = 0
     }
 }
