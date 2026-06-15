@@ -226,10 +226,37 @@ struct MentalExercisePlayerView: View {
                     withAnimation(DS.Motion.standardSpring) { stage = .logged }
                 }
                 .accessibilityHint("Logs this exercise as completed without going through the steps")
+
+                if queue.upNext != nil {
+                    skipDrillButton
+                }
             }
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.bottom, DS.Spacing.s40)
         }
+    }
+
+    /// A small text button that skips this exercise entirely and advances to the
+    /// next drill in the queue (parallels DrillPlayerView's Skip drill). When the
+    /// queue has another drill, it surfaces what's coming next.
+    private var skipDrillButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            onAdvance()
+        } label: {
+            VStack(spacing: 2) {
+                Label("Skip drill", systemImage: "forward.fill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                if let next = queue.upNext {
+                    Text("Up next: \(next.drill.title)")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+            }
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityHint("Skips this exercise and moves to the next one")
     }
 
     private var kindBadge: some View {
@@ -289,9 +316,14 @@ struct MentalExercisePlayerView: View {
             }
             .scrollIndicators(.hidden)
 
-            stepControls
-                .padding(.horizontal, DS.Spacing.s20)
-                .padding(.bottom, DS.Spacing.s40)
+            VStack(spacing: DS.Spacing.s12) {
+                stepControls
+                if queue.upNext != nil {
+                    skipDrillButton
+                }
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.bottom, DS.Spacing.s40)
         }
     }
 
