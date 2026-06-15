@@ -141,11 +141,6 @@ struct OnboardingView: View {
         }
 
         onComplete()
-
-        // Drop the new player straight into one short starter session instead of
-        // an empty Today screen. The Today tab observes this and launches a
-        // 5-minute Quick Train once it appears.
-        AppActionRouter.shared.requestStarterSession()
     }
 
     // MARK: - Skip confirmation
