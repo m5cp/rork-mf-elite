@@ -336,10 +336,12 @@ ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS is_example  boolean NOT NUL
 -- foot          : 'Right' | 'Left' dominant foot.
 -- member_number : auto-generated member id shown on the passport (not unique).
 -- class_year    : high-school graduation year.
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS pledge_tier   text;
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS foot          text;
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS member_number integer;
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS class_year    integer;
+-- training_level: starting skill level chosen at onboarding (new/developing/experienced).
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS pledge_tier    text;
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS foot           text;
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS member_number  integer;
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS class_year     integer;
+ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS training_level text;
 
 -- Backfill account_id for existing self-managed rows (id == account).
 UPDATE player_profiles SET account_id = id WHERE account_id IS NULL;
