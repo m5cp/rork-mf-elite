@@ -175,15 +175,14 @@ struct AcademyTodayView: View {
             WorkoutBuilderView()
         }
         .sheet(isPresented: $showQuickTrain) {
-            QuickTrainSheet { minutes in
+            GenerateSessionSheet { items in
                 showQuickTrain = false
-                // Let the sheet finish dismissing before presenting the player
-                // to avoid a sheet/fullScreenCover presentation conflict.
+                guard !items.isEmpty else { return }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    startQuickTrain(minutes: minutes)
+                    activeSession = TrainingQueue(items: items, source: .workout, sourceName: "Generated")
                 }
             }
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.large])
             .presentationBackground(DS.Colors.Bg.base)
         }
         .onChange(of: router.startTrainingToken) { _, _ in
