@@ -24,7 +24,6 @@ struct AcademyTodayView: View {
     @Query(sort: \CombineTest.sortIndex) private var combineTests: [CombineTest]
     @Query private var combineResults: [CombineResult]
     @Query(sort: \GameIQLesson.sortIndex) private var gameIQLessons: [GameIQLesson]
-    @Query(sort: \CoachWorkout.createdAt, order: .reverse) private var coachWorkouts: [CoachWorkout]
     @Query(sort: \Announcement.createdAt, order: .reverse) private var announcements: [Announcement]
     @Environment(SubscriptionService.self) private var subscription
     @Environment(\.modelContext) private var modelContext
@@ -38,7 +37,6 @@ struct AcademyTodayView: View {
     @State private var retestStore = CombineRetestStore.shared
     @State private var activeLesson: GameIQLesson?
     @State private var matchDay: MatchDayLaunch?
-    @State private var coachWorkoutSheet: CoachWorkout?
     @State private var announcementStore = AnnouncementStore.shared
     @State private var announcementExpanded = false
 
@@ -99,7 +97,7 @@ struct AcademyTodayView: View {
                     combineRetestNudge
                     dailyStandard(vm)
                     goalsCard(vm)
-                    coachWorkoutCard
+                    CoachsChoiceSection()
                     quickTrainRow
                     matchDayRow(vm)
                     todaysFocusCard(vm)
@@ -149,22 +147,6 @@ struct AcademyTodayView: View {
         }
         .fullScreenCover(item: $matchDay) { launch in
             MatchDayFlowView(items: launch.items, cueLine: launch.cueLine)
-        }
-        .sheet(item: $coachWorkoutSheet) { workout in
-            let items = resolvedCoachItems(workout)
-            CoachWorkoutDetailView(
-                workout: workout,
-                items: items,
-                onStart: {
-                    coachWorkoutSheet = nil
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                        startCoachWorkout(workout, items: items)
-                    }
-                },
-                onSave: { saveCoachWorkoutToMine(workout, items: items) }
-            )
-            .presentationDetents([.medium, .large])
-            .presentationBackground(DS.Colors.Bg.base)
         }
         .task {
             await CoachWorkoutFeed.refresh(context: modelContext)
@@ -383,94 +365,6 @@ struct AcademyTodayView: View {
         .buttonStyle(PressableButtonStyle())
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s12)
-    }
-
-    // MARK: - Coach's Workout of the Day
-
-    /// The newest active coach workout whose drills still resolve in this build.
-    private var resolvableCoachWorkout: CoachWorkout? {
-        coachWorkouts.first { !resolvedCoachItems($0).isEmpty }
-    }
-
-    /// Resolve a coach workout's string drill IDs against the curriculum, skipping
-    /// any that don't exist in this app version.
-    private func resolvedCoachItems(_ workout: CoachWorkout) -> [DrillContext] {
-        workout.drillIDs.compactMap { drillIndex[$0] }
-    }
-
-    /// A distinct card surfacing the coach's featured workout, below daily goals.
-    /// Hidden entirely when no resolvable active coach workout exists.
-    @ViewBuilder
-    private var coachWorkoutCard: some View {
-        if let workout = resolvableCoachWorkout {
-            let items = resolvedCoachItems(workout)
-            Button {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                coachWorkoutSheet = workout
-            } label: {
-                VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-                    Eyebrow(text: "From Coach \(workout.coachName.uppercased())")
-                    Text(workout.title)
-                        .style(.title2)
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if !workout.note.isEmpty {
-                        Text(workout.note)
-                            .style(.foot)
-                            .foregroundStyle(DS.Colors.Ink.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    HStack(spacing: DS.Spacing.s8) {
-                        Image(systemName: "figure.soccer")
-                            .font(.system(size: 12, weight: .bold))
-                        Text("\(items.count) \(items.count == 1 ? "drill" : "drills") · \(estimatedSessionMinutes(forDrills: items.map(\.drill))) min")
-                            .style(.micro)
-                        Spacer(minLength: 0)
-                        Text("View")
-                            .style(.micro)
-                            .fontWeight(.bold)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 11, weight: .bold))
-                    }
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
-                    .padding(.top, DS.Spacing.s4)
-                }
-                .padding(DS.Spacing.s20)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(DS.Colors.Bg.elevated)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
-                .overlay(
-                    RoundedRectangle(cornerRadius: DS.Radius.lg)
-                        .stroke(DS.Colors.Ink.primary.opacity(0.18), lineWidth: 1)
-                )
-            }
-            .buttonStyle(PressableButtonStyle())
-            .padding(.horizontal, DS.Spacing.s20)
-            .padding(.top, DS.Spacing.s24 + 4)
-        }
-    }
-
-    /// Run the coach workout as a chained queue, logged under its title.
-    private func startCoachWorkout(_ workout: CoachWorkout, items: [DrillContext]) {
-        guard !items.isEmpty else { return }
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-        activeSession = TrainingQueue(items: items, source: .workout, sourceName: workout.title)
-    }
-
-    /// Copy a coach workout into the player's own custom workouts (tagged as a
-    /// coach import) so they keep it after the 7-day window. Their existing
-    /// custom workouts are never altered.
-    private func saveCoachWorkoutToMine(_ workout: CoachWorkout, items: [DrillContext]) {
-        guard !items.isEmpty else { return }
-        let copy = CustomWorkout(
-            title: workout.title,
-            drillIDs: items.map(\.drill.id),
-            isShared: true
-        )
-        modelContext.insert(copy)
-        try? modelContext.save()
-        SyncEngine.shared.enqueueCustomWorkout(copy)
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
     }
 
     // MARK: - Quick Train

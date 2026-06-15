@@ -39,6 +39,9 @@ struct TrainView: View {
                         MoreRow(icon: "list.bullet", label: "Drill Library",
                                 detail: "Every drill, by category", isLast: true)
                     }.buttonStyle(PressableButtonStyle())
+
+                    CoachsChoiceSection()
+                        .padding(.horizontal, -DS.Spacing.s20)
                 }
                 .padding(.horizontal, DS.Spacing.s20)
                 .padding(.bottom, 120)
