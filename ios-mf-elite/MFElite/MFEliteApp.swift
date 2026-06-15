@@ -26,6 +26,7 @@ struct MFEliteApp: App {
             PlayerState.self,
             SessionLogEntry.self,
             CustomWorkout.self,
+            ProgramEnrollment.self,
             DrillNote.self,
             CombineTest.self,
             CombineResult.self,
