@@ -13,6 +13,11 @@ struct DayRingsView: View {
     let rings: DailyRings
     var size: CGFloat = 90
     var showCheckmarks: Bool = true
+    /// When true, the rings sweep from empty to their value once on appear.
+    var animateOnAppear: Bool = false
+
+    @State private var fill: Double = 1
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     /// Outer stroke width; inner rings step down slightly for visual weight.
     private var baseLine: CGFloat { max(2, size * 0.12) }
@@ -29,6 +34,13 @@ struct DayRingsView: View {
             ringLayer(progress: rings.mindProgress, inset: (baseLine + gap) * 2, line: baseLine * 0.8, tint: mindTint, closed: rings.mindClosed)
         }
         .frame(width: size, height: size)
+        .onAppear {
+            guard animateOnAppear, !reduceMotion else { return }
+            fill = 0
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.85).delay(0.15)) {
+                fill = 1
+            }
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Daily rings")
         .accessibilityValue(
@@ -44,7 +56,7 @@ struct DayRingsView: View {
                 .stroke(DS.Colors.Line.subtle, lineWidth: line)
 
             Circle()
-                .trim(from: 0, to: max(0.0001, min(1, progress)))
+                .trim(from: 0, to: max(0.0001, min(1, progress * fill)))
                 .stroke(tint, style: StrokeStyle(lineWidth: line, lineCap: .round))
                 .rotationEffect(.degrees(-90))
 

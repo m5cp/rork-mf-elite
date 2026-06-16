@@ -28,6 +28,7 @@ struct ProgressTabView: View {
     @State private var selectedDay: IdentifiableDate?
     @State private var gameCenter = GameCenterService.shared
     @State private var profile = PlayerProfileStore.shared
+    @State private var appeared = false
 
     private var viewModel: ProgressDashboardViewModel {
         ProgressDashboardViewModel(disciplines: disciplines, sessions: sessions, progress: progress)
@@ -38,30 +39,31 @@ struct ProgressTabView: View {
             let vm = viewModel
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    header
-                    todayRings(vm)
+                    header.entrance(0, appeared: appeared)
+                    todayRings(vm).entrance(1, appeared: appeared)
                     if sessions.isEmpty {
-                        emptyState
+                        emptyState.entrance(2, appeared: appeared)
                     } else {
-                        weeklyRecap
-                        weekOverview(vm)
+                        weeklyRecap.entrance(2, appeared: appeared)
+                        weekOverview(vm).entrance(3, appeared: appeared)
                         if vm.hasReflections {
-                            reflections(vm)
+                            reflections(vm).entrance(4, appeared: appeared)
                         }
-                        monthlyTrend(vm)
-                        intensity(vm)
-                        disciplineBreakdown(vm)
+                        monthlyTrend(vm).entrance(5, appeared: appeared)
+                        intensity(vm).entrance(6, appeared: appeared)
+                        disciplineBreakdown(vm).entrance(7, appeared: appeared)
                     }
-                    combineEntry
-                    combineTrendStrip
-                    proofOfProgressEntry
-                    quickLinks
+                    combineEntry.entrance(8, appeared: appeared)
+                    combineTrendStrip.entrance(9, appeared: appeared)
+                    proofOfProgressEntry.entrance(10, appeared: appeared)
+                    quickLinks.entrance(11, appeared: appeared)
                 }
                 .padding(.bottom, 120)
             }
             .background(DS.Colors.Bg.base)
             .scrollIndicators(.hidden)
             .navigationBarHidden(true)
+            .onAppear { appeared = true }
             .navigationDestination(for: WeeklyRoute.self) { _ in HistoryCalendarView() }
             .navigationDestination(for: AcademyProgressionRoute.self) { _ in AcademyProgressionView() }
             .navigationDestination(for: CombineRoute.self) { _ in CombineView() }
@@ -94,13 +96,13 @@ struct ProgressTabView: View {
         let rings = vm.todayRings
         return Card {
             HStack(spacing: DS.Spacing.s20) {
-                DayRingsView(rings: rings, size: 90)
+                DayRingsView(rings: rings, size: 90, animateOnAppear: true)
 
                 VStack(alignment: .leading, spacing: DS.Spacing.s12) {
                     Eyebrow(text: "Today")
-                    ringCountRow(tint: Color.white, label: "Train", value: "\(rings.trainMinutes)", unit: "/ \(DailyRings.trainGoalMinutes) min")
-                    ringCountRow(tint: Color.white.opacity(0.68), label: "Drills", value: "\(rings.drillCount)", unit: "/ \(DailyRings.drillGoal)")
-                    ringCountRow(tint: Color.white.opacity(0.42), label: "Mind", value: "\(rings.mindCount)", unit: "/ \(DailyRings.mindGoal)")
+                    ringCountRow(tint: Color.white, label: "Train", value: rings.trainMinutes, unit: "/ \(DailyRings.trainGoalMinutes) min")
+                    ringCountRow(tint: Color.white.opacity(0.68), label: "Drills", value: rings.drillCount, unit: "/ \(DailyRings.drillGoal)")
+                    ringCountRow(tint: Color.white.opacity(0.42), label: "Mind", value: rings.mindCount, unit: "/ \(DailyRings.mindGoal)")
                 }
                 Spacer(minLength: 0)
             }
@@ -109,14 +111,14 @@ struct ProgressTabView: View {
         .padding(.top, DS.Spacing.s20)
     }
 
-    private func ringCountRow(tint: Color, label: String, value: String, unit: String) -> some View {
+    private func ringCountRow(tint: Color, label: String, value: Int, unit: String) -> some View {
         HStack(spacing: DS.Spacing.s8) {
             Circle().fill(tint).frame(width: 8, height: 8)
             Text(label)
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.secondary)
             Spacer(minLength: DS.Spacing.s8)
-            Text(value)
+            CountUp(value: value)
                 .font(DS.Typography.num(size: 16))
                 .foregroundStyle(DS.Colors.Ink.primary)
             Text(unit)
@@ -164,11 +166,11 @@ struct ProgressTabView: View {
                 Eyebrow(text: "This Week")
 
                 HStack(spacing: 0) {
-                    overviewStat("Sessions", "\(vm.sessionsThisWeek)")
+                    overviewStat("Sessions", vm.sessionsThisWeek)
                     overviewDivider
-                    overviewStat("XP Earned", "\(vm.xpThisWeek)")
+                    overviewStat("XP Earned", vm.xpThisWeek)
                     overviewDivider
-                    overviewStat("Mastered", "\(vm.masteredThisWeek)")
+                    overviewStat("Mastered", vm.masteredThisWeek)
                 }
 
                 ringStrip(vm)
@@ -208,9 +210,9 @@ struct ProgressTabView: View {
         .padding(.top, DS.Spacing.s8)
     }
 
-    private func overviewStat(_ label: String, _ value: String) -> some View {
+    private func overviewStat(_ label: String, _ value: Int) -> some View {
         VStack(spacing: DS.Spacing.s4) {
-            Text(value)
+            CountUp(value: value)
                 .font(DS.Typography.num(size: 28))
                 .tracking(-1)
                 .foregroundStyle(DS.Colors.Ink.primary)
