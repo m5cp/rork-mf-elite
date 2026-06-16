@@ -68,6 +68,18 @@ final class DrillPlayerViewModel {
 
     private static let restDuration: TimeInterval = 15
 
+    /// The total rest duration for the current rest phase. Starts at the default
+    /// but grows when the player taps "+15s", so the rest ring stays accurate.
+    private(set) var currentRestDuration: TimeInterval = restDuration
+
+    /// Whether sound + vibration cues are enabled. Defaults to on; mirrored by the
+    /// "Sound & vibration cues" setting toggle.
+    private var cuesEnabled: Bool {
+        UserDefaults.standard.object(forKey: "MF_SOUND_CUES") == nil
+            ? true
+            : UserDefaults.standard.bool(forKey: "MF_SOUND_CUES")
+    }
+
     init(
         drill: Drill,
         level: MasteryLevel,
@@ -92,9 +104,15 @@ final class DrillPlayerViewModel {
         return TimeInterval(drill.durationSec / drill.sets)
     }
 
+    /// True when the session is currently in a rest phase.
+    var isResting: Bool {
+        if case .resting = phase { return true }
+        return false
+    }
+
     /// Active-set ring progress (1 → 0 as the set counts down).
     var progress: Double {
-        let total = phase == .resting(nextSetIndex: currentSetIndex + 1) ? Self.restDuration : setDuration
+        let total = isResting ? currentRestDuration : setDuration
         guard total > 0 else { return 0 }
         return max(0, min(1, timeRemaining / total))
     }
@@ -122,15 +140,23 @@ final class DrillPlayerViewModel {
     private var pauseStartDate: Date?
 
     private func playCountdownBeep() {
+        guard cuesEnabled else { return }
         AudioServicesPlaySystemSound(1057)
     }
 
     private func playSetCompleteSound() {
+        guard cuesEnabled else { return }
         AudioServicesPlaySystemSound(1025)
     }
 
     private func playSessionCompleteSound() {
+        guard cuesEnabled else { return }
         AudioServicesPlaySystemSound(1335)
+    }
+
+    private func cueHaptic(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+        guard cuesEnabled else { return }
+        UINotificationFeedbackGenerator().notificationOccurred(type)
     }
 
     private func invalidateTimer() {
@@ -243,11 +269,28 @@ final class DrillPlayerViewModel {
         guard case let .resting(nextSetIndex) = phase else { return }
         invalidateTimer()
         if nextSetIndex <= drill.sets {
-            currentSetIndex = nextSetIndex
-            phase = .active(setIndex: nextSetIndex)
-            startTicking(from: setDuration) { [weak self] in
-                self?.completeSet()
-            }
+            beginActiveSet(nextSetIndex)
+        }
+    }
+
+    /// Add 15 seconds to the current rest so the player can recover longer.
+    func extendRest() {
+        guard case let .resting(nextSetIndex) = phase else { return }
+        let newRemaining = timeRemaining + 15
+        invalidateTimer()
+        currentRestDuration = max(currentRestDuration, newRemaining)
+        phase = .resting(nextSetIndex: nextSetIndex)
+        startTicking(from: newRemaining) { [weak self] in
+            self?.beginActiveSet(nextSetIndex)
+        }
+    }
+
+    /// Begin a numbered active set, wiring its countdown to `completeSet`.
+    private func beginActiveSet(_ index: Int) {
+        currentSetIndex = index
+        phase = .active(setIndex: index)
+        startTicking(from: setDuration) { [weak self] in
+            self?.completeSet()
         }
     }
 
@@ -277,16 +320,12 @@ final class DrillPlayerViewModel {
         recordActiveSetIfNeeded()
         if currentSetIndex < drill.sets {
             let next = currentSetIndex + 1
+            currentRestDuration = Self.restDuration
             phase = .resting(nextSetIndex: next)
             playSetCompleteSound()
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-            startTicking(from: Self.restDuration) { [weak self] in
-                guard let self else { return }
-                self.currentSetIndex = next
-                self.phase = .active(setIndex: next)
-                self.startTicking(from: self.setDuration) { [weak self] in
-                    self?.completeSet()
-                }
+            cueHaptic(.success)
+            startTicking(from: currentRestDuration) { [weak self] in
+                self?.beginActiveSet(next)
             }
         } else {
             invalidateTimer()

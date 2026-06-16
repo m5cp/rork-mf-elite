@@ -21,11 +21,13 @@ struct ProgressTabView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var progress: [DrillProgress]
     @Query private var sessions: [SessionLogEntry]
+    @Query private var players: [PlayerState]
     @Query private var combineResults: [CombineResult]
     @Query(sort: \CombineTest.sortIndex) private var combineTests: [CombineTest]
 
     @State private var selectedDay: IdentifiableDate?
     @State private var gameCenter = GameCenterService.shared
+    @State private var profile = PlayerProfileStore.shared
 
     private var viewModel: ProgressDashboardViewModel {
         ProgressDashboardViewModel(disciplines: disciplines, sessions: sessions, progress: progress)
@@ -41,6 +43,7 @@ struct ProgressTabView: View {
                     if sessions.isEmpty {
                         emptyState
                     } else {
+                        weeklyRecap
                         weekOverview(vm)
                         if vm.hasReflections {
                             reflections(vm)
@@ -68,6 +71,20 @@ struct ProgressTabView: View {
                 DayDetailView(date: wrapped.date)
                     .presentationDetents([.large])
             }
+        }
+    }
+
+    // MARK: - Weekly recap
+
+    @ViewBuilder
+    private var weeklyRecap: some View {
+        let recap = WeekRecap(
+            sessions: sessions,
+            currentXP: players.first?.xp ?? 0,
+            currentStreak: players.first?.streak ?? 0
+        )
+        if recap.hasActivity {
+            WeeklyRecapSection(recap: recap, playerName: profile.displayName)
         }
     }
 

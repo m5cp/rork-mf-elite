@@ -149,6 +149,15 @@ struct SessionLoggedView: View {
                 }
                 .padding(.top, DS.Spacing.s32)
 
+                VStack(spacing: DS.Spacing.s8) {
+                    SyncStatusChip()
+                    Text("Logged on your device — backs up automatically when you're online.")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, DS.Spacing.s20)
+
                 if let lesson = upNextLesson {
                     gameIQUpNextCard(lesson)
                         .padding(.top, DS.Spacing.s32)

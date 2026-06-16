@@ -117,8 +117,11 @@ struct SessionSummaryView: View {
                 drillList
                     .padding(.top, DS.Spacing.s24)
 
+                SyncStatusChip()
+                    .padding(.top, DS.Spacing.s24)
+
                 PrimaryButton(label: "Done") { onDone() }
-                    .padding(.top, DS.Spacing.s32)
+                    .padding(.top, DS.Spacing.s20)
             }
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.bottom, 80)

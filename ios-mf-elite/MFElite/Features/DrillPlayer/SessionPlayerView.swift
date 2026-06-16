@@ -61,6 +61,20 @@ struct SessionPlayerView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onAppear { saveResumeSnapshot() }
+        .onChange(of: queue.currentIndex) { _, _ in saveResumeSnapshot() }
+    }
+
+    /// Persist where the player is so an interrupted multi-drill session can be
+    /// resumed from the Today screen. No-op for single drills.
+    private func saveResumeSnapshot() {
+        guard !showSummary else { return }
+        ResumeStore.shared.save(
+            drillIDs: queue.items.map(\.drill.id),
+            source: queue.source.rawValue,
+            sourceName: queue.sourceName,
+            index: queue.currentIndex
+        )
     }
 
     private func advance() {
@@ -70,6 +84,8 @@ struct SessionPlayerView: View {
     }
 
     private func finishSession() {
+        // Session ran to completion — nothing left to resume.
+        ResumeStore.shared.clear()
         if let onComplete {
             onComplete()
         } else {

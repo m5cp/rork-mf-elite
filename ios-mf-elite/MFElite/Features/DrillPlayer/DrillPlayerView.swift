@@ -429,22 +429,43 @@ struct DrillPlayerView: View {
                         }
                     }
 
-                    Button {
-                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                        withAnimation(DS.Motion.standardSpring) {
-                            viewModel.skipRest()
+                    HStack(spacing: DS.Spacing.s12) {
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            withAnimation(DS.Motion.standardSpring) {
+                                viewModel.extendRest()
+                            }
+                        } label: {
+                            Label("+15s", systemImage: "goforward.15")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(DS.Colors.Ink.primary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: DS.Radius.pill)
+                                        .stroke(DS.Colors.Line.subtle, lineWidth: 1)
+                                )
                         }
-                    } label: {
-                        Text("Start now")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundStyle(DS.Colors.Ground.primary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
-                            .pillLightElevation()
+                        .buttonStyle(PressableButtonStyle())
+                        .accessibilityLabel("Add 15 seconds of rest")
+
+                        Button {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            withAnimation(DS.Motion.standardSpring) {
+                                viewModel.skipRest()
+                            }
+                        } label: {
+                            Text("Start now")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundStyle(DS.Colors.Ground.primary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 50)
+                                .background(Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+                                .pillLightElevation()
+                        }
+                        .buttonStyle(PressableButtonStyle())
                     }
-                    .buttonStyle(PressableButtonStyle())
                     .padding(.horizontal, DS.Spacing.s20)
 
                     Button {

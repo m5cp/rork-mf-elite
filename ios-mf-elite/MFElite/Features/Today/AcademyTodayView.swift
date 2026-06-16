@@ -39,6 +39,10 @@ struct AcademyTodayView: View {
     @State private var matchDay: MatchDayLaunch?
     @State private var announcementStore = AnnouncementStore.shared
     @State private var announcementExpanded = false
+    @State private var resumeStore = ResumeStore.shared
+    @State private var recapShareImage: ShareableImage?
+    @State private var syncEngine = SyncEngine.shared
+    @State private var auth = SupabaseAuth.shared
 
     /// Most recent workouts shown inline on the home strip before "See all".
     private let homeWorkoutLimit = 6
@@ -92,11 +96,13 @@ struct AcademyTodayView: View {
                     if profile.shouldPromptProfileCompletion {
                         completeProfileBanner
                     }
+                    resumeCard
                     salutation(vm)
                     announcementBanner
                     combineRetestNudge
                     dailyStandard(vm)
                     goalsCard(vm)
+                    weeklyRecapCard
                     CoachsChoiceSection()
                     quickTrainRow
                     matchDayRow(vm)
@@ -148,6 +154,10 @@ struct AcademyTodayView: View {
         .fullScreenCover(item: $matchDay) { launch in
             MatchDayFlowView(items: launch.items, cueLine: launch.cueLine)
         }
+        .sheet(item: $recapShareImage) { item in
+            ShareSheet(items: [item.image])
+                .presentationDetents([.medium, .large])
+        }
         .task {
             await CoachWorkoutFeed.refresh(context: modelContext)
             await AnnouncementFeed.refresh(context: modelContext)
@@ -177,6 +187,7 @@ struct AcademyTodayView: View {
             // A freshly-onboarded player is dropped straight into a short starter
             // session instead of an empty Today screen.
             if router.starterSessionToken > 0 { startStarterSession() }
+            resumeStore.refresh()
         }
     }
 
@@ -245,6 +256,110 @@ struct AcademyTodayView: View {
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.top, DS.Spacing.s16)
         }
+    }
+
+    // MARK: - Weekly recap
+
+    /// A compact recap of this week's training, shown once the player has logged
+    /// anything this week. Tapping share exports a branded image.
+    @ViewBuilder
+    private var weeklyRecapCard: some View {
+        let recap = WeekRecap(
+            sessions: sessions,
+            currentXP: players.first?.xp ?? 0,
+            currentStreak: players.first?.streak ?? 0
+        )
+        if recap.hasActivity {
+            WeeklyRecapCompactCard(recap: recap) {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                if let image = ShareCardRenderer.render(
+                    WeeklyRecapShareCard(recap: recap, playerName: profile.displayName)
+                ) {
+                    recapShareImage = ShareableImage(image: image)
+                }
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s16)
+        }
+    }
+
+    // MARK: - Resume training
+
+    /// A card surfaced at the top of Today when an interrupted multi-drill session
+    /// is still resumable. Resume drops the player back in at the exact drill.
+    @ViewBuilder
+    private var resumeCard: some View {
+        if let saved = resumeStore.session, saved.count > 1 {
+            let items = saved.drillIDs.compactMap { drillIndex[$0] }
+            if items.count == saved.count {
+                Card(padding: DS.Spacing.s16) {
+                    VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                        HStack(spacing: DS.Spacing.s12) {
+                            Image(systemName: "arrow.uturn.forward")
+                                .font(.system(size: 18, weight: .bold))
+                                .foregroundStyle(DS.Colors.Ink.primary)
+                                .frame(width: 40, height: 40)
+                                .background(DS.Colors.Bg.raised)
+                                .clipShape(Circle())
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(resumeTitle(saved))
+                                    .style(.title3)
+                                    .foregroundStyle(DS.Colors.Ink.primary)
+                                    .lineLimit(1)
+                                Text("Drill \(saved.position) of \(saved.count) · pick up where you left off")
+                                    .style(.micro)
+                                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                            }
+                            Spacer(minLength: DS.Spacing.s8)
+                            Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                withAnimation(DS.Motion.standardSpring) { resumeStore.clear() }
+                            } label: {
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                                    .frame(width: 28, height: 28)
+                            }
+                            .buttonStyle(PressableButtonStyle())
+                            .accessibilityLabel("Dismiss resume")
+                        }
+
+                        HStack(spacing: 4) {
+                            ForEach(0..<saved.count, id: \.self) { idx in
+                                Capsule()
+                                    .fill(idx < saved.index ? Color.white : DS.Colors.Line.subtle)
+                                    .frame(height: 4)
+                                    .frame(maxWidth: .infinity)
+                            }
+                        }
+
+                        PrimaryButton(label: "Resume training", size: .medium) {
+                            resume(saved, items: items)
+                        }
+                    }
+                }
+                .padding(.horizontal, DS.Spacing.s20)
+                .padding(.top, DS.Spacing.s16)
+            }
+        }
+    }
+
+    private func resumeTitle(_ saved: ResumeSession) -> String {
+        if let name = saved.sourceName, !name.isEmpty { return name }
+        switch SessionSource(rawValue: saved.source) {
+        case .routine: return "Routine"
+        case .workout: return "Workout"
+        default: return "Training session"
+        }
+    }
+
+    /// Rebuild the queue, jump to the saved drill, and present the player.
+    private func resume(_ saved: ResumeSession, items: [DrillContext]) {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        let source = SessionSource(rawValue: saved.source) ?? .workout
+        let queue = TrainingQueue(items: items, source: source, sourceName: saved.sourceName)
+        queue.currentIndex = min(saved.index, items.count - 1)
+        activeSession = queue
     }
 
     // MARK: - Coach announcement banner
@@ -629,6 +744,10 @@ struct AcademyTodayView: View {
             Spacer()
 
             HStack(spacing: DS.Spacing.s8) {
+                if auth.isSignedIn && syncEngine.pendingCount > 0 {
+                    SyncStatusChip(compact: true)
+                }
+
                 if !subscription.hasFullAccess {
                     upgradeButton
                 }
