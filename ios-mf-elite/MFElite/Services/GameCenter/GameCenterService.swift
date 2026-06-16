@@ -25,6 +25,42 @@ enum GameCenterLeaderboard {
     static let all: [String] = [allTimeXP, weeklyXP]
 }
 
+/// Which XP board the in-app friends leaderboard is showing.
+enum LeaderboardScope: String, CaseIterable, Identifiable {
+    case week, allTime
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .week:    return "This Week"
+        case .allTime: return "All Time"
+        }
+    }
+
+    var leaderboardID: String {
+        switch self {
+        case .week:    return GameCenterLeaderboard.weeklyXP
+        case .allTime: return GameCenterLeaderboard.allTimeXP
+        }
+    }
+}
+
+/// One row in the in-app friends leaderboard, flattened from a `GKLeaderboard.Entry`.
+struct LeaderboardRow: Identifiable {
+    let id: String
+    let rank: Int
+    let displayName: String
+    let score: Int
+    let isLocalPlayer: Bool
+}
+
+/// Resolved friends-leaderboard data: the ranked rows plus the local player's
+/// own row (which may sit outside the visible range, so it can be pinned).
+struct LeaderboardData {
+    var rows: [LeaderboardRow]
+    var localRow: LeaderboardRow?
+}
+
 @MainActor
 @Observable
 final class GameCenterService {
@@ -79,6 +115,43 @@ final class GameCenterService {
                 print("Game Center score submit failed: \(error.localizedDescription)")
             }
         }
+    }
+
+    /// Load the friends-only XP leaderboard for the given scope. Returns the
+    /// ranked rows (friends + the local player) and the local player's own row
+    /// so it can be pinned even when it falls outside the visible range.
+    /// Returns empty data when signed out or on any failure — never throws.
+    func loadFriendsLeaderboard(scope: LeaderboardScope) async -> LeaderboardData {
+        guard isAuthenticated else { return LeaderboardData(rows: [], localRow: nil) }
+        do {
+            let boards = try await GKLeaderboard.loadLeaderboards(IDs: [scope.leaderboardID])
+            guard let board = boards.first else { return LeaderboardData(rows: [], localRow: nil) }
+            // Recurring (weekly) boards must use .allTime for the time scope.
+            let (localEntry, entries, _) = try await board.loadEntries(
+                for: .friendsOnly,
+                timeScope: .allTime,
+                range: NSRange(location: 1, length: 100)
+            )
+            let localID = GKLocalPlayer.local.gamePlayerID
+            let rows = (entries ?? []).map { entry in
+                Self.row(from: entry, localID: localID)
+            }
+            let localRow = localEntry.map { Self.row(from: $0, localID: localID) }
+            return LeaderboardData(rows: rows, localRow: localRow)
+        } catch {
+            print("Game Center leaderboard load failed: \(error.localizedDescription)")
+            return LeaderboardData(rows: [], localRow: nil)
+        }
+    }
+
+    private static func row(from entry: GKLeaderboard.Entry, localID: String) -> LeaderboardRow {
+        LeaderboardRow(
+            id: entry.player.gamePlayerID,
+            rank: entry.rank,
+            displayName: entry.player.displayName,
+            score: entry.score,
+            isLocalPlayer: entry.player.gamePlayerID == localID
+        )
     }
 
     // MARK: - Achievements

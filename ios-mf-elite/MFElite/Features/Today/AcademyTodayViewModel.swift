@@ -46,8 +46,20 @@ struct PlanFocus: Identifiable {
     let headline: String
     /// One human sentence explaining why this is today's focus.
     let reason: String
+    /// A short, encouraging momentum line (streak / bounce-back / stepping up).
+    let momentum: String?
 
     var id: String { drill.id }
+}
+
+/// How tough the player's recent sessions have felt, used to nudge difficulty.
+enum DifficultyTrend {
+    /// Recent work felt easy and is getting mastered — step toward a challenge.
+    case stepUp
+    /// Recent work felt brutal — ease back so the player doesn't burn out.
+    case easeBack
+    /// No strong signal — follow the normal pathway order.
+    case steady
 }
 
 @MainActor
@@ -79,6 +91,11 @@ final class AcademyTodayViewModel {
     private let lastTacticalDrillDate: Date?
     /// Rated Technical drill completions, for the Match Day pre-game cue line.
     let recentTechnicalRatings: [(drillID: String, rating: Int, date: Date)]
+    /// All rated sessions over the trailing 10 days, newest first, used to read
+    /// how tough recent work has felt and to drive momentum + difficulty.
+    private let recentRatedSessions: [(rating: Int, date: Date)]
+    /// Drills mastered in the last 7 days, a signal the player is progressing fast.
+    private let masteriesThisWeek: Int
 
     init(
         disciplines: [Discipline],
@@ -155,6 +172,66 @@ final class AcademyTodayViewModel {
             guard let rating = entry.feltRating else { return nil }
             return (drillID: entry.drillID, rating: rating, date: entry.completedAt)
         }
+
+        let ratedCutoff = calendar.date(byAdding: .day, value: -10, to: Date()) ?? .distantPast
+        self.recentRatedSessions = sessions
+            .filter { $0.completedAt >= ratedCutoff }
+            .compactMap { entry in entry.feltRating.map { (rating: $0, date: entry.completedAt) } }
+            .sorted { $0.date > $1.date }
+
+        let weekCutoff = calendar.date(byAdding: .day, value: -7, to: Date()) ?? .distantPast
+        self.masteriesThisWeek = progress.filter { entry in
+            guard entry.isMastered, let date = entry.lastLoggedAt else { return false }
+            return date >= weekCutoff
+        }.count
+    }
+
+    // MARK: - Difficulty + momentum
+
+    /// Average felt rating across the player's three most recent rated sessions
+    /// (1 tough … 5 easy). `nil` when there aren't enough rated sessions yet.
+    private var recentFeltAverage: Double? {
+        let recent = recentRatedSessions.prefix(3).map(\.rating)
+        guard recent.count >= 2 else { return nil }
+        return Double(recent.reduce(0, +)) / Double(recent.count)
+    }
+
+    /// Whether to nudge the focus toward a harder or easier drill based on how
+    /// recent sessions have felt. Steady when there isn't a clear signal.
+    var difficultyTrend: DifficultyTrend {
+        guard let average = recentFeltAverage else { return .steady }
+        if average >= 4.0 { return .stepUp }
+        if average <= 2.0 { return .easeBack }
+        return .steady
+    }
+
+    /// A short, encouraging momentum line shown under the focus reason. Reads the
+    /// streak, how tough recent work felt, and weekly mastery pace.
+    var momentumLine: String? {
+        switch difficultyTrend {
+        case .easeBack:
+            return "Recent sessions felt tough — today we ease back and rebuild the touch."
+        case .stepUp:
+            if streak >= 3 {
+                return "\(streak)-day streak and the work's feeling easy — time to level up."
+            }
+            return "You're making it look easy. Let's raise the bar today."
+        case .steady:
+            break
+        }
+        if streak >= 7 {
+            return "\(streak) days straight. This is what separation looks like."
+        }
+        if streak >= 3 {
+            return "\(streak)-day streak going — keep the fire lit."
+        }
+        if masteriesThisWeek >= 3 {
+            return "\(masteriesThisWeek) drills mastered this week. Momentum is yours."
+        }
+        if streak == 0 {
+            return "One session restarts the streak. Let's get the first touch in."
+        }
+        return nil
     }
 
     // MARK: - Game IQ alternation
@@ -387,7 +464,8 @@ final class AcademyTodayViewModel {
                 let reason = focusReason(forCategory: categoryName, isPositionLed: true, rating: latestRatingByDrill[drill.drill.id])
                 return PlanFocus(
                     drill: drill.drill, category: drill.category, level: drill.level,
-                    discipline: drill.discipline, headline: categoryName, reason: reason
+                    discipline: drill.discipline, headline: categoryName, reason: reason,
+                    momentum: momentumLine
                 )
             }
         }
@@ -396,7 +474,8 @@ final class AcademyTodayViewModel {
             let reason = focusReason(forCategory: drill.category.name, isPositionLed: false, rating: latestRatingByDrill[drill.drill.id])
             return PlanFocus(
                 drill: drill.drill, category: drill.category, level: drill.level,
-                discipline: drill.discipline, headline: drill.category.name, reason: reason
+                discipline: drill.discipline, headline: drill.category.name, reason: reason,
+                momentum: momentumLine
             )
         }
         // 3. Fallback: first actionable anywhere.
@@ -405,25 +484,60 @@ final class AcademyTodayViewModel {
                 return PlanFocus(
                     drill: drill.drill, category: drill.category, level: drill.level,
                     discipline: drill.discipline, headline: drill.category.name,
-                    reason: "A clean place to start building momentum today."
+                    reason: "A clean place to start building momentum today.",
+                    momentum: momentumLine
                 )
             }
         }
         return nil
     }
 
-    /// A short, human explanation shown under the focus headline.
+    /// A short, human explanation shown under the focus headline. Reads the
+    /// player's position, recent felt difficulty, neglect and progress pace, and
+    /// varies day to day (deterministically) so it feels like a real coach.
     private func focusReason(forCategory name: String, isPositionLed: Bool, rating: Int?) -> String {
+        let lower = name.lowercased()
+
+        // Weak foot is always the highest-signal, most specific cue.
         if name.localizedCaseInsensitiveContains("weak foot") {
             return "Your weak foot needs reps — it's the fastest way to double your options on the ball."
         }
+
+        // Difficulty-aware cues take priority — they reflect how the work felt.
+        switch difficultyTrend {
+        case .easeBack:
+            return "Last few felt heavy, so today's \(lower) work is lighter — clean reps over grinding."
+        case .stepUp:
+            return "\(name) is clicking for you — today steps it up so you keep climbing."
+        case .steady:
+            break
+        }
+
         if let rating, rating <= 2 {
             return "This felt tough last time, so it's back today — that's exactly where the growth is."
         }
+
         if isPositionLed {
-            return "As a \(positionName.lowercased()), sharpening \(name.lowercased()) pays off most on match day."
+            let options = [
+                "As a \(positionName.lowercased()), sharpening \(lower) pays off most on match day.",
+                "Top \(positionName.lowercased())s live and die by their \(lower). Today we build it.",
+                "This is the \(lower) work that makes you dangerous in your \(positionName.lowercased()) role."
+            ]
+            return options[reasonVariant % options.count]
         }
-        return "You've trained \(name.lowercased()) the least lately — time to even it out."
+
+        let options = [
+            "You've trained \(lower) the least lately — time to even it out.",
+            "\(name) has gone quiet in your log. Let's bring it back up to speed.",
+            "Rounding out your game: \(lower) is the gap to close today."
+        ]
+        return options[reasonVariant % options.count]
+    }
+
+    /// A stable per-day index so the coach line varies across days without
+    /// flickering as the view re-renders within a single day.
+    private var reasonVariant: Int {
+        Calendar.current.ordinality(of: .day, in: .year, for: Date()) ?? 0
     }
 
     /// The discipline with the least recent activity, preferring lower mastery to break ties.

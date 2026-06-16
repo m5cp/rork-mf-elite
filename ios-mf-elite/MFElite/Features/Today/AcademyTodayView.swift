@@ -870,6 +870,19 @@ struct AcademyTodayView: View {
                     .style(.foot)
                     .foregroundStyle(DS.Colors.Ink.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+
+                if let momentum = focus.momentum {
+                    HStack(spacing: DS.Spacing.s8) {
+                        Image(systemName: "bolt.fill")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text(momentum)
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, DS.Spacing.s4)
+                }
             }
             .opacity(locked ? 0.7 : 1)
         }

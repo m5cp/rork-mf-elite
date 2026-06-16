@@ -51,6 +51,7 @@ struct ProgressTabView: View {
                     }
                     combineEntry
                     combineTrendStrip
+                    proofOfProgressEntry
                     quickLinks
                 }
                 .padding(.bottom, 120)
@@ -61,6 +62,8 @@ struct ProgressTabView: View {
             .navigationDestination(for: WeeklyRoute.self) { _ in HistoryCalendarView() }
             .navigationDestination(for: AcademyProgressionRoute.self) { _ in AcademyProgressionView() }
             .navigationDestination(for: CombineRoute.self) { _ in CombineView() }
+            .navigationDestination(for: FriendsLeaderboardRoute.self) { _ in FriendsLeaderboardView() }
+            .navigationDestination(for: ProofOfProgressRoute.self) { _ in ProofOfProgressView() }
             .sheet(item: $selectedDay) { wrapped in
                 DayDetailView(date: wrapped.date)
                     .presentationDetents([.large])
@@ -514,6 +517,47 @@ struct ProgressTabView: View {
         }
     }
 
+    // MARK: - Proof of Progress entry
+
+    /// Entry to the Proof of Progress dashboard, shown once any combine result
+    /// exists so there's something to prove.
+    @ViewBuilder
+    private var proofOfProgressEntry: some View {
+        if !combineResults.isEmpty {
+            NavigationLink(value: ProofOfProgressRoute()) {
+                Card {
+                    HStack(spacing: DS.Spacing.s16) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                            .frame(width: 44, height: 44)
+                            .background(DS.Colors.Bg.raised)
+                            .clipShape(Circle())
+
+                        VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                            Eyebrow(text: "Proof of Progress")
+                            Text("See how far you've come")
+                                .style(.title3)
+                                .foregroundStyle(DS.Colors.Ink.primary)
+                            Text("Every PB and tier you've climbed")
+                                .style(.foot)
+                                .foregroundStyle(DS.Colors.Ink.quaternary)
+                        }
+
+                        Spacer(minLength: 0)
+
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                    }
+                }
+            }
+            .buttonStyle(PressableButtonStyle())
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s32 - 4)
+        }
+    }
+
     // MARK: - 6. Quick links
 
     private var quickLinks: some View {
@@ -528,13 +572,11 @@ struct ProgressTabView: View {
             }
             .buttonStyle(PressableButtonStyle())
 
-            Button {
-                gameCenter.showLeaderboard(GameCenterLeaderboard.allTimeXP)
-            } label: {
+            NavigationLink(value: FriendsLeaderboardRoute()) {
                 QuickLinkRow(
                     icon: "trophy",
                     label: "Leaderboards",
-                    detail: gameCenter.isAuthenticated ? nil : "Sign in to Game Center",
+                    detail: gameCenter.isAuthenticated ? "See how you rank vs friends" : "Sign in to Game Center",
                     isLast: true
                 )
             }

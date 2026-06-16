@@ -25,6 +25,9 @@ struct CombineTestFlowView: View {
     @State private var wasPersonalBest = false
     @State private var shareImage: ShareableImage?
     @State private var isExporting = false
+    @State private var celebrate = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @FocusState private var entryFocused: Bool
 
@@ -355,9 +358,35 @@ struct CombineTestFlowView: View {
                     .fill(Color.white.opacity(wasPersonalBest ? 0.10 : 0.05))
                     .frame(width: 160, height: 160)
                     .blur(radius: 40)
+
+                // Radiating rings burst out on a new personal best.
+                if wasPersonalBest {
+                    ForEach(0..<3, id: \.self) { ring in
+                        Circle()
+                            .stroke(Color.white.opacity(0.4), lineWidth: 2)
+                            .frame(width: 96, height: 96)
+                            .scaleEffect(celebrate ? 1.9 + CGFloat(ring) * 0.35 : 0.4)
+                            .opacity(celebrate ? 0 : 0.8)
+                            .animation(
+                                reduceMotion ? nil :
+                                    .easeOut(duration: 1.1).delay(Double(ring) * 0.16),
+                                value: celebrate
+                            )
+                    }
+                }
+
                 Image(systemName: wasPersonalBest ? "trophy.fill" : "checkmark")
                     .font(.system(size: 48, weight: .bold))
                     .foregroundStyle(DS.Colors.Ink.primary)
+                    .scaleEffect(wasPersonalBest && celebrate ? 1 : (wasPersonalBest ? 0.6 : 1))
+                    .animation(reduceMotion ? nil : DS.Motion.celebrationSpring, value: celebrate)
+            }
+            .onAppear {
+                if reduceMotion {
+                    celebrate = true
+                } else {
+                    withAnimation { celebrate = true }
+                }
             }
 
             VStack(spacing: DS.Spacing.s8) {
