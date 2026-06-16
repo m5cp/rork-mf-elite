@@ -14,13 +14,18 @@ struct PitchRing: View {
     let value: String
     let label: String
 
+    @State private var shown: Double = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var clamped: Double { max(0, min(1, progress)) }
+
     var body: some View {
         ZStack {
             Circle()
                 .stroke(DS.Colors.Line.subtle, lineWidth: strokeWidth)
 
             Circle()
-                .trim(from: 0, to: max(0, min(1, progress)))
+                .trim(from: 0, to: shown)
                 .stroke(
                     Color.white,
                     style: StrokeStyle(lineWidth: strokeWidth, lineCap: .butt)
@@ -35,9 +40,19 @@ struct PitchRing: View {
             }
         }
         .frame(width: size, height: size)
+        .onAppear {
+            guard !reduceMotion else { shown = clamped; return }
+            shown = 0
+            withAnimation(.spring(response: 0.7, dampingFraction: 0.85).delay(0.15)) {
+                shown = clamped
+            }
+        }
+        .onChange(of: progress) { _, _ in
+            withAnimation(reduceMotion ? nil : DS.Motion.standardSpring) { shown = clamped }
+        }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label): \(value)")
-        .accessibilityValue("\(Int((max(0, min(1, progress)) * 100).rounded())) percent")
+        .accessibilityValue("\(Int((clamped * 100).rounded())) percent")
     }
 }
 

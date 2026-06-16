@@ -43,6 +43,7 @@ struct AcademyTodayView: View {
     @State private var recapShareImage: ShareableImage?
     @State private var syncEngine = SyncEngine.shared
     @State private var auth = SupabaseAuth.shared
+    @State private var appeared = false
 
     /// Most recent workouts shown inline on the home strip before "See all".
     private let homeWorkoutLimit = 6
@@ -94,23 +95,23 @@ struct AcademyTodayView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     topBar(vm)
                     if profile.shouldPromptProfileCompletion {
-                        completeProfileBanner
+                        completeProfileBanner.entrance(0, appeared: appeared)
                     }
-                    resumeCard
-                    salutation(vm)
-                    announcementBanner
-                    combineRetestNudge
-                    dailyStandard(vm)
-                    goalsCard(vm)
-                    weeklyRecapCard
-                    CoachsChoiceSection()
-                    quickTrainRow
-                    matchDayRow(vm)
-                    todaysFocusCard(vm)
-                    myWorkoutsSection
-                    favoritesCard
-                    continuePathway(vm)
-                    recommendedSection(vm)
+                    resumeCard.entrance(1, appeared: appeared)
+                    salutation(vm).entrance(2, appeared: appeared)
+                    announcementBanner.entrance(3, appeared: appeared)
+                    combineRetestNudge.entrance(4, appeared: appeared)
+                    dailyStandard(vm).entrance(5, appeared: appeared)
+                    goalsCard(vm).entrance(6, appeared: appeared)
+                    weeklyRecapCard.entrance(7, appeared: appeared)
+                    CoachsChoiceSection().entrance(8, appeared: appeared)
+                    quickTrainRow.entrance(9, appeared: appeared)
+                    matchDayRow(vm).entrance(10, appeared: appeared)
+                    todaysFocusCard(vm).entrance(11, appeared: appeared)
+                    myWorkoutsSection.entrance(12, appeared: appeared)
+                    favoritesCard.entrance(13, appeared: appeared)
+                    continuePathway(vm).entrance(14, appeared: appeared)
+                    recommendedSection(vm).entrance(15, appeared: appeared)
                 }
                 .padding(.bottom, 120)
             }
@@ -188,6 +189,7 @@ struct AcademyTodayView: View {
             // session instead of an empty Today screen.
             if router.starterSessionToken > 0 { startStarterSession() }
             resumeStore.refresh()
+            if !appeared { appeared = true }
         }
     }
 
@@ -757,7 +759,7 @@ struct AcademyTodayView: View {
                         Image(systemName: "flame.fill")
                             .font(.system(size: 12, weight: .bold))
                             .foregroundStyle(DS.Colors.Ink.primary)
-                        Text("\(vm.streak)")
+                        CountUp(value: vm.streak)
                             .font(DS.Typography.num(size: 14))
                             .foregroundStyle(DS.Colors.Ink.primary)
                     }
@@ -861,7 +863,7 @@ struct AcademyTodayView: View {
                         .foregroundStyle(DS.Colors.Ink.primary)
 
                     HStack(alignment: .firstTextBaseline, spacing: DS.Spacing.s4) {
-                        Text(vm.xp.formatted())
+                        CountUp(value: vm.xp)
                             .font(DS.Typography.num(size: 30))
                             .foregroundStyle(DS.Colors.Ink.primary)
                         Text("XP")
