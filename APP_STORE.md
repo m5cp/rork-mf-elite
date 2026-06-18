@@ -63,10 +63,10 @@ Train every day. Master every touch. Rise through the academy.
 ## App Review notes
 
 ```
-Test account: Provided via App Store Connect.
-Invite code: Any code accepted (server-side validation in production).
-Onboarding can be skipped via "Skip" button.
-Coach admin: Profile → Settings → Coach workspace. Default PIN: 1234 (prompted to change on first login).
+Test account: Provided via App Store Connect (Sign-In Information).
+This test account is registered as a coach in our backend, so after signing in the extra "Coach" tab appears automatically — no separate password or PIN. Coach access is granted purely by an email allowlist on the server.
+Onboarding can be skipped via the "Skip" button.
+Note: the app has an optional 4-digit Parent Gate (Profile → Settings) that a parent can set to lock purchases/family settings. It is OFF by default and is not required to review the app.
 Subscription: RevenueCat. Sandbox Apple ID for testing. Prices load dynamically.
 Content managed by coach via in-app admin — no App Store update needed.
 No user-generated content shared publicly.
