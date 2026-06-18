@@ -18,7 +18,7 @@ struct TermsOfUseView: View {
                 ),
                 LegalSection(
                     heading: "2. Account and Data",
-                    body: "You can create an optional account (with email and password, or with Sign in with Apple) to sync your profile and training data across devices. When signed in, your profile and training data are stored on your device and synced to our backend. You are responsible for keeping your account credentials and device secure.\n\nDeleting the App or resetting your device erases data stored on that device. To delete data synced to your account, contact us at mf.elitetraining@gmail.com.\n\nOur collection and use of your information is described in our Privacy Policy, which is part of these Terms."
+                    body: "You can create an optional account (with email and password, or with Sign in with Apple) to sync your profile and training data across devices. When signed in, your profile and training data are stored on your device and synced to our backend. You are responsible for keeping your account credentials and device secure.\n\nDeleting the App or resetting your device erases data stored on that device. If you have an account, you can permanently delete it and all associated server data at any time in the App under Profile > Settings > Delete account.\n\nOur collection and use of your information is described in our Privacy Policy, which is part of these Terms."
                 ),
                 LegalSection(
                     heading: "3. Subscriptions and Payments",
