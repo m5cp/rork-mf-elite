@@ -15,6 +15,7 @@ import Security
 import CryptoKit
 import AuthenticationServices
 import Observation
+import SwiftData
 
 /// Errors surfaced internally; never crash the app — all are logged and swallowed.
 nonisolated enum SupabaseAuthError: Error {
@@ -316,6 +317,42 @@ final class SupabaseAuth {
         Keychain.delete(.userID)
         Keychain.delete(.expiresAt)
         defaults.removeObject(forKey: DefaultsKeys.email)
+    }
+
+    // MARK: - Account deletion
+
+    /// Permanently delete the signed-in account. Calls the server-side
+    /// `delete_account` RPC (SECURITY DEFINER) which removes ALL of the user's
+    /// rows in the correct foreign-key order — session_logs, combine_results,
+    /// drill_notes, custom_workouts, gameiq_completions, player_progress,
+    /// player_state, certifications, roster_invites, coaches, player_profiles,
+    /// families, the profiles row, and finally the auth user itself. The client
+    /// no longer deletes individual tables.
+    ///
+    /// Ordering is critical:
+    ///   1. RPC runs FIRST, while the session JWT is still valid (it needs
+    ///      `auth.uid()`).
+    ///   2. Local data wipe + sign-out happen AFTER the RPC.
+    ///
+    /// Fails soft: if the RPC errors (e.g. offline), we still wipe local data and
+    /// sign out so the user always ends in a clean signed-out state and can never
+    /// get stuck mid-deletion.
+    @discardableResult
+    func deleteAccount(context: ModelContext) async -> Bool {
+        guard isSignedIn else { return false }
+
+        // 1) Delete ALL server data + the auth user via the SECURITY DEFINER RPC,
+        //    while the session token is still valid. Best-effort — fails soft.
+        let deleted = await SupabaseClient.shared.rpc("delete_account")
+        if !deleted {
+            print("[SupabaseAuth] delete_account RPC failed — wiping locally and signing out anyway.")
+        }
+
+        // 2) Wipe local history + reset on-device identity, then clear the session.
+        SyncEngine.shared.wipeLocalData(context: context)
+        PlayerProfileStore.shared.reset()
+        signOut()
+        return deleted
     }
 
     // MARK: - Coach allow-list

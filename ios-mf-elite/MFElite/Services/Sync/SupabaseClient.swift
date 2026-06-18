@@ -66,6 +66,18 @@ final class SupabaseClient {
         return await mutate(request, label: "DELETE \(table)")
     }
 
+    /// Call a Postgres function (RPC). Returns true on success. Used for
+    /// privileged server-side operations a client cannot do directly (e.g. a
+    /// SECURITY DEFINER `delete_account` that removes the auth user). Safe no-op
+    /// (logs and returns false) when the function is not installed.
+    @discardableResult
+    func rpc(_ function: String, params: [String: Any] = [:]) async -> Bool {
+        guard var request = await makeRequest(table: "rpc/\(function)", method: "POST", query: []) else { return false }
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: params)
+        return await mutate(request, label: "RPC \(function)")
+    }
+
     // MARK: - Plumbing
 
     private func makeRequest(table: String, method: String, query: [URLQueryItem]) async -> URLRequest? {

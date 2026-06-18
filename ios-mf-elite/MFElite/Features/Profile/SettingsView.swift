@@ -3,7 +3,8 @@
 //  MFElite
 //
 //  Full settings: account, subscription, notifications, and support links.
-//  V1 is local-only — no account, so no sign out or delete account.
+//  Signed-in accounts can sign out (keeps local data) or permanently delete the
+//  account (wipes server + local data and returns to a signed-out state).
 //
 
 import SwiftUI
@@ -36,6 +37,8 @@ struct SettingsView: View {
 
     @State private var showSignInSheet = false
     @State private var showSignOutConfirm = false
+    @State private var showDeleteConfirm = false
+    @State private var isDeleting = false
 
     @State private var editingField: AccountField?
     @State private var gateMode: ParentGateMode?
@@ -43,6 +46,9 @@ struct SettingsView: View {
     @State private var mailRequest: MailRequest?
     @State private var showMailUnavailable = false
     @State private var pendingSupportSubject = ""
+
+    /// Destructive-action red, matching the rest of the app's error styling.
+    private static let dangerColor = Color(hex: "#FF5A5A")
 
     private let supportEmail = "mf.elitetraining@gmail.com"
     private let manageSubscriptionURL = URL(string: "https://apps.apple.com/account/subscriptions")!
@@ -91,6 +97,16 @@ struct SettingsView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Your training data stays on this device. You can sign back in anytime.")
+        }
+        .confirmationDialog(
+            "Delete your account?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete account", role: .destructive) { deleteAccount() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently deletes your account and erases your progress, history, and profile from our servers and this device. This can't be undone.")
         }
         .confirmationDialog(
             "Turn off the parent passcode?",
@@ -219,6 +235,25 @@ struct SettingsView: View {
                     }
                     .padding(.vertical, DS.Spacing.s16 - 2)
                 }
+
+                Hairline()
+                Button { showDeleteConfirm = true } label: {
+                    HStack(spacing: DS.Spacing.s12) {
+                        Text("Delete account")
+                            .style(.callout)
+                            .foregroundStyle(Self.dangerColor)
+                        Spacer(minLength: 0)
+                        if isDeleting {
+                            ProgressView()
+                                .controlSize(.small)
+                                .tint(Self.dangerColor)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .padding(.vertical, DS.Spacing.s16 - 2)
+                }
+                .buttonStyle(PressableButtonStyle())
+                .disabled(isDeleting)
             }
 
             Text("Sign in with Apple to back up your progress and restore it on another device. The app works fully offline either way.")
@@ -226,6 +261,17 @@ struct SettingsView: View {
                 .foregroundStyle(DS.Colors.Ink.quaternary)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, DS.Spacing.s8)
+        }
+    }
+
+    /// Permanently delete the account, then reset on-device identity so the app
+    /// returns to a clean signed-out state (onboarding shows again).
+    private func deleteAccount() {
+        guard !isDeleting else { return }
+        isDeleting = true
+        Task {
+            await auth.deleteAccount(context: modelContext)
+            isDeleting = false
         }
     }
 

@@ -149,6 +149,48 @@ final class SyncEngine {
         refreshPendingCount()
     }
 
+    /// Permanently wipe all locally-stored user history and progress (used by
+    /// account deletion). The seeded curriculum/content models stay intact; the
+    /// player's progress, logs, notes, custom workouts, and queued ops are
+    /// removed, and PlayerState is reset to zero so the app stays consistent.
+    func wipeLocalData(context: ModelContext) {
+        deleteAll(SessionLogEntry.self, context: context)
+        deleteAll(CombineResult.self, context: context)
+        deleteAll(DrillNote.self, context: context)
+        deleteAll(CustomWorkout.self, context: context)
+        deleteAll(ProgramEnrollment.self, context: context)
+        deleteAll(DrillProgress.self, context: context)
+        deleteAll(PendingOp.self, context: context)
+
+        // Reset the single PlayerState row rather than deleting it, so the rest
+        // of the app always has a valid progression record to read.
+        if let player = try? context.fetch(FetchDescriptor<PlayerState>()).first {
+            player.xp = 0
+            player.streak = 0
+            player.freezesRemaining = 0
+            player.streakPB = 0
+            player.lastTrainedDate = nil
+        }
+        // Clear Game IQ lesson completions (seeded content stays, progress clears).
+        let lessons = (try? context.fetch(FetchDescriptor<GameIQLesson>())) ?? []
+        for lesson in lessons { lesson.completedAt = nil }
+        try? context.save()
+
+        // Reset sync bookkeeping so a fresh sign-in starts clean.
+        lastSyncedAt = nil
+        backoffUntil = nil
+        isBackfilling = false
+        UserDefaults.standard.removeObject(forKey: DefaultsKeys.lastSynced)
+        UserDefaults.standard.removeObject(forKey: DefaultsKeys.backfillDone)
+        refreshPendingCount()
+        WidgetBridge.refresh(context: context)
+    }
+
+    private func deleteAll<T: PersistentModel>(_ type: T.Type, context: ModelContext) {
+        let items = (try? context.fetch(FetchDescriptor<T>())) ?? []
+        for item in items { context.delete(item) }
+    }
+
     /// Force a flush now (used by the Settings "Sync now" action).
     func syncNow() {
         backoffUntil = nil
