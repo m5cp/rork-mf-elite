@@ -39,6 +39,7 @@ struct SettingsView: View {
     @State private var showSignOutConfirm = false
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
+    @State private var deleteOutcomeMessage: String?
 
     @State private var editingField: AccountField?
     @State private var gateMode: ParentGateMode?
@@ -126,6 +127,17 @@ struct SettingsView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text("Reach us at \(supportEmail)")
+        }
+        .alert(
+            "Couldn\u{2019}t finish deleting",
+            isPresented: Binding(
+                get: { deleteOutcomeMessage != nil },
+                set: { if !$0 { deleteOutcomeMessage = nil } }
+            )
+        ) {
+            Button("OK", role: .cancel) { deleteOutcomeMessage = nil }
+        } message: {
+            Text(deleteOutcomeMessage ?? "")
         }
     }
 
@@ -270,8 +282,14 @@ struct SettingsView: View {
         guard !isDeleting else { return }
         isDeleting = true
         Task {
-            await auth.deleteAccount(context: modelContext)
+            let deleted = await auth.deleteAccount(context: modelContext)
             isDeleting = false
+            // The flow always signs out locally, but when the server RPC didn't
+            // run (e.g. offline) the account still exists. Tell the user so they
+            // never assume it's gone when it isn't.
+            if !deleted {
+                deleteOutcomeMessage = "You\u{2019}ve been signed out, but your account couldn\u{2019}t be deleted because we couldn\u{2019}t reach our servers. Reconnect to the internet, sign back in, and try again to finish deleting it."
+            }
         }
     }
 
