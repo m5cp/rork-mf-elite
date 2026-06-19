@@ -24,6 +24,8 @@ struct DrillPlayerView: View {
 
     @State private var viewModel: DrillPlayerViewModel
     @State private var showStopConfirm = false
+    /// Sets the player has checked off on the tap-to-complete checklist.
+    @State private var tappedSets: Set<Int> = []
 
     private var drill: Drill { context.drill }
     private var level: MasteryLevel { context.level }
@@ -245,23 +247,115 @@ struct DrillPlayerView: View {
             }
             .scrollIndicators(.hidden)
 
-            VStack(spacing: DS.Spacing.s12) {
-                FloatingButton(label: "Start set", hint: "SET 1 OF \(drill.sets)") {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    withAnimation(DS.Motion.standardSpring) {
-                        viewModel.startSet()
-                    }
-                }
-                SecondaryButton(label: "Log as done — no timer") {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    withAnimation(DS.Motion.standardSpring) {
-                        viewModel.logInstant()
-                    }
-                }
-                .accessibilityHint("Logs this drill as completed without running the timer")
+            setChecklist
+                .padding(.horizontal, DS.Spacing.s20)
+                .padding(.bottom, DS.Spacing.s40)
+        }
+    }
+
+    // MARK: - Tap-to-complete set checklist
+
+    /// Default drill action: tap each set as you finish it. Logs automatically
+    /// once the last set is checked. "Log all sets" is a one-tap shortcut, and
+    /// the paced countdown is still available via "Use guided timer".
+    private var setChecklist: some View {
+        VStack(spacing: DS.Spacing.s12) {
+            HStack {
+                Eyebrow(text: "Tap Each Set As You Finish")
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                Spacer()
+                Text("\(tappedSets.count) of \(drill.sets)")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
             }
-            .padding(.horizontal, DS.Spacing.s20)
-            .padding(.bottom, DS.Spacing.s40)
+
+            VStack(spacing: DS.Spacing.s8) {
+                ForEach(1...max(1, drill.sets), id: \.self) { setNumber in
+                    setChecklistRow(setNumber)
+                }
+            }
+
+            SecondaryButton(label: "Log all sets") {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                withAnimation(DS.Motion.standardSpring) {
+                    tappedSets = Set(1...max(1, drill.sets))
+                }
+                logFromChecklist()
+            }
+            .accessibilityHint("Marks every set complete and logs this drill")
+
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                withAnimation(DS.Motion.standardSpring) {
+                    viewModel.startSet()
+                }
+            } label: {
+                Label("Use guided timer", systemImage: "timer")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .frame(height: 36)
+            }
+            .buttonStyle(PressableButtonStyle())
+            .accessibilityHint("Runs the paced countdown with rest periods and coaching cues")
+        }
+    }
+
+    /// A single tappable set row. Tapping fills it with a check + haptic; checking
+    /// the final set logs the drill automatically.
+    private func setChecklistRow(_ setNumber: Int) -> some View {
+        let done = tappedSets.contains(setNumber)
+        return Button {
+            guard !tappedSets.contains(setNumber) else { return }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            withAnimation(DS.Motion.standardSpring) {
+                _ = tappedSets.insert(setNumber)
+            }
+            if tappedSets.count >= max(1, drill.sets) {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+                    logFromChecklist()
+                }
+            }
+        } label: {
+            HStack(spacing: DS.Spacing.s12) {
+                ZStack {
+                    Circle()
+                        .fill(done ? Color.white : Color.clear)
+                        .frame(width: 28, height: 28)
+                        .overlay(
+                            Circle().stroke(done ? Color.white : DS.Colors.Line.subtle, lineWidth: 1.5)
+                        )
+                    if done {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(DS.Colors.Ground.primary)
+                    }
+                }
+                Text("Set \(setNumber)")
+                    .style(.callout)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(done ? DS.Colors.Ink.tertiary : DS.Colors.Ink.primary)
+                Spacer()
+                Text(done ? "Logged" : "Tap when done")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(.horizontal, DS.Spacing.s16)
+            .frame(height: 56)
+            .frame(maxWidth: .infinity)
+            .background(DS.Colors.Bg.raised)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("Set \(setNumber)")
+        .accessibilityValue(done ? "Logged" : "Not done")
+        .accessibilityHint("Double tap when you finish this set")
+    }
+
+    /// Banks the checked sets and logs the drill through the shared path.
+    private func logFromChecklist() {
+        withAnimation(DS.Motion.standardSpring) {
+            viewModel.logFromChecklist(setsCompleted: max(1, tappedSets.count))
         }
     }
 

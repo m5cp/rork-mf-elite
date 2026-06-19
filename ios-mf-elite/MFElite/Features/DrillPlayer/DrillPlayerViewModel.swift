@@ -304,6 +304,18 @@ final class DrillPlayerViewModel {
         phase = .logged
     }
 
+    /// Log the drill from the tap-to-complete set checklist — no timer. Banks the
+    /// per-set guide duration for each set the player checked off, then logs
+    /// through the shared path so XP, streak, mastery, and celebrations all count.
+    func logFromChecklist(setsCompleted tapped: Int) {
+        invalidateTimer()
+        let count = max(1, tapped)
+        completedSetsTrainingSec = setDuration * TimeInterval(count)
+        setsCompleted = count
+        logDrill()
+        phase = .logged
+    }
+
     /// Log the drill as done from the ready screen — no timer. Banks the full
     /// guide duration as training time, then logs through the shared path so XP,
     /// streak, mastery, and celebrations all still count.
