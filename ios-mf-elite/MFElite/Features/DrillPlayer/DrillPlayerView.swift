@@ -26,6 +26,8 @@ struct DrillPlayerView: View {
     @State private var showStopConfirm = false
     /// Sets the player has checked off on the tap-to-complete checklist.
     @State private var tappedSets: Set<Int> = []
+    /// Whether the optional tap-to-log set checklist is expanded.
+    @State private var showManualLog = false
 
     private var drill: Drill { context.drill }
     private var level: MasteryLevel { context.level }
@@ -247,18 +249,54 @@ struct DrillPlayerView: View {
             }
             .scrollIndicators(.hidden)
 
-            setChecklist
+            startActions
                 .padding(.horizontal, DS.Spacing.s20)
                 .padding(.bottom, DS.Spacing.s40)
         }
     }
 
-    // MARK: - Tap-to-complete set checklist
+    // MARK: - Start actions
 
-    /// Default drill action: tap each set as you finish it. Logs automatically
-    /// once the last set is checked. "Log all sets" is a one-tap shortcut, and
-    /// the paced countdown is still available via "Use guided timer".
-    private var setChecklist: some View {
+    /// Primary drill action: the guided timer (paced countdown, rest periods,
+    /// coaching cues). Tapping each set by hand is an optional choice revealed
+    /// below.
+    private var startActions: some View {
+        VStack(spacing: DS.Spacing.s12) {
+            FloatingButton(
+                label: "Start Guided Timer",
+                hint: "\(drill.sets) × \(Int(viewModel.setDuration))s"
+            ) {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                withAnimation(DS.Motion.standardSpring) {
+                    viewModel.startSet()
+                }
+            }
+            .accessibilityHint("Runs the paced countdown with rest periods and coaching cues")
+
+            if showManualLog {
+                manualChecklist
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+            } else {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    withAnimation(DS.Motion.standardSpring) { showManualLog = true }
+                } label: {
+                    Label("Log sets manually", systemImage: "checklist")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .frame(height: 36)
+                }
+                .buttonStyle(PressableButtonStyle())
+                .accessibilityHint("Tap each set as you finish instead of running the timer")
+            }
+        }
+    }
+
+    // MARK: - Tap-to-complete set checklist (optional)
+
+    /// Optional drill action: tap each set as you finish it. Logs automatically
+    /// once the last set is checked. "Log all sets" is a one-tap shortcut.
+    private var manualChecklist: some View {
         VStack(spacing: DS.Spacing.s12) {
             HStack {
                 Eyebrow(text: "Tap Each Set As You Finish")
@@ -283,20 +321,6 @@ struct DrillPlayerView: View {
                 logFromChecklist()
             }
             .accessibilityHint("Marks every set complete and logs this drill")
-
-            Button {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                withAnimation(DS.Motion.standardSpring) {
-                    viewModel.startSet()
-                }
-            } label: {
-                Label("Use guided timer", systemImage: "timer")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
-                    .frame(height: 36)
-            }
-            .buttonStyle(PressableButtonStyle())
-            .accessibilityHint("Runs the paced countdown with rest periods and coaching cues")
         }
     }
 
