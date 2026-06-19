@@ -57,12 +57,6 @@ struct LevelView: View {
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)
         .navigationBarHidden(true)
-        .onAppear {
-            if subscription.isLevelLocked(level) {
-                dismiss()
-                subscription.presentPaywall()
-            }
-        }
     }
 
     // MARK: - 1. Breadcrumb
@@ -160,19 +154,26 @@ struct LevelView: View {
     // MARK: - 4. Drill List
 
     private func drillList(_ vm: LevelViewModel) -> some View {
-        VStack(spacing: 0) {
+        let total = vm.drills.count
+        return VStack(spacing: 0) {
             ForEach(Array(vm.drills.enumerated()), id: \.element.id) { index, drill in
-                NavigationLink(value: drillRoute(drill)) {
-                    DrillRow(
-                        drill: drill,
-                        passesLogged: vm.passesLogged(for: drill),
-                        isMastered: vm.isMastered(drill),
-                        isCurrent: vm.currentDrill?.id == drill.id,
-                        isVideo: discipline.media == "video",
-                        isLast: index == vm.drills.count - 1
-                    )
+                let locked = subscription.isDrillLocked(index: index, total: total)
+                let row = DrillRow(
+                    drill: drill,
+                    passesLogged: vm.passesLogged(for: drill),
+                    isMastered: vm.isMastered(drill),
+                    isCurrent: vm.currentDrill?.id == drill.id,
+                    isVideo: discipline.media == "video",
+                    isLocked: locked,
+                    isLast: index == total - 1
+                )
+                if locked {
+                    Button { subscription.presentPaywall() } label: { row }
+                        .buttonStyle(PressableButtonStyle())
+                } else {
+                    NavigationLink(value: drillRoute(drill)) { row }
+                        .buttonStyle(PressableButtonStyle())
                 }
-                .buttonStyle(PressableButtonStyle())
             }
         }
         .padding(.top, DS.Spacing.s24)
@@ -224,6 +225,7 @@ private struct DrillRow: View {
     let isMastered: Bool
     let isCurrent: Bool
     let isVideo: Bool
+    var isLocked: Bool = false
     let isLast: Bool
 
     var body: some View {
@@ -267,6 +269,7 @@ private struct DrillRow: View {
         }
         .padding(.horizontal, DS.Spacing.s20)
         .contentShape(Rectangle())
+        .opacity(isLocked ? 0.55 : 1)
     }
 
     @ViewBuilder
@@ -310,7 +313,11 @@ private struct DrillRow: View {
 
     @ViewBuilder
     private var trailingIndicator: some View {
-        if isMastered {
+        if isLocked {
+            Image(systemName: "lock.fill")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+        } else if isMastered {
             Circle()
                 .fill(Color.white)
                 .frame(width: 20, height: 20)

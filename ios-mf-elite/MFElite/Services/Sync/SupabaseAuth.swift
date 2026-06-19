@@ -365,6 +365,14 @@ final class SupabaseAuth {
             setCoach(false)
             return
         }
+
+        // Built-in allow-list: approved coaches + the Apple reviewer guest account
+        // always unlock the Coach dashboard, even offline or during review. This is
+        // layered on top of the live server check below.
+        if CoachAllowlist.contains(mail) {
+            setCoach(true)
+        }
+
         let rows = await SupabaseClient.shared.get(
             table: "coaches",
             query: [
@@ -374,7 +382,9 @@ final class SupabaseAuth {
             ]
         )
         guard let row = rows?.first else {
-            setCoach(false)
+            // Keep coach access if the built-in allow-list already granted it;
+            // otherwise this account is not a coach.
+            setCoach(CoachAllowlist.contains(mail))
             return
         }
         setCoach(true)

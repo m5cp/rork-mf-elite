@@ -132,28 +132,22 @@ struct CategoryView: View {
             .padding(.bottom, DS.Spacing.s8)
 
             ForEach(Array(vm.levels.enumerated()), id: \.element.id) { index, level in
-                let locked = subscription.isLevelLocked(level)
+                // Levels always open so players can browse and preview drills; the
+                // first ~40% of each level's drills are free and the rest are
+                // members-only, gated per-drill inside the level itself.
                 let row = LevelLadderRow(
                     level: level,
                     state: vm.levelState(level),
                     masteredDrills: vm.masteredDrillCount(level),
-                    isLocked: locked,
+                    isLocked: false,
+                    hasLockedDrills: !subscription.hasFullAccess,
                     isFirst: index == 0,
                     isLast: index == vm.levels.count - 1
                 )
-                if locked {
-                    Button {
-                        subscription.presentPaywall()
-                    } label: {
-                        row
-                    }
-                    .buttonStyle(PressableButtonStyle())
-                } else {
-                    NavigationLink(value: LevelRoute(discipline: discipline, category: category, level: level)) {
-                        row
-                    }
-                    .buttonStyle(PressableButtonStyle())
+                NavigationLink(value: LevelRoute(discipline: discipline, category: category, level: level)) {
+                    row
                 }
+                .buttonStyle(PressableButtonStyle())
             }
         }
         .padding(.top, DS.Spacing.s24)
@@ -167,6 +161,8 @@ private struct LevelLadderRow: View {
     let state: LevelState
     let masteredDrills: Int
     var isLocked: Bool = false
+    /// True when this level contains members-only drills for the current user.
+    var hasLockedDrills: Bool = false
     let isFirst: Bool
     let isLast: Bool
 
@@ -270,15 +266,17 @@ private struct LevelLadderRow: View {
         case .inProgress:
             filledChip(text: "In Progress", icon: nil)
         case .upcoming:
-            if isLocked {
-                outlinedChip(text: "Members", icon: "lock.fill")
-            } else if isFree {
-                outlinedChip(text: "Free", icon: nil)
+            if hasLockedDrills {
+                outlinedChip(text: "40% free", icon: "lock.fill")
             } else {
-                outlinedChip(text: "Members", icon: "lock.fill")
+                outlinedChip(text: "Free", icon: nil)
             }
         case .locked:
-            outlinedChip(text: "Members", icon: "lock.fill")
+            if hasLockedDrills {
+                outlinedChip(text: "40% free", icon: "lock.fill")
+            } else {
+                outlinedChip(text: "Free", icon: nil)
+            }
         }
     }
 

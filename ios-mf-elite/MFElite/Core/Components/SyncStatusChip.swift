@@ -67,6 +67,8 @@ struct SyncStatusChip: View {
             Text(compact ? state.short : state.full)
                 .style(.micro)
                 .foregroundStyle(DS.Colors.Ink.tertiary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
         }
         .padding(.vertical, 6)
         .padding(.horizontal, DS.Spacing.s12)

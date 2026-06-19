@@ -788,6 +788,8 @@ struct AcademyTodayView: View {
                 Text("UPGRADE")
                     .font(.system(size: 11, weight: .bold))
                     .tracking(1.2)
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                 Image(systemName: "arrow.up.circle")
                     .font(.system(size: 12, weight: .bold))
             }

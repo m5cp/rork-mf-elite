@@ -68,7 +68,10 @@ MF Elite is a structured soccer training app for youth athletes (10+). Players f
 
 GETTING IN / TEST ACCOUNT
 - A test account is provided in the App Store Connect "Sign-In Information" fields.
+- Email: appreview@mfelite.app
+- Password: MFelite-Review-2026
 - Sign in with Apple is supported; you may also use email/password sign-up. The provided test account uses email/password.
+- This reviewer account is on the coach allowlist, so the Coach tab/dashboard unlocks automatically after sign-in.
 - Onboarding can be skipped at any time via the "Skip" button.
 - There is NO login PIN or invite code gate. Account access is via Sign in with Apple or email/password only.
 

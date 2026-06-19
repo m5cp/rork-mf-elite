@@ -140,6 +140,22 @@ final class SubscriptionService {
         number > ProgressionRules.freeLevels && !hasFullAccess
     }
 
+    /// Number of drills that stay free inside a level of `total` drills. Roughly
+    /// the first 40% are free (always at least one); full-access users get them all.
+    func freeDrillCount(total: Int) -> Int {
+        guard !hasFullAccess else { return total }
+        guard total > 0 else { return 0 }
+        return max(1, Int((Double(total) * 0.4).rounded()))
+    }
+
+    /// True when the drill at `index` (0-based, in display order) within a level of
+    /// `total` drills is members-only. The first ~40% are free; the rest are locked
+    /// unless the user has full access.
+    func isDrillLocked(index: Int, total: Int) -> Bool {
+        guard !hasFullAccess else { return false }
+        return index >= freeDrillCount(total: total)
+    }
+
     /// True when an academy rank (pathway level) is locked because it requires an
     /// active Elite subscription the user does not currently have. The final
     /// three ranks are members-only; XP is still earned and retained, but the
