@@ -533,6 +533,9 @@ final class DrillPlayerViewModel {
     private func tearDownLiveSession(delayAudio: Bool) {
         LiveActivityController.shared.end()
         MotionTracker.shared.stop()
+        // Clear leftover step/intensity totals so a later non-timer log (checklist
+        // or instant) records 0 movement instead of inheriting these numbers.
+        MotionTracker.shared.resetSessionStats()
         DrillCommandListener.shared.onCommand = nil
         if delayAudio {
             let player = CueAudioPlayer.shared

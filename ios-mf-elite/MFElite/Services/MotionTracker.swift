@@ -102,6 +102,20 @@ final class MotionTracker {
         pedometer.stopUpdates()
     }
 
+    /// Clear the session's accumulated motion totals (steps + average movement
+    /// intensity) back to zero. Called on session teardown so a later log that
+    /// never ran motion tracking can't inherit numbers from an earlier session.
+    func resetSessionStats() {
+        repCount = 0
+        intensity = 0
+        stepCount = 0
+        intensitySum = 0
+        intensitySamples = 0
+        aboveThreshold = false
+        lastPeakTime = 0
+        lastShakeTime = 0
+    }
+
     /// Reset the per-set rep tally (e.g. when a new set begins).
     func resetReps() {
         repCount = 0
