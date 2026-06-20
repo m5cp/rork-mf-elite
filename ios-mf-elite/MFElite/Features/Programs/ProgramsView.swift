@@ -53,6 +53,7 @@ struct ProgramDetailView: View {
     @State private var indexCache = DrillIndexCache()
     @State private var activeSession: TrainingQueue?
     @State private var pendingKey: String?
+    @State private var showSchedule = false
 
     private var enrollment: ProgramEnrollment? { enrollments.first { $0.programID == program.id } }
 
@@ -61,6 +62,31 @@ struct ProgramDetailView: View {
             VStack(alignment: .leading, spacing: DS.Spacing.s20) {
                 Text(program.title).style(.title1).foregroundStyle(DS.Colors.Ink.primary)
                     .padding(.top, DS.Spacing.s24)
+
+                Button { showSchedule = true } label: {
+                    HStack(spacing: DS.Spacing.s12) {
+                        Image(systemName: "calendar.badge.plus")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ground.primary)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("Schedule in calendar")
+                                .style(.callout).fontWeight(.bold)
+                                .foregroundStyle(DS.Colors.Ground.primary)
+                            Text("\(program.totalDays) sessions with reminders")
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Ground.primary.opacity(0.7))
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(DS.Colors.Ground.primary.opacity(0.6))
+                    }
+                    .padding(DS.Spacing.s16)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                }
+                .buttonStyle(PressableButtonStyle())
 
                 ForEach(Array(program.weeks.enumerated()), id: \.offset) { wIdx, week in
                     VStack(alignment: .leading, spacing: DS.Spacing.s8) {
@@ -78,6 +104,10 @@ struct ProgramDetailView: View {
         .scrollIndicators(.hidden)
         .fullScreenCover(item: $activeSession, onDismiss: markPendingComplete) { q in
             SessionPlayerView(queue: q)
+        }
+        .sheet(isPresented: $showSchedule) {
+            ProgramScheduleSheet(program: program)
+                .presentationDetents([.large])
         }
     }
 

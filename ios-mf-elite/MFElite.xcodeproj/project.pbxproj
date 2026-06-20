@@ -125,6 +125,11 @@
 				XX5108C7EBDEACED4A24075XX /* PBXFileSystemSynchronizedBuildFileExceptionSet */,
 			);
 		};
+		XX1111222233334444AAAAXX /* MFEliteShared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MFEliteShared;
+			sourceTree = "<group>";
+		};
 		105FC58C2E9EAD3200EA8BCF /* MFEliteTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MFEliteTests;
@@ -146,6 +151,7 @@
 				105FC5962E9EAD3200EA8BCF /* MFEliteUITests */,
 				105FC57B2E9EAD3100EA8BCF /* Products */,
 				XX660654CEC028BD8B123EXX /* MFEliteWidget */,
+				XX1111222233334444AAAAXX /* MFEliteShared */,
 			);
 			sourceTree = "<group>";
 		};
@@ -179,6 +185,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				105FC57C2E9EAD3100EA8BCF /* MFElite */,
+				XX1111222233334444AAAAXX /* MFEliteShared */,
 			);
 			name = MFElite;
 			packageProductDependencies = (
@@ -252,6 +259,7 @@
 			productType = "com.apple.product-type.app-extension";
 			fileSystemSynchronizedGroups = (
 				XX660654CEC028BD8B123EXX /* MFEliteWidget */,
+				XX1111222233334444AAAAXX /* MFEliteShared */,
 			);
 		};
 /* End PBXNativeTarget section */
@@ -522,6 +530,9 @@
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "MF Elite saves your player card image to your photo library.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "MF Elite reads your training time so it can keep your Apple Health activity in sync.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MF Elite saves your completed training sessions to Apple Health as soccer workouts.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "MF Elite uses motion to count your reps and let you shake to advance a set, hands-free.";
+				INFOPLIST_KEY_NSCalendarsWriteUsageDescription = "MF Elite adds your scheduled training days to your calendar so you never miss a session.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "MF Elite adds your scheduled training days to your calendar so you never miss a session.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -563,6 +574,9 @@
 				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "MF Elite saves your player card image to your photo library.";
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "MF Elite reads your training time so it can keep your Apple Health activity in sync.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MF Elite saves your completed training sessions to Apple Health as soccer workouts.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "MF Elite uses motion to count your reps and let you shake to advance a set, hands-free.";
+				INFOPLIST_KEY_NSCalendarsWriteUsageDescription = "MF Elite adds your scheduled training days to your calendar so you never miss a session.";
+				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "MF Elite adds your scheduled training days to your calendar so you never miss a session.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

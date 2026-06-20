@@ -49,6 +49,11 @@ final class SessionLogEntry {
     /// False when the player logged early (log-anytime / log & finish during rest)
     /// instead of completing every set. True for older records.
     var completedFully: Bool = true
+    /// Steps counted by the motion sensors during this session. 0 when motion
+    /// tracking was off or unavailable.
+    var steps: Int = 0
+    /// Average movement intensity (0–1) captured during this session.
+    var movementIntensity: Double = 0
 
     init(
         id: UUID = UUID(),
@@ -69,7 +74,9 @@ final class SessionLogEntry {
         feltRating: Int? = nil,
         reflection: String? = nil,
         setsSkipped: Int = 0,
-        completedFully: Bool = true
+        completedFully: Bool = true,
+        steps: Int = 0,
+        movementIntensity: Double = 0
     ) {
         self.id = id
         self.completedAt = completedAt
@@ -90,5 +97,7 @@ final class SessionLogEntry {
         self.reflection = reflection
         self.setsSkipped = setsSkipped
         self.completedFully = completedFully
+        self.steps = steps
+        self.movementIntensity = movementIntensity
     }
 }

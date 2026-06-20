@@ -5,5 +5,6 @@ import SwiftUI
 struct MFEliteWidgetBundle: WidgetBundle {
     var body: some Widget {
         MFEliteWidget()
+        DrillLiveActivity()
     }
 }

@@ -25,6 +25,11 @@ struct DrillPlayerView: View {
     @State private var viewModel: DrillPlayerViewModel
     @State private var showStopConfirm = false
     @State private var ambient = AmbientLightMonitor.shared
+    @State private var motion = MotionTracker.shared
+
+    @AppStorage("MF_MOTION_REPS") private var motionReps = true
+    @AppStorage("MF_SHAKE_ADVANCE") private var shakeAdvance = true
+    @AppStorage("MF_MOTION_TRACKING") private var motionTracking = true
 
     /// Keep the screen awake while a drill is open so it never sleeps mid-set.
     @AppStorage("MF_KEEP_AWAKE") private var keepAwake = true
@@ -517,6 +522,12 @@ struct DrillPlayerView: View {
             Spacer()
 
             if !isResting {
+                if motion.isRunning && (motionReps || motionTracking) {
+                    motionStrip
+                        .padding(.horizontal, DS.Spacing.s24)
+                        .padding(.bottom, DS.Spacing.s24)
+                }
+
                 VStack(spacing: DS.Spacing.s16) {
                     HStack(spacing: DS.Spacing.s32) {
                         IconButton(systemName: "forward.end.fill", size: 48) {
@@ -623,6 +634,59 @@ struct DrillPlayerView: View {
                 .padding(.bottom, DS.Spacing.s48 + DS.Spacing.s12)
             }
         }
+    }
+
+    /// Live hands-free readouts during an active set: rep/touch tally and a
+    /// movement-intensity meter driven by the phone's motion sensors.
+    private var motionStrip: some View {
+        HStack(spacing: DS.Spacing.s16) {
+            if motionReps {
+                VStack(spacing: 2) {
+                    Text("\(motion.repCount)")
+                        .style(.num(size: 30))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .contentTransition(.numericText())
+                        .animation(DS.Motion.standardSpring, value: motion.repCount)
+                    Text("REPS")
+                        .style(.microSm)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            if motionTracking {
+                VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                    Text("INTENSITY")
+                        .style(.microSm)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                    GeometryReader { geo in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(DS.Colors.Line.subtle)
+                            Capsule()
+                                .fill(Color.white)
+                                .frame(width: geo.size.width * CGFloat(min(1, motion.intensity)))
+                                .animation(DS.Motion.standardSpring, value: motion.intensity)
+                        }
+                    }
+                    .frame(height: 8)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.vertical, DS.Spacing.s12)
+        .padding(.horizontal, DS.Spacing.s16)
+        .background(DS.Colors.Bg.raised)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        .overlay(alignment: .topTrailing) {
+            if shakeAdvance {
+                Text("SHAKE TO ADVANCE")
+                    .style(.microSm)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                    .padding(.top, 6)
+                    .padding(.trailing, 10)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(motion.repCount) reps counted")
     }
 
     /// A small text button that skips the current drill entirely and advances to

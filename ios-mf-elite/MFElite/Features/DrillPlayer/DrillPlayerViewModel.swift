@@ -72,13 +72,16 @@ final class DrillPlayerViewModel {
     /// but grows when the player taps "+15s", so the rest ring stays accurate.
     private(set) var currentRestDuration: TimeInterval = restDuration
 
+    /// Reads a Bool setting, falling back to `fallback` when never set.
+    private func setting(_ key: String, default fallback: Bool) -> Bool {
+        UserDefaults.standard.object(forKey: key) == nil
+            ? fallback
+            : UserDefaults.standard.bool(forKey: key)
+    }
+
     /// Whether sound + vibration cues are enabled. Defaults to on; mirrored by the
     /// "Sound & vibration cues" setting toggle.
-    private var cuesEnabled: Bool {
-        UserDefaults.standard.object(forKey: "MF_SOUND_CUES") == nil
-            ? true
-            : UserDefaults.standard.bool(forKey: "MF_SOUND_CUES")
-    }
+    private var cuesEnabled: Bool { setting("MF_SOUND_CUES", default: true) }
 
     init(
         drill: Drill,
@@ -141,17 +144,20 @@ final class DrillPlayerViewModel {
 
     private func playCountdownBeep() {
         guard cuesEnabled else { return }
-        AudioServicesPlaySystemSound(1057)
+        if CueAudioPlayer.shared.isSessionActive { CueAudioPlayer.shared.playCountdownBeep() }
+        else { AudioServicesPlaySystemSound(1057) }
     }
 
     private func playSetCompleteSound() {
         guard cuesEnabled else { return }
-        AudioServicesPlaySystemSound(1025)
+        if CueAudioPlayer.shared.isSessionActive { CueAudioPlayer.shared.playSetComplete() }
+        else { AudioServicesPlaySystemSound(1025) }
     }
 
     private func playSessionCompleteSound() {
         guard cuesEnabled else { return }
-        AudioServicesPlaySystemSound(1335)
+        if CueAudioPlayer.shared.isSessionActive { CueAudioPlayer.shared.playSessionComplete() }
+        else { AudioServicesPlaySystemSound(1335) }
     }
 
     private func cueHaptic(_ type: UINotificationFeedbackGenerator.FeedbackType) {
@@ -207,6 +213,7 @@ final class DrillPlayerViewModel {
         startTicking(from: setDuration) { [weak self] in
             self?.completeSet()
         }
+        startLiveSession()
     }
 
     func pauseResume() {
@@ -221,10 +228,12 @@ final class DrillPlayerViewModel {
             pauseStartDate = Date()
         }
         isPaused.toggle()
+        pushLiveActivity()
     }
 
     func stopSession() {
         invalidateTimer()
+        tearDownLiveSession(delayAudio: false)
     }
 
     /// Complete a step-driven mental exercise. Banks the drill's guide duration as
@@ -283,6 +292,15 @@ final class DrillPlayerViewModel {
         startTicking(from: newRemaining) { [weak self] in
             self?.beginActiveSet(nextSetIndex)
         }
+        pushLiveActivity()
+    }
+
+    /// End the current set early from a deliberate shake (counts as completed,
+    /// not skipped). No-op outside an active set.
+    func completeSetEarlyByMotion() {
+        guard case .active = phase else { return }
+        invalidateTimer()
+        completeSet()
     }
 
     /// Begin a numbered active set, wiring its countdown to `completeSet`.
@@ -292,6 +310,8 @@ final class DrillPlayerViewModel {
         startTicking(from: setDuration) { [weak self] in
             self?.completeSet()
         }
+        MotionTracker.shared.resetReps()
+        pushLiveActivity()
     }
 
     /// Log the drill immediately regardless of how many sets were completed.
@@ -339,6 +359,7 @@ final class DrillPlayerViewModel {
             startTicking(from: currentRestDuration) { [weak self] in
                 self?.beginActiveSet(next)
             }
+            pushLiveActivity()
         } else {
             invalidateTimer()
             logDrill()
@@ -456,7 +477,9 @@ final class DrillPlayerViewModel {
             xpEarned: ProgressionRules.xpPerDrill,
             journalResponse: journalResponse,
             setsSkipped: setsSkipped,
-            completedFully: !loggedEarly
+            completedFully: !loggedEarly,
+            steps: MotionTracker.shared.stepCount,
+            movementIntensity: MotionTracker.shared.averageIntensity
         )
         context.insert(entry)
         SyncEngine.shared.enqueueSessionLog(entry)
@@ -486,6 +509,88 @@ final class DrillPlayerViewModel {
         evaluatePerfectDay(context: context)
 
         isComplete = true
+        tearDownLiveSession(delayAudio: true)
+    }
+
+    // MARK: - Live session (audio + motion + Live Activity)
+
+    /// Begin background audio, motion tracking, the lock-screen Live Activity,
+    /// and listen for its pause/skip commands. Called when a guided timer starts.
+    private func startLiveSession() {
+        if cuesEnabled { CueAudioPlayer.shared.beginSession() }
+
+        DrillCommandListener.shared.startObserving()
+        DrillCommandListener.shared.onCommand = { [weak self] command in
+            self?.handleLiveCommand(command)
+        }
+
+        startMotionIfEnabled()
+        LiveActivityController.shared.start(sessionName: sourceName ?? drill.title, state: makeLiveState())
+    }
+
+    /// Tear down everything started by `startLiveSession`. When `delayAudio` is
+    /// true the audio engine lingers briefly so the completion flourish finishes.
+    private func tearDownLiveSession(delayAudio: Bool) {
+        LiveActivityController.shared.end()
+        MotionTracker.shared.stop()
+        DrillCommandListener.shared.onCommand = nil
+        if delayAudio {
+            let player = CueAudioPlayer.shared
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) { player.endSession() }
+        } else {
+            CueAudioPlayer.shared.endSession()
+        }
+    }
+
+    private func startMotionIfEnabled() {
+        let reps = setting("MF_MOTION_REPS", default: true)
+        let shake = setting("MF_SHAKE_ADVANCE", default: true)
+        let track = setting("MF_MOTION_TRACKING", default: true)
+        guard reps || shake || track else { return }
+        MotionTracker.shared.onShake = { [weak self] in
+            guard let self else { return }
+            if case .active = self.phase {
+                self.cueHaptic(.success)
+                self.completeSetEarlyByMotion()
+            } else if case .resting = self.phase {
+                self.skipRest()
+            }
+        }
+        MotionTracker.shared.start(countReps: reps, detectShake: shake, trackMovement: track)
+    }
+
+    private func handleLiveCommand(_ command: DrillLiveActivityCommand) {
+        switch command {
+        case .pauseToggle:
+            if case .active = phase { pauseResume() }
+        case .skip:
+            if case .active = phase { skipSet() }
+            else if case .resting = phase { skipRest() }
+        }
+    }
+
+    /// Snapshot of the current phase for the Live Activity.
+    private func makeLiveState() -> DrillActivityAttributes.ContentState {
+        let label: String
+        switch phase {
+        case .active(let set): label = "Set \(set) of \(drill.sets)"
+        case .resting(let next): label = next <= drill.sets ? "Rest · next set \(next)" : "Rest"
+        default: label = drill.title
+        }
+        return DrillActivityAttributes.ContentState(
+            drillTitle: drill.title,
+            phaseLabel: label,
+            isResting: isResting,
+            isPaused: isPaused,
+            currentSet: max(1, currentSetIndex),
+            totalSets: max(1, drill.sets),
+            endDate: Date().addingTimeInterval(max(0, timeRemaining)),
+            pausedRemaining: Int(ceil(max(0, timeRemaining)))
+        )
+    }
+
+    private func pushLiveActivity() {
+        LiveActivityController.shared.update(makeLiveState())
     }
 
     /// After saving, recompute today's rings. If all three just closed for the

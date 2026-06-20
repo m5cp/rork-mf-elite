@@ -31,6 +31,9 @@ struct SettingsView: View {
     @AppStorage("MF_SOUND_CUES") private var soundCues = true
     @AppStorage("MF_KEEP_AWAKE") private var keepAwake = true
     @AppStorage("MF_AUTO_DIM") private var autoDim = true
+    @AppStorage("MF_MOTION_REPS") private var motionReps = true
+    @AppStorage("MF_SHAKE_ADVANCE") private var shakeAdvance = true
+    @AppStorage("MF_MOTION_TRACKING") private var motionTracking = true
 
     @State private var health = HealthKitService.shared
     @State private var gate = ParentGate.shared
@@ -65,6 +68,7 @@ struct SettingsView: View {
                 subscriptionSection
                 familySafetySection
                 trainingSection
+                sensorsSection
                 if health.isAvailable { healthSection }
                 notificationsSection
                 siriSection
@@ -429,6 +433,33 @@ struct SettingsView: View {
             Hairline()
             toggleRow(label: "Auto-dim in low light", isOn: $autoDim)
             Text("Softens the drill screen when you train in a dark room, easing the glare. It follows your display brightness, so turn on auto-brightness for the best result.")
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Spacing.s8)
+        }
+    }
+
+    // MARK: - Training Sensors
+
+    private var sensorsSection: some View {
+        section("Training Sensors") {
+            toggleRow(label: "Rep & touch counter", isOn: $motionReps)
+            Text("Uses the phone's motion sensors to tally juggles or quick touches during a set — great with the phone in a pocket or armband.")
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Spacing.s8)
+            Hairline()
+            toggleRow(label: "Shake to advance", isOn: $shakeAdvance)
+            Text("A clear, deliberate shake ends the current set and moves to the next one, so you never have to touch the screen mid-drill.")
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Spacing.s8)
+            Hairline()
+            toggleRow(label: "Movement tracking", isOn: $motionTracking)
+            Text("Shows a live intensity meter and counts your steps during a drill, saved with each session. We ask for motion access the first time you use a guided timer. The drill works exactly the same if motion isn't available.")
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.quaternary)
                 .fixedSize(horizontal: false, vertical: true)
