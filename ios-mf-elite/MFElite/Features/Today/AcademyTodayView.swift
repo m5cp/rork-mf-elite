@@ -145,6 +145,9 @@ struct AcademyTodayView: View {
             .navigationDestination(for: CombineRoute.self) { _ in
                 CombineView()
             }
+            .navigationDestination(for: PlayerCardRoute.self) { _ in
+                PlayerCardView()
+            }
         }
         .fullScreenCover(item: $activeSession) { queue in
             SessionPlayerView(queue: queue)
@@ -733,7 +736,11 @@ struct AcademyTodayView: View {
 
     private func topBar(_ vm: AcademyTodayViewModel) -> some View {
         HStack(spacing: DS.Spacing.s12) {
-            Avatar(size: 36, initials: vm.playerInitials)
+            NavigationLink(value: PlayerCardRoute()) {
+                Avatar(size: 36, initials: vm.playerInitials)
+            }
+            .buttonStyle(PressableButtonStyle())
+            .accessibilityLabel("View player card")
 
             Spacer()
 
