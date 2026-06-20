@@ -100,7 +100,7 @@ struct MentalExercisePlayerView: View {
         .preferredColorScheme(.dark)
         .onAppear {
             viewModel.context = modelContext
-            UIApplication.shared.isIdleTimerDisabled = true
+            UIApplication.shared.isIdleTimerDisabled = UserDefaults.standard.object(forKey: "MF_KEEP_AWAKE") == nil ? true : UserDefaults.standard.bool(forKey: "MF_KEEP_AWAKE")
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false

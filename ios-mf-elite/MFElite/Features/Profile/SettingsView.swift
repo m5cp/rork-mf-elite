@@ -29,6 +29,8 @@ struct SettingsView: View {
     @AppStorage("MF_NOTIF_STREAK") private var streakAlerts = true
     @AppStorage("MF_AUTO_ADVANCE") private var autoAdvance = true
     @AppStorage("MF_SOUND_CUES") private var soundCues = true
+    @AppStorage("MF_KEEP_AWAKE") private var keepAwake = true
+    @AppStorage("MF_AUTO_DIM") private var autoDim = true
 
     @State private var health = HealthKitService.shared
     @State private var gate = ParentGate.shared
@@ -413,6 +415,20 @@ struct SettingsView: View {
             Hairline()
             toggleRow(label: "Sound & vibration cues", isOn: $soundCues)
             Text("Countdown beeps, a chime at the end of each set, and a buzz when rest starts. Spoken VoiceOver call-outs stay on regardless.")
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Spacing.s8)
+            Hairline()
+            toggleRow(label: "Keep screen awake", isOn: $keepAwake)
+            Text("Stops the screen from dimming or locking while a drill is open, so the timer stays visible even when you set the phone down.")
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Spacing.s8)
+            Hairline()
+            toggleRow(label: "Auto-dim in low light", isOn: $autoDim)
+            Text("Softens the drill screen when you train in a dark room, easing the glare. It follows your display brightness, so turn on auto-brightness for the best result.")
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.quaternary)
                 .fixedSize(horizontal: false, vertical: true)

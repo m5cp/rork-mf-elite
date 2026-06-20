@@ -24,6 +24,13 @@ struct DrillPlayerView: View {
 
     @State private var viewModel: DrillPlayerViewModel
     @State private var showStopConfirm = false
+    @State private var ambient = AmbientLightMonitor.shared
+
+    /// Keep the screen awake while a drill is open so it never sleeps mid-set.
+    @AppStorage("MF_KEEP_AWAKE") private var keepAwake = true
+    /// Gently dim the player in a dark room (uses display brightness as the
+    /// store-safe ambient-light proxy).
+    @AppStorage("MF_AUTO_DIM") private var autoDim = true
     /// Sets the player has checked off on the tap-to-complete checklist.
     @State private var tappedSets: Set<Int> = []
     /// Whether the optional tap-to-log set checklist is expanded.
@@ -100,7 +107,16 @@ struct DrillPlayerView: View {
                     onSessionComplete: onSessionComplete
                 )
             }
+
+            if autoDim && ambient.isLowLight {
+                Color.black
+                    .opacity(0.32)
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
         }
+        .animation(DS.Motion.standardSpring, value: ambient.isLowLight)
         .safeAreaInset(edge: .top) {
             if queue.isChained {
                 sessionProgressBar
@@ -112,7 +128,8 @@ struct DrillPlayerView: View {
         }
         .onAppear {
             viewModel.context = modelContext
-            UIApplication.shared.isIdleTimerDisabled = true
+            UIApplication.shared.isIdleTimerDisabled = keepAwake
+            ambient.refresh()
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
