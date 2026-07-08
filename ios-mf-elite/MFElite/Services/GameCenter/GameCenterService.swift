@@ -144,6 +144,33 @@ final class GameCenterService {
         }
     }
 
+    /// Loads the top `limit` global entries plus the local player's own entry
+    /// (which may sit outside the top range, so it can be pinned). Returns empty
+    /// data when signed out or on any failure — never throws.
+    func loadGlobalLeaderboard(scope: LeaderboardScope, limit: Int = 50) async -> LeaderboardData {
+        guard isAuthenticated else { return LeaderboardData(rows: [], localRow: nil) }
+        do {
+            let boards = try await GKLeaderboard.loadLeaderboards(IDs: [scope.leaderboardID])
+            guard let board = boards.first else { return LeaderboardData(rows: [], localRow: nil) }
+            // Recurring (weekly) boards must use .allTime for the time scope —
+            // it resolves within the current occurrence.
+            let (localEntry, entries, _) = try await board.loadEntries(
+                for: .global,
+                timeScope: .allTime,
+                range: NSRange(location: 1, length: limit)
+            )
+            let localID = GKLocalPlayer.local.gamePlayerID
+            let rows = (entries ?? []).map { entry in
+                Self.row(from: entry, localID: localID)
+            }
+            let localRow = localEntry.map { Self.row(from: $0, localID: localID) }
+            return LeaderboardData(rows: rows, localRow: localRow)
+        } catch {
+            print("Game Center global leaderboard load failed: \(error.localizedDescription)")
+            return LeaderboardData(rows: [], localRow: nil)
+        }
+    }
+
     private static func row(from entry: GKLeaderboard.Entry, localID: String) -> LeaderboardRow {
         LeaderboardRow(
             id: entry.player.gamePlayerID,

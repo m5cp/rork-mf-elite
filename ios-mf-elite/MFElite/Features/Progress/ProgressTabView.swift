@@ -41,6 +41,7 @@ struct ProgressTabView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     header.entrance(0, appeared: appeared)
                     todayRings(vm).entrance(1, appeared: appeared)
+                    LeaderboardTeaserCard().entrance(2, appeared: appeared)
                     if sessions.isEmpty {
                         emptyState.entrance(2, appeared: appeared)
                     } else {
@@ -64,6 +65,7 @@ struct ProgressTabView: View {
             .scrollIndicators(.hidden)
             .navigationBarHidden(true)
             .onAppear { appeared = true }
+            .refreshable { await LeaderboardTeaserModel.shared.refresh() }
             .navigationDestination(for: WeeklyRoute.self) { _ in HistoryCalendarView() }
             .navigationDestination(for: AcademyProgressionRoute.self) { _ in AcademyProgressionView() }
             .navigationDestination(for: CombineRoute.self) { _ in CombineView() }

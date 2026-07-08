@@ -2,31 +2,49 @@
 //  FriendsLeaderboardView.swift
 //  MFElite
 //
-//  In-app friends leaderboard ranked by XP. Pulls friends-only scores from
-//  Game Center for the weekly or all-time board, highlights the player's own
-//  row, and pins their standing so it's always visible. Falls back to friendly
-//  sign-in / no-friends states, with a shortcut into the native Game Center
-//  dashboard for managing friends.
+//  In-app XP leaderboard. Pulls friends-only or global scores from Game Center
+//  for the weekly or all-time board, highlights the player's own row, and pins
+//  their standing so it's always visible. Falls back to friendly sign-in /
+//  no-friends states, with a shortcut into the native Game Center dashboard
+//  for managing friends.
 //
 
 import SwiftUI
 import GameKit
 
-/// Navigation route to the in-app friends leaderboard.
+/// Navigation route to the in-app leaderboard.
 struct FriendsLeaderboardRoute: Hashable {}
+
+/// Who the leaderboard compares the player against.
+enum LeaderboardPlayerScope: String, CaseIterable, Identifiable {
+    case friends, everyone
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .friends:  return "Friends"
+        case .everyone: return "Everyone"
+        }
+    }
+}
 
 struct FriendsLeaderboardView: View {
     @State private var gameCenter = GameCenterService.shared
     @State private var scope: LeaderboardScope = .week
+    @State private var playerScope: LeaderboardPlayerScope = .friends
     @State private var data = LeaderboardData(rows: [], localRow: nil)
     @State private var isLoading = false
     @State private var hasLoadedOnce = false
+
+    /// Reload key covering both the board (week/all-time) and player scope.
+    private var loadKey: String { "\(playerScope.rawValue)-\(scope.rawValue)" }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 header
                 if gameCenter.isAuthenticated {
+                    playerScopePicker
                     scopePicker
                     content
                 } else {
@@ -39,7 +57,7 @@ struct FriendsLeaderboardView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("Leaderboard")
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: scope) {
+        .task(id: loadKey) {
             guard gameCenter.isAuthenticated else { return }
             await load()
         }
@@ -54,10 +72,12 @@ struct FriendsLeaderboardView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s8) {
             Eyebrow(text: "Game Center")
-            Text("Friends")
+            Text("Leaderboard")
                 .style(.title1)
                 .foregroundStyle(DS.Colors.Ink.primary)
-            Text("See how your XP stacks up against the friends you train with.")
+            Text(playerScope == .friends
+                 ? "See how your XP stacks up against the friends you train with."
+                 : "See how your XP stacks up against every player in the app.")
                 .style(.callout)
                 .foregroundStyle(DS.Colors.Ink.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -67,34 +87,58 @@ struct FriendsLeaderboardView: View {
         .padding(.top, DS.Spacing.s20)
     }
 
-    // MARK: - Scope picker
+    // MARK: - Scope pickers
 
-    private var scopePicker: some View {
+    private var playerScopePicker: some View {
         HStack(spacing: DS.Spacing.s8) {
-            ForEach(LeaderboardScope.allCases) { option in
-                Button {
-                    guard scope != option else { return }
+            ForEach(LeaderboardPlayerScope.allCases) { option in
+                segmentButton(
+                    label: option.label,
+                    isSelected: playerScope == option
+                ) {
+                    guard playerScope != option else { return }
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    withAnimation(DS.Motion.standardSpring) { scope = option }
-                } label: {
-                    Text(option.label)
-                        .style(.foot)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(scope == option ? DS.Colors.Ground.primary : DS.Colors.Ink.tertiary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 40)
-                        .background(scope == option ? Color.white : DS.Colors.Bg.raised)
-                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DS.Radius.pill)
-                                .stroke(scope == option ? Color.clear : DS.Colors.Line.hairline, lineWidth: 1)
-                        )
+                    withAnimation(DS.Motion.standardSpring) { playerScope = option }
                 }
-                .buttonStyle(PressableButtonStyle())
             }
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s24)
+    }
+
+    private var scopePicker: some View {
+        HStack(spacing: DS.Spacing.s8) {
+            ForEach(LeaderboardScope.allCases) { option in
+                segmentButton(
+                    label: option.label,
+                    isSelected: scope == option
+                ) {
+                    guard scope != option else { return }
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    withAnimation(DS.Motion.standardSpring) { scope = option }
+                }
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s12)
+    }
+
+    private func segmentButton(label: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(label)
+                .style(.foot)
+                .fontWeight(.semibold)
+                .foregroundStyle(isSelected ? DS.Colors.Ground.primary : DS.Colors.Ink.tertiary)
+                .frame(maxWidth: .infinity)
+                .frame(height: 40)
+                .background(isSelected ? Color.white : DS.Colors.Bg.raised)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Radius.pill)
+                        .stroke(isSelected ? Color.clear : DS.Colors.Line.hairline, lineWidth: 1)
+                )
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 
     // MARK: - Content states
@@ -184,7 +228,7 @@ struct FriendsLeaderboardView: View {
         VStack(spacing: DS.Spacing.s16) {
             ProgressView()
                 .tint(DS.Colors.Ink.tertiary)
-            Text("Loading friends…")
+            Text(playerScope == .friends ? "Loading friends…" : "Loading rankings…")
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.tertiary)
         }
@@ -196,8 +240,10 @@ struct FriendsLeaderboardView: View {
         VStack(alignment: .leading, spacing: DS.Spacing.s16) {
             Card {
                 VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-                    Eyebrow(text: "No friends yet")
-                    Text("Add friends in Game Center to start a leaderboard. Train together, push each other, and watch the XP race heat up.")
+                    Eyebrow(text: playerScope == .friends ? "No friends yet" : "No scores yet")
+                    Text(playerScope == .friends
+                         ? "Add friends in Game Center to start a leaderboard. Train together, push each other, and watch the XP race heat up."
+                         : "No one has posted XP on this board yet. Complete a drill and be the first on the leaderboard.")
                         .style(.callout)
                         .foregroundStyle(DS.Colors.Ink.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -265,7 +311,13 @@ struct FriendsLeaderboardView: View {
 
     private func load() async {
         isLoading = true
-        let result = await gameCenter.loadFriendsLeaderboard(scope: scope)
+        let result: LeaderboardData
+        switch playerScope {
+        case .friends:
+            result = await gameCenter.loadFriendsLeaderboard(scope: scope)
+        case .everyone:
+            result = await gameCenter.loadGlobalLeaderboard(scope: scope)
+        }
         data = result
         isLoading = false
         hasLoadedOnce = true
