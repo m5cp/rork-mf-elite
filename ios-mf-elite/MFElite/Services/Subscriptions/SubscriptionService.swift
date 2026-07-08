@@ -8,6 +8,7 @@
 import Foundation
 import Observation
 import RevenueCat
+import UIKit
 
 /// The single source of truth for the player's "elite" entitlement and the
 /// app-wide paywall presentation flags. Shared across every screen.
@@ -22,6 +23,10 @@ final class SubscriptionService {
     // MARK: - Subscription state
 
     var isElite: Bool = false
+    /// Product identifier of the active elite subscription, if any.
+    private(set) var activeProductID: String?
+    /// Renewal/expiration date of the active entitlement, if any.
+    private(set) var renewalDate: Date?
     /// True when the signed-in account is an authorized coach. Coaches get full,
     /// free access everywhere and never see a paywall. Set by `SupabaseAuth`.
     var isCoach: Bool = false
@@ -66,8 +71,18 @@ final class SubscriptionService {
 
     private func listenForUpdates() async {
         for await info in Purchases.shared.customerInfoStream {
-            isElite = info.entitlements[entitlementID]?.isActive == true
+            applyCustomerInfo(info)
         }
+    }
+
+    /// Applies entitlement state from a RevenueCat `CustomerInfo` payload —
+    /// the single place `isElite`, `activeProductID`, and `renewalDate` are set.
+    private func applyCustomerInfo(_ info: CustomerInfo) {
+        let entitlement = info.entitlements[entitlementID]
+        let active = entitlement?.isActive == true
+        isElite = active
+        activeProductID = active ? entitlement?.productIdentifier : nil
+        renewalDate = active ? entitlement?.expirationDate : nil
     }
 
     // MARK: - Status / offerings
@@ -75,7 +90,7 @@ final class SubscriptionService {
     func checkSubscriptionStatus() async {
         do {
             let info = try await Purchases.shared.customerInfo()
-            isElite = info.entitlements[entitlementID]?.isActive == true
+            applyCustomerInfo(info)
         } catch {
             self.error = error.localizedDescription
         }
@@ -99,8 +114,8 @@ final class SubscriptionService {
         do {
             let result = try await Purchases.shared.purchase(package: package)
             if !result.userCancelled {
-                let active = result.customerInfo.entitlements[entitlementID]?.isActive == true
-                isElite = active
+                applyCustomerInfo(result.customerInfo)
+                let active = isElite
                 if active {
                     showPaywall = false
                     showPremiumWelcome = true
@@ -118,11 +133,41 @@ final class SubscriptionService {
     func restorePurchases() async {
         do {
             let info = try await Purchases.shared.restorePurchases()
-            let active = info.entitlements[entitlementID]?.isActive == true
-            isElite = active
-            if active { showPaywall = false }
+            applyCustomerInfo(info)
+            if isElite { showPaywall = false }
         } catch {
             self.error = error.localizedDescription
+        }
+    }
+
+    // MARK: - Plan info
+
+    /// Billing period of the active plan, classified by matching the active
+    /// product against the current offering's packages. Never hardcodes IDs.
+    enum ActivePlanPeriod { case weekly, monthly, annual, unknown }
+
+    var activePlanPeriod: ActivePlanPeriod {
+        guard let pid = activeProductID,
+              let packages = offerings?.current?.availablePackages else { return .unknown }
+        switch packages.first(where: { $0.storeProduct.productIdentifier == pid })?.packageType {
+        case .annual: return .annual
+        case .monthly: return .monthly
+        case .weekly: return .weekly
+        default: return .unknown
+        }
+    }
+
+    /// Present Apple's native manage-subscriptions sheet (change plan / cancel).
+    /// Falls back to the App Store subscriptions URL if the sheet API fails.
+    func showManageSubscriptions() {
+        Task {
+            do {
+                try await Purchases.shared.showManageSubscriptions()
+            } catch {
+                if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
+                    _ = await UIApplication.shared.open(url)
+                }
+            }
         }
     }
 

@@ -47,6 +47,7 @@ struct SettingsView: View {
     @State private var deleteOutcomeMessage: String?
 
     @State private var editingField: AccountField?
+    @State private var upgradeConfirmed = false
     @State private var gateMode: ParentGateMode?
     @State private var showDisableGateConfirm = false
     @State private var mailRequest: MailRequest?
@@ -57,7 +58,6 @@ struct SettingsView: View {
     private static let dangerColor = Color(hex: "#FF5A5A")
 
     private let supportEmail = "mf.elitetraining@gmail.com"
-    private let manageSubscriptionURL = URL(string: "https://apps.apple.com/account/subscriptions")!
 
     var body: some View {
         ScrollView {
@@ -315,10 +315,29 @@ struct SettingsView: View {
 
     private var subscriptionSection: some View {
         section("Subscription") {
-            currentPlanRow
-            Hairline()
-            actionRow(label: "Manage subscription") {
-                protected("Unlock to manage") { UIApplication.shared.open(manageSubscriptionURL) }
+            if subscription.isElite {
+                currentPlanRow
+                if upgradeConfirmed {
+                    upgradeConfirmationRow
+                }
+                if canUpgradeToAnnual {
+                    Hairline()
+                    actionRow(label: upgradeRowLabel) {
+                        protected("Unlock to change plan") { upgradeToAnnual() }
+                    }
+                    .disabled(subscription.isPurchasing)
+                    .opacity(subscription.isPurchasing ? 0.6 : 1)
+                }
+                Hairline()
+                actionRow(label: "Cancel or change subscription") {
+                    protected("Unlock to manage") { subscription.showManageSubscriptions() }
+                }
+            } else if subscription.isCoach {
+                rowContent(label: "Current plan", value: "Coach access", showChevron: false)
+            } else {
+                actionRow(label: "Go Elite") {
+                    protected("Unlock to subscribe") { subscription.presentPaywall() }
+                }
             }
             Hairline()
             actionRow(label: "Restore purchases") {
@@ -372,38 +391,99 @@ struct SettingsView: View {
     }
 
     private var currentPlanRow: some View {
-        HStack(spacing: DS.Spacing.s12) {
+        HStack(alignment: .center, spacing: DS.Spacing.s12) {
             Text("Current plan")
                 .style(.title3)
                 .foregroundStyle(DS.Colors.Ink.primary)
             Spacer(minLength: DS.Spacing.s12)
-            Text(planLabel)
-                .style(.callout)
-                .foregroundStyle(DS.Colors.Ink.tertiary)
-                .lineLimit(1)
-            if !subscription.hasFullAccess {
-                Button {
-                    protected("Unlock to upgrade") { subscription.presentPaywall() }
-                } label: {
-                    Text("UPGRADE")
-                        .font(.system(size: 11, weight: .bold))
-                        .tracking(1.2)
-                        .foregroundStyle(DS.Colors.Ground.primary)
-                        .padding(.vertical, 5)
-                        .padding(.horizontal, DS.Spacing.s12)
-                        .background(Color.white)
-                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(planName)
+                    .style(.callout)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .lineLimit(1)
+                if let renewal = subscription.renewalDate {
+                    Text("Renews \(renewal.formatted(date: .abbreviated, time: .omitted))")
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
                 }
-                .buttonStyle(PressableButtonStyle())
-                .accessibilityLabel("Upgrade to Elite")
             }
         }
         .padding(.vertical, DS.Spacing.s16 - 2)
-        .contentShape(Rectangle())
     }
 
-    private var planLabel: String {
-        subscription.isElite ? "Elite" : "Free (Trialist)"
+    private var upgradeConfirmationRow: some View {
+        HStack(spacing: DS.Spacing.s8) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(DS.Colors.Ink.primary)
+            Text("You\u{2019}re on Annual now")
+                .style(.callout)
+                .foregroundStyle(DS.Colors.Ink.secondary)
+            Spacer(minLength: 0)
+        }
+        .padding(.bottom, DS.Spacing.s8)
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+
+    private var planName: String {
+        switch subscription.activePlanPeriod {
+        case .annual: return "Elite Annual"
+        case .monthly: return "Elite Monthly"
+        case .weekly: return "Elite Weekly"
+        case .unknown: return "Elite"
+        }
+    }
+
+    /// The upgrade row appears only for weekly/monthly subscribers when the
+    /// annual package is loaded — hidden entirely when offerings are
+    /// unavailable (offline), while cancel/manage stays reachable.
+    private var canUpgradeToAnnual: Bool {
+        let period = subscription.activePlanPeriod
+        guard period == .weekly || period == .monthly else { return false }
+        return annualUpgradePackage != nil
+    }
+
+    private var annualUpgradePackage: Package? {
+        subscription.offerings?.current?.availablePackages.first { $0.packageType == .annual }
+    }
+
+    /// Same live-price savings math the paywall uses (annual vs 12× monthly).
+    private var annualSavingsPercent: Int? {
+        let packages = subscription.offerings?.current?.availablePackages ?? []
+        guard let annual = packages.first(where: { $0.packageType == .annual })?.storeProduct.price,
+              let monthly = packages.first(where: { $0.packageType == .monthly })?.storeProduct.price,
+              monthly > 0 else { return nil }
+        let yearlyAtMonthly = monthly * 12
+        guard yearlyAtMonthly > 0 else { return nil }
+        let saved = (yearlyAtMonthly - annual) / yearlyAtMonthly
+        let pct = NSDecimalNumber(decimal: saved * 100).doubleValue
+        guard pct > 0 else { return nil }
+        return Int(pct.rounded())
+    }
+
+    private var upgradeRowLabel: String {
+        if subscription.isPurchasing { return "Upgrading\u{2026}" }
+        if let pct = annualSavingsPercent { return "Upgrade to Annual \u{2014} save \(pct)%" }
+        return "Upgrade to Annual"
+    }
+
+    /// StoreKit treats a same-subscription-group purchase as a plan CHANGE —
+    /// Apple prorates automatically and RevenueCat updates entitlement state
+    /// through the existing customer-info stream. No extra billing logic.
+    private func upgradeToAnnual() {
+        guard let annual = annualUpgradePackage, !subscription.isPurchasing else { return }
+        Task {
+            await subscription.purchase(package: annual)
+            // This is a plan change for an existing subscriber — suppress the
+            // first-purchase welcome cover and confirm inline instead.
+            subscription.showPremiumWelcome = false
+            if subscription.activePlanPeriod == .annual {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                withAnimation(DS.Motion.standardSpring) { upgradeConfirmed = true }
+                try? await Task.sleep(for: .seconds(3))
+                withAnimation(.easeOut(duration: 0.3)) { upgradeConfirmed = false }
+            }
+        }
     }
 
     // MARK: - Training
