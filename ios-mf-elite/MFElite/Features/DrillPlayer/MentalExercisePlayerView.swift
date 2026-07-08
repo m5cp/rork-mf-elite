@@ -25,6 +25,8 @@ struct MentalExercisePlayerView: View {
     @State private var stage: Stage = .intro
     @State private var stepIndex: Int = 0
     @State private var journalText: String = ""
+    /// Full-lineup overview sheet, opened from the drill counter.
+    @State private var showSessionOverview = false
     @FocusState private var journalFocused: Bool
 
     private enum Stage {
@@ -98,6 +100,9 @@ struct MentalExercisePlayerView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showSessionOverview) {
+            SessionOverviewSheet(queue: queue)
+        }
         .onAppear {
             viewModel.context = modelContext
             UIApplication.shared.isIdleTimerDisabled = UserDefaults.standard.object(forKey: "MF_KEEP_AWAKE") == nil ? true : UserDefaults.standard.bool(forKey: "MF_KEEP_AWAKE")
@@ -115,9 +120,23 @@ struct MentalExercisePlayerView: View {
                 IconButton(systemName: "xmark", size: 36) { onExit() }
                 Spacer()
                 if queue.isChained {
-                    Text("\(queue.position) of \(queue.count)")
-                        .style(.micro)
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        showSessionOverview = true
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("\(queue.position) of \(queue.count)")
+                                .style(.micro)
+                            Image(systemName: "chevron.up.chevron.down")
+                                .font(.system(size: 8, weight: .bold))
+                        }
                         .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .frame(minHeight: 28)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .accessibilityLabel("Drill \(queue.position) of \(queue.count)")
+                    .accessibilityHint("Shows the full session lineup")
                 }
                 Spacer()
                 DisciplineMark(kind: discipline.mark, size: 24)

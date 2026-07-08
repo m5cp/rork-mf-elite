@@ -78,6 +78,17 @@ struct AcademyTodayView: View {
         return workoutIndexCache.index
     }
 
+    /// Drill IDs logged at least once today, for the "done" checkmarks on the
+    /// Today's Session drill list.
+    private var loggedTodayIDs: Set<String> {
+        let cal = Calendar.current
+        return Set(
+            sessions
+                .filter { cal.isDateInToday($0.completedAt) }
+                .map(\.drillID)
+        )
+    }
+
     private var viewModel: AcademyTodayViewModel {
         AcademyTodayViewModel(
             disciplines: disciplines,
@@ -308,6 +319,14 @@ struct AcademyTodayView: View {
                             .foregroundStyle(DS.Colors.Ink.tertiary)
                     }
 
+                    DrillSequenceList(
+                        resolved: session.items.map {
+                            ResolvedDrill(drill: $0.drill, level: $0.level, category: $0.category, discipline: $0.discipline)
+                        },
+                        loggedToday: loggedTodayIDs,
+                        onStart: { idx in startTodaySession(session, from: idx) }
+                    )
+
                     PrimaryButton(label: "Start session", hint: "\(minutes) MIN") {
                         startTodaySession(session)
                     }
@@ -322,23 +341,26 @@ struct AcademyTodayView: View {
 
     /// Start the resolved hero session through the standard queue pipeline so
     /// XP, history, streak, rings and Game Center all record normally.
-    private func startTodaySession(_ session: (source: TodaySessionSource, items: [DrillContext])) {
+    /// `startIndex` lets a tapped drill row begin the session partway through.
+    private func startTodaySession(_ session: (source: TodaySessionSource, items: [DrillContext]), from startIndex: Int = 0) {
         guard !session.items.isEmpty, activeSession == nil else { return }
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        let queue: TrainingQueue
         switch session.source {
         case .activePlan(let plan):
-            let queue = TrainingQueue(
+            queue = TrainingQueue(
                 items: session.items,
                 source: plan.kind == ActivePlanKind.routine.rawValue ? .routine : .workout,
                 sourceName: plan.title
             )
             pendingPlanAdvance = PendingPlanAdvance(planID: plan.id, queue: queue)
-            activeSession = queue
         case .coachWorkout(let wod):
-            activeSession = TrainingQueue(items: session.items, source: .workout, sourceName: wod.title)
+            queue = TrainingQueue(items: session.items, source: .workout, sourceName: wod.title)
         case .appDefault(let spec):
-            activeSession = TrainingQueue(items: session.items, source: .routine, sourceName: spec.title)
+            queue = TrainingQueue(items: session.items, source: .routine, sourceName: spec.title)
         }
+        queue.currentIndex = min(max(0, startIndex), session.items.count - 1)
+        activeSession = queue
     }
 
     /// After the session cover dismisses, advance the active plan by one session

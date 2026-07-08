@@ -38,6 +38,8 @@ struct DrillPlayerView: View {
     @AppStorage("MF_AUTO_DIM") private var autoDim = true
     /// Sets the player has checked off on the tap-to-complete checklist.
     @State private var tappedSets: Set<Int> = []
+    /// Full-lineup overview sheet, opened from the "Drill X of Y" counter.
+    @State private var showSessionOverview = false
     /// Whether the optional tap-to-log set checklist is expanded.
     @State private var showManualLog = false
 
@@ -139,6 +141,9 @@ struct DrillPlayerView: View {
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
         }
+        .sheet(isPresented: $showSessionOverview) {
+            SessionOverviewSheet(queue: queue)
+        }
         .alert("End session early?", isPresented: $showStopConfirm) {
             Button("Keep training", role: .cancel) {}
             Button("Log and finish") {
@@ -182,9 +187,7 @@ struct DrillPlayerView: View {
                 IconButton(systemName: "xmark", size: 36) { onExit() }
                 Spacer()
                 if queue.isChained {
-                    Text("Drill \(queue.position) of \(queue.count)")
-                        .style(.micro)
-                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                    drillCounterButton
                 }
                 Spacer()
                 DisciplineMark(kind: discipline.mark, size: 24)
@@ -413,9 +416,7 @@ struct DrillPlayerView: View {
                 Eyebrow(text: routineEyebrow)
                     .foregroundStyle(DS.Colors.Ink.secondary)
                 Spacer()
-                Text("Drill \(queue.position) of \(queue.count)")
-                    .style(.micro)
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                drillCounterButton
             }
             HStack(spacing: 4) {
                 ForEach(0..<max(1, queue.count), id: \.self) { idx in
@@ -426,6 +427,27 @@ struct DrillPlayerView: View {
                 }
             }
         }
+    }
+
+    /// The "Drill X of Y" counter — tappable to open the full session lineup.
+    private var drillCounterButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            showSessionOverview = true
+        } label: {
+            HStack(spacing: 4) {
+                Text("Drill \(queue.position) of \(queue.count)")
+                    .style(.micro)
+                Image(systemName: "chevron.up.chevron.down")
+                    .font(.system(size: 8, weight: .bold))
+            }
+            .foregroundStyle(DS.Colors.Ink.tertiary)
+            .frame(minHeight: 28)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("Drill \(queue.position) of \(queue.count)")
+        .accessibilityHint("Shows the full session lineup")
     }
 
     private var routineEyebrow: String {
