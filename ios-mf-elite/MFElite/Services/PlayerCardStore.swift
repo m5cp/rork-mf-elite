@@ -54,6 +54,12 @@ final class PlayerCardStore {
         backgroundPhoto = image
     }
 
+    /// True when the player has saved a card design at least once — used to
+    /// decide whether celebrations share the rendered card or a text fallback.
+    var hasSavedDesign: Bool {
+        defaults.data(forKey: Keys.design) != nil
+    }
+
     /// Save a full design back to disk.
     func save(_ design: CardDesign) {
         self.design = design

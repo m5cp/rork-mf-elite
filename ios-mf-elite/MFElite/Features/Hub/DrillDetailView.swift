@@ -35,6 +35,7 @@ struct DrillDetailView: View {
     @State private var favorites = FavoritesStore.shared
     @State private var showNoteEditor = false
     @State private var shareText: ShareableText?
+    @State private var streakMilestone: StreakMilestone?
 
     /// Vertical space taken by the floating glass tab bar (68pt height + 26pt
     /// bottom offset — mirrors CustomTabBar's metrics) so the pinned CTA
@@ -114,6 +115,9 @@ struct DrillDetailView: View {
         .fullScreenCover(item: $activeSession) { queue in
             SessionPlayerView(queue: queue)
         }
+        .fullScreenCover(item: $streakMilestone) { milestone in
+            StreakMilestoneView(days: milestone.days, onClose: {})
+        }
         .sheet(isPresented: $showNoteEditor) {
             DrillNoteEditorView(existing: drillNote?.text ?? "") { newText in
                 saveNote(newText)
@@ -150,6 +154,17 @@ struct DrillDetailView: View {
         withAnimation(DS.Motion.standardSpring) { lastLogResult = result }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
             withAnimation(DS.Motion.standardSpring) { lastLogResult = nil }
+        }
+        celebrateStreakMilestoneIfCrossed(result.newStreak)
+    }
+
+    /// Presents the once-only streak milestone celebration after the logged toast.
+    private func celebrateStreakMilestoneIfCrossed(_ streak: Int) {
+        guard StreakMilestones.pending(for: streak) else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            if let days = StreakMilestones.claim(for: streak) {
+                streakMilestone = StreakMilestone(days: days)
+            }
         }
     }
 

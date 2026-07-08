@@ -211,6 +211,8 @@ struct SessionLoggedView: View {
                     discipline: discipline,
                     onClose: {}
                 )
+            case .streak(let days):
+                StreakMilestoneView(days: days, onClose: {})
             }
         }
         .onAppear {
@@ -221,7 +223,7 @@ struct SessionLoggedView: View {
             recordCompletedSummary()
             handleDrillLogged()
             if viewModel.perfectDayJustClosed {
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                // The overlay fires its own success haptic on appear.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     withAnimation(DS.Motion.standardSpring) { showPerfectDay = true }
                 }
@@ -276,16 +278,28 @@ struct SessionLoggedView: View {
     }
 
     /// A celebration to present over the logged screen.
-    enum CelebrationKind: String, Identifiable {
+    enum CelebrationKind: Identifiable {
         case level
         case cert
-        var id: String { rawValue }
+        case streak(Int)
+
+        var id: String {
+            switch self {
+            case .level: return "level"
+            case .cert: return "cert"
+            case .streak(let days): return "streak-\(days)"
+            }
+        }
     }
 
+    /// Celebrations never stack: level first, then certification, then a streak
+    /// milestone — each presented only after the previous one is dismissed.
     private func handleCelebrationDismiss() {
         if chainToCert {
             chainToCert = false
             activeCelebration = .cert
+        } else if let days = StreakMilestones.claim(for: viewModel.newStreak) {
+            activeCelebration = .streak(days)
         } else {
             onExit()
         }

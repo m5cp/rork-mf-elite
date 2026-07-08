@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct LevelMasteredView: View {
     let level: MasteryLevel
@@ -18,8 +19,12 @@ struct LevelMasteredView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Query private var progress: [DrillProgress]
+    @Query private var players: [PlayerState]
 
+    @State private var profile = PlayerProfileStore.shared
     @State private var revealNumeral = false
+    @State private var showShare = false
+    @State private var shareItems: [Any] = []
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var masteredIDs: Set<String> {
@@ -95,6 +100,7 @@ struct LevelMasteredView: View {
                         onClose()
                         dismiss()
                     }
+                    SecondaryButton(label: "Share") { share() }
                     GhostButton(label: "Back to pathway") {
                         onClose()
                         dismiss()
@@ -106,6 +112,9 @@ struct LevelMasteredView: View {
             .padding(.horizontal, DS.Spacing.s20)
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showShare) {
+            ShareSheet(items: shareItems)
+        }
         .onAppear {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             if reduceMotion {
@@ -116,6 +125,15 @@ struct LevelMasteredView: View {
                 }
             }
         }
+    }
+
+    /// Shares the rendered Player Card when one is configured, otherwise a
+    /// text line — never blocks sharing on card setup.
+    private func share() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        let fallback = "\(ShareText.firstName(profile.displayName)) just mastered Level \(level.number) — \(level.name) on MF Elite ⚽\u{FE0F}"
+        shareItems = CelebrationShare.items(player: players.first, fallbackText: fallback)
+        showShare = true
     }
 
     private var certCard: some View {

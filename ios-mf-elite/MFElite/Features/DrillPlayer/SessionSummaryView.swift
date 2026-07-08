@@ -16,6 +16,7 @@ struct SessionSummaryView: View {
     @Query private var sessionLog: [SessionLogEntry]
     @State private var reveal = false
     @State private var showCheckIn = false
+    @State private var streakMilestone: StreakMilestone?
 
     private var totalMinutes: Int {
         let secs = queue.completed.reduce(0) { $0 + $1.durationSec }
@@ -129,6 +130,9 @@ struct SessionSummaryView: View {
         .scrollIndicators(.hidden)
         .background(DS.Colors.Bg.base)
         .sessionCheckIn(isPresented: $showCheckIn, drillCount: queue.completed.count)
+        .fullScreenCover(item: $streakMilestone) { milestone in
+            StreakMilestoneView(days: milestone.days, onClose: {})
+        }
         .onAppear {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             withAnimation(DS.Motion.celebrationSpring) { reveal = true }
@@ -136,6 +140,26 @@ struct SessionSummaryView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
                     showCheckIn = true
                 }
+            } else {
+                presentStreakMilestoneIfPending(after: 0.8)
+            }
+        }
+        .onChange(of: showCheckIn) { wasShowing, isShowing in
+            // The streak celebration waits for the check-in sheet to finish so
+            // overlays never stack on the summary.
+            if wasShowing && !isShowing {
+                presentStreakMilestoneIfPending(after: 0.45)
+            }
+        }
+    }
+
+    /// Presents the streak milestone celebration once, claiming it only at the
+    /// moment of presentation so no milestone is ever marked without showing.
+    private func presentStreakMilestoneIfPending(after delay: Double) {
+        guard StreakMilestones.pending(for: streak) else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+            if let days = StreakMilestones.claim(for: streak) {
+                streakMilestone = StreakMilestone(days: days)
             }
         }
     }

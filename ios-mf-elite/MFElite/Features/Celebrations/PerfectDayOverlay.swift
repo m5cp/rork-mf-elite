@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct PerfectDayOverlay: View {
     var onDismiss: () -> Void
@@ -45,6 +46,7 @@ struct PerfectDayOverlay: View {
         .contentShape(Rectangle())
         .onTapGesture { onDismiss() }
         .onAppear {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             if reduceMotion {
                 reveal = true
             } else {

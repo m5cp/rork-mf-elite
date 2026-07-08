@@ -26,6 +26,7 @@ struct FavoritesView: View {
     @State private var markCompleteTarget: MarkCompleteTarget?
     @State private var sharingWorkout: ShareableWorkout?
     @State private var lastLogResult: QuickLog.Result?
+    @State private var streakMilestone: StreakMilestone?
 
     private struct MarkCompleteTarget: Identifiable {
         let id = UUID()
@@ -86,6 +87,9 @@ struct FavoritesView: View {
         .sheet(item: $sharingWorkout) { workout in WorkoutShareView(workout: workout) }
         .fullScreenCover(item: $activeSession) { queue in
             SessionPlayerView(queue: queue)
+        }
+        .fullScreenCover(item: $streakMilestone) { milestone in
+            StreakMilestoneView(days: milestone.days, onClose: {})
         }
         .confirmationDialog(
             "Mark complete?",
@@ -253,6 +257,17 @@ struct FavoritesView: View {
         withAnimation(DS.Motion.standardSpring) { lastLogResult = result }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
             withAnimation(DS.Motion.standardSpring) { lastLogResult = nil }
+        }
+        celebrateStreakMilestoneIfCrossed(result.newStreak)
+    }
+
+    /// Presents the once-only streak milestone celebration after the logged toast.
+    private func celebrateStreakMilestoneIfCrossed(_ streak: Int) {
+        guard StreakMilestones.pending(for: streak) else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            if let days = StreakMilestones.claim(for: streak) {
+                streakMilestone = StreakMilestone(days: days)
+            }
         }
     }
 }
