@@ -21,6 +21,8 @@ struct CoachView: View {
     @State private var indexCache = DrillIndexCache()
     @State private var showWODPicker = false
     @State private var showClearWODConfirm = false
+    @AppStorage("MF_COACH_GUIDE_SEEN") private var coachGuideSeen = false
+    @State private var showCoachGuide = false
 
     /// drillID → resolved drill for counts/minutes. Memoized via the shared helper.
     private var drillIndex: [String: ResolvedDrill] {
@@ -56,6 +58,7 @@ struct CoachView: View {
                         workoutsSection
                         drillEditorSection
                         rosterSection
+                        coachGuideSection
                     }
                 }
                 .padding(.horizontal, DS.Spacing.s20)
@@ -74,8 +77,21 @@ struct CoachView: View {
             .navigationDestination(for: CoachDrillEditorRoute.self) { _ in
                 CoachDrillEditorView(model: model)
             }
+            .navigationDestination(for: CoachGuideRoute.self) { _ in
+                CoachGuideView()
+            }
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            if !coachGuideSeen {
+                showCoachGuide = true
+            }
+        }
+        .sheet(isPresented: $showCoachGuide) {
+            NavigationStack { CoachGuideView() }
+                .preferredColorScheme(.dark)
+                .onDisappear { coachGuideSeen = true }
+        }
         .task {
             if model.overview == nil {
                 await model.loadOverviewAndRoster(context: modelContext)
@@ -351,6 +367,40 @@ struct CoachView: View {
                             .style(.title3)
                             .foregroundStyle(DS.Colors.Ink.primary)
                         Text("Edit content, add new drills, or hide one")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                .padding(DS.Spacing.s16)
+                .frame(maxWidth: .infinity)
+                .background(DS.Colors.Bg.card)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
+        }
+    }
+
+    // MARK: - Coach guide
+
+    private var coachGuideSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Help")
+            NavigationLink(value: CoachGuideRoute()) {
+                HStack(spacing: DS.Spacing.s12) {
+                    Image(systemName: "questionmark.circle")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("How Coach Mode works")
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("The coach guide, anytime")
                             .style(.micro)
                             .foregroundStyle(DS.Colors.Ink.tertiary)
                     }
