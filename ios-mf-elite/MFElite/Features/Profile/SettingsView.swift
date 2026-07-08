@@ -340,6 +340,13 @@ struct SettingsView: View {
                 }
             }
             Hairline()
+            actionRow(label: "Redeem a code") {
+                // Apple's native offer-code redemption sheet — same call the
+                // paywall's Redeem Code button uses. Entitlement activates via
+                // the existing RevenueCat customer-info stream, no restart.
+                protected("Unlock to redeem") { Purchases.shared.presentCodeRedemptionSheet() }
+            }
+            Hairline()
             actionRow(label: "Restore purchases") {
                 protected("Unlock to restore") { Task { await subscription.restorePurchases() } }
             }
