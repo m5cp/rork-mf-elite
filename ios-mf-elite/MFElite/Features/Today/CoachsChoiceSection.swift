@@ -63,7 +63,8 @@ struct CoachsChoiceSection: View {
                             activeSession = TrainingQueue(items: items, source: .workout, sourceName: workout.title)
                         }
                     },
-                    onSave: { saveToMine(workout, items: items) }
+                    onSave: { saveToMine(workout, items: items) },
+                    onMakePlan: { makePlan(workout) }
                 )
                 .presentationDetents([.medium, .large])
                 .presentationBackground(DS.Colors.Bg.base)
@@ -115,6 +116,19 @@ struct CoachsChoiceSection: View {
             .overlay(RoundedRectangle(cornerRadius: DS.Radius.lg).stroke(DS.Colors.Line.hairline, lineWidth: 1))
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    /// Commit a coach workout as the player's single active plan, close the
+    /// sheet, and return to Today where the hero card now renders it.
+    private func makePlan(_ workout: CoachWorkout) {
+        ActivePlan.commit(
+            ActivePlan(kind: .coachWorkout, referenceID: workout.id.uuidString, title: workout.title, sessions: [workout.drillIDs]),
+            in: modelContext
+        )
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            sheetWorkout = nil
+            AppActionRouter.shared.pendingTab = .today
+        }
     }
 
     /// Copy a coach workout into the player's own custom workouts (tagged as a

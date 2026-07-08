@@ -25,6 +25,8 @@ struct AcademyTodayView: View {
     @Query private var combineResults: [CombineResult]
     @Query(sort: \GameIQLesson.sortIndex) private var gameIQLessons: [GameIQLesson]
     @Query(sort: \Announcement.createdAt, order: .reverse) private var announcements: [Announcement]
+    @Query(sort: \CoachWorkout.createdAt, order: .reverse) private var coachWorkouts: [CoachWorkout]
+    @Query private var activePlans: [ActivePlan]
     @Environment(SubscriptionService.self) private var subscription
     @Environment(\.modelContext) private var modelContext
     @State private var profile = PlayerProfileStore.shared
@@ -43,6 +45,8 @@ struct AcademyTodayView: View {
     @State private var syncEngine = SyncEngine.shared
     @State private var auth = SupabaseAuth.shared
     @State private var appeared = false
+    @State private var pendingPlanAdvance: PendingPlanAdvance?
+    @State private var showChangePlanConfirm = false
 
     /// Most recent workouts shown inline on the home strip before "See all".
     private let homeWorkoutLimit = 6
@@ -98,18 +102,17 @@ struct AcademyTodayView: View {
                     }
                     resumeCard.entrance(1, appeared: appeared)
                     salutation(vm).entrance(2, appeared: appeared)
-                    announcementBanner.entrance(3, appeared: appeared)
-                    combineRetestNudge.entrance(4, appeared: appeared)
-                    dailyStandard(vm).entrance(5, appeared: appeared)
-                    goalsCard(vm).entrance(6, appeared: appeared)
-                    weeklyRecapCard.entrance(7, appeared: appeared)
-                    CoachsChoiceSection().entrance(8, appeared: appeared)
-                    matchDayRow(vm).entrance(9, appeared: appeared)
-                    todaysFocusCard(vm).entrance(10, appeared: appeared)
-                    myWorkoutsSection.entrance(11, appeared: appeared)
-                    favoritesCard.entrance(12, appeared: appeared)
+                    todaySessionCard.entrance(3, appeared: appeared)
+                    announcementBanner.entrance(4, appeared: appeared)
+                    combineRetestNudge.entrance(5, appeared: appeared)
+                    dailyStandard(vm).entrance(6, appeared: appeared)
+                    goalsCard(vm).entrance(7, appeared: appeared)
+                    weeklyRecapCard.entrance(8, appeared: appeared)
+                    CoachsChoiceSection().entrance(9, appeared: appeared)
+                    matchDayRow(vm).entrance(10, appeared: appeared)
+                    todaysFocusCard(vm).entrance(11, appeared: appeared)
+                    myWorkoutsSection.entrance(12, appeared: appeared)
                     continuePathway(vm).entrance(13, appeared: appeared)
-                    recommendedSection(vm).entrance(14, appeared: appeared)
                 }
                 .padding(.bottom, 120)
             }
@@ -147,7 +150,7 @@ struct AcademyTodayView: View {
                 PlayerCardView()
             }
         }
-        .fullScreenCover(item: $activeSession) { queue in
+        .fullScreenCover(item: $activeSession, onDismiss: advancePlanIfNeeded) { queue in
             SessionPlayerView(queue: queue)
         }
         .fullScreenCover(item: $activeLesson) { lesson in
@@ -168,6 +171,16 @@ struct AcademyTodayView: View {
         .sheet(isPresented: $showBuilder) {
             WorkoutBuilderView()
         }
+        .confirmationDialog(
+            "Change your plan?",
+            isPresented: $showChangePlanConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Clear my plan", role: .destructive) { clearActivePlan() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Today's session will fall back to the coach's workout of the day or the daily routine.")
+        }
         .onChange(of: router.startTrainingToken) { _, _ in
             startRecommendedSession(vm)
         }
@@ -181,6 +194,165 @@ struct AcademyTodayView: View {
             resumeStore.refresh()
             if !appeared { appeared = true }
         }
+    }
+
+    // MARK: - Today's Session hero card
+
+    /// Where today's hero session comes from.
+    private enum TodaySessionSource {
+        case activePlan(ActivePlan)
+        case coachWorkout(CoachWorkout)
+        case appDefault(RoutineSpec)
+    }
+
+    /// Tracks a session started from the active plan so the plan advances only
+    /// after the queue actually completed at least one drill.
+    private struct PendingPlanAdvance {
+        let planID: UUID
+        let queue: TrainingQueue
+    }
+
+    /// Fallback chain: player's plan → latest coach workout → day-of-week default.
+    /// Sources that resolve to zero known drills are skipped so the card never
+    /// renders empty.
+    private func resolveTodaySession() -> (source: TodaySessionSource, items: [DrillContext]) {
+        let index = drillIndex
+        if let plan = activePlans.first, !plan.isFinished {
+            let idx = min(max(plan.currentSessionIndex, 0), plan.sessions.count - 1)
+            let items = plan.sessions.indices.contains(idx)
+                ? plan.sessions[idx].compactMap { index[$0] }
+                : []
+            if !items.isEmpty { return (.activePlan(plan), items) }
+        }
+        if let wod = coachWorkouts.max(by: { $0.createdAt < $1.createdAt }) {
+            let items = wod.drillIDs.compactMap { index[$0] }
+            if !items.isEmpty { return (.coachWorkout(wod), items) }
+        }
+        let specs = RoutineCatalog.all
+        let dayIndex = Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0
+        let spec = specs[dayIndex % specs.count]
+        return (.appDefault(spec), spec.drillIDs.compactMap { index[$0] })
+    }
+
+    /// The one-decision hero card: the player's next session and a Start button.
+    private var todaySessionCard: some View {
+        let session = resolveTodaySession()
+        let eyebrowText: String
+        let title: String
+        let progress: String
+        var isPlan = false
+        switch session.source {
+        case .activePlan(let plan):
+            eyebrowText = "Your Plan"
+            title = plan.title
+            progress = plan.progressLabel
+            isPlan = true
+        case .coachWorkout(let wod):
+            eyebrowText = "From Coach \(wod.coachName.uppercased())"
+            title = wod.title
+            progress = ""
+        case .appDefault(let spec):
+            eyebrowText = "Workout of the Day"
+            title = spec.title
+            progress = ""
+        }
+        let minutes = estimatedSessionMinutes(forDrills: session.items.map(\.drill))
+        return VStack(alignment: .leading, spacing: 0) {
+            Eyebrow(text: "Today's Session")
+                .padding(.horizontal, DS.Spacing.s20)
+
+            Card(padding: DS.Spacing.s20, raised: true) {
+                VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                    HStack(alignment: .top) {
+                        Eyebrow(text: eyebrowText)
+                        Spacer(minLength: DS.Spacing.s8)
+                        if isPlan {
+                            Button {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                showChangePlanConfirm = true
+                            } label: {
+                                Text("Change")
+                                    .style(.micro)
+                                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                                    .underline()
+                                    .frame(minHeight: 28)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PressableButtonStyle())
+                            .accessibilityLabel("Change plan")
+                        }
+                    }
+
+                    Text(title)
+                        .style(.title2)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    HStack(spacing: DS.Spacing.s8) {
+                        if !progress.isEmpty {
+                            Text(progress)
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Ink.primary)
+                            Text("·")
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Ink.quaternary)
+                        }
+                        Text("\(session.items.count) \(session.items.count == 1 ? "drill" : "drills") · \(minutes) min")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+
+                    PrimaryButton(label: "Start session", hint: "\(minutes) MIN") {
+                        startTodaySession(session)
+                    }
+                    .padding(.top, DS.Spacing.s4)
+                }
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s12)
+        }
+        .padding(.top, DS.Spacing.s24 + 4)
+    }
+
+    /// Start the resolved hero session through the standard queue pipeline so
+    /// XP, history, streak, rings and Game Center all record normally.
+    private func startTodaySession(_ session: (source: TodaySessionSource, items: [DrillContext])) {
+        guard !session.items.isEmpty, activeSession == nil else { return }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        switch session.source {
+        case .activePlan(let plan):
+            let queue = TrainingQueue(
+                items: session.items,
+                source: plan.kind == ActivePlanKind.routine.rawValue ? .routine : .workout,
+                sourceName: plan.title
+            )
+            pendingPlanAdvance = PendingPlanAdvance(planID: plan.id, queue: queue)
+            activeSession = queue
+        case .coachWorkout(let wod):
+            activeSession = TrainingQueue(items: session.items, source: .workout, sourceName: wod.title)
+        case .appDefault(let spec):
+            activeSession = TrainingQueue(items: session.items, source: .routine, sourceName: spec.title)
+        }
+    }
+
+    /// After the session cover dismisses, advance the active plan by one session
+    /// if the queue that just ran was built from the plan and completed anything.
+    /// XP/logging happened inside the player — this only moves the plan pointer.
+    private func advancePlanIfNeeded() {
+        guard let pending = pendingPlanAdvance else { return }
+        pendingPlanAdvance = nil
+        guard !pending.queue.completed.isEmpty,
+              let plan = activePlans.first(where: { $0.id == pending.planID }),
+              !plan.isFinished else { return }
+        plan.currentSessionIndex += 1
+        try? modelContext.save()
+    }
+
+    /// Remove the committed plan so the fallback chain takes over.
+    private func clearActivePlan() {
+        for plan in activePlans { modelContext.delete(plan) }
+        try? modelContext.save()
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
     }
 
     // MARK: - Siri / Shortcuts entry

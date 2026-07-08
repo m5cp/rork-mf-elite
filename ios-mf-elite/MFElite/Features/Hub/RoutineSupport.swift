@@ -222,6 +222,8 @@ struct RoutineCard: View {
     /// Log every drill in the routine at once, no timer.
     let onMarkComplete: () -> Void
     let onToggleFavorite: () -> Void
+    /// Commit this routine as the player's active plan. Hidden when nil.
+    var onMakePlan: (() -> Void)? = nil
 
     private var isCompletedToday: Bool {
         !resolved.isEmpty && resolved.allSatisfy { loggedToday.contains($0.drill.id) }
@@ -285,6 +287,13 @@ struct RoutineCard: View {
                 .buttonStyle(PressableButtonStyle())
                 .padding(.top, DS.Spacing.s4)
 
+                if let onMakePlan {
+                    SecondaryButton(label: "Make this my plan", size: .medium) {
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        onMakePlan()
+                    }
+                }
+
                 Button(action: onMarkComplete) {
                     Label("Mark complete — no timer", systemImage: "checkmark.circle")
                         .font(.system(size: 13, weight: .semibold))
@@ -330,6 +339,8 @@ struct WorkoutCard: View {
     let onDuplicate: () -> Void
     let onDelete: () -> Void
     let onShare: () -> Void
+    /// Commit this workout as the player's active plan. Hidden when nil.
+    var onMakePlan: (() -> Void)? = nil
 
     private var isCompletedToday: Bool {
         !resolved.isEmpty && resolved.allSatisfy { loggedToday.contains($0.drill.id) }
@@ -418,6 +429,13 @@ struct WorkoutCard: View {
                 }
                 .buttonStyle(PressableButtonStyle())
                 .padding(.top, DS.Spacing.s4)
+
+                if let onMakePlan {
+                    SecondaryButton(label: "Make this my plan", size: .medium) {
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        onMakePlan()
+                    }
+                }
 
                 Button(action: onMarkComplete) {
                     Label("Mark complete — no timer", systemImage: "checkmark.circle")

@@ -85,7 +85,8 @@ struct MyWorkoutsView: View {
                             onEdit: { editingWorkout = workout },
                             onDuplicate: { duplicate(workout) },
                             onDelete: { workoutToDelete = workout },
-                            onShare: { share(workout, resolved: resolved) }
+                            onShare: { share(workout, resolved: resolved) },
+                            onMakePlan: { makePlan(workout) }
                         )
                     }
                 }
@@ -268,6 +269,16 @@ struct MyWorkoutsView: View {
         let slice = Array(resolved.dropFirst(startIndex))
         guard !slice.isEmpty else { return }
         activeSession = TrainingQueue(items: slice.map(\.context), source: .workout, sourceName: name)
+    }
+
+    /// Commit a custom workout as the player's single active plan and return to
+    /// Today, where the hero card now renders it.
+    private func makePlan(_ workout: CustomWorkout) {
+        ActivePlan.commit(
+            ActivePlan(kind: .customWorkout, referenceID: workout.id.uuidString, title: workout.title, sessions: [workout.drillIDs]),
+            in: context
+        )
+        AppActionRouter.shared.pendingTab = .today
     }
 
     private func markComplete(_ target: MarkCompleteTarget) {

@@ -15,9 +15,12 @@ struct CoachWorkoutDetailView: View {
     let items: [DrillContext]
     let onStart: () -> Void
     let onSave: () -> Void
+    /// Commit this coach workout as the player's active plan. Hidden when nil.
+    var onMakePlan: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
     @State private var didSave = false
+    @State private var didMakePlan = false
 
     var body: some View {
         NavigationStack {
@@ -143,6 +146,27 @@ struct CoachWorkoutDetailView: View {
             }
             .buttonStyle(PressableButtonStyle())
             .disabled(didSave || items.isEmpty)
+
+            if let onMakePlan {
+                Button {
+                    guard !didMakePlan else { return }
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    withAnimation(DS.Motion.standardSpring) { didMakePlan = true }
+                    onMakePlan()
+                } label: {
+                    HStack(spacing: DS.Spacing.s8) {
+                        Image(systemName: didMakePlan ? "checkmark.circle.fill" : "pin")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(didMakePlan ? "This is your plan" : "Make this my plan")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 40)
+                }
+                .buttonStyle(PressableButtonStyle())
+                .disabled(didMakePlan || items.isEmpty)
+            }
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.vertical, DS.Spacing.s12)

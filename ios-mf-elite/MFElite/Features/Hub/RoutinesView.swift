@@ -206,7 +206,8 @@ struct RoutinesView: View {
                         onEdit: { editingWorkout = workout },
                         onDuplicate: { duplicate(workout) },
                         onDelete: { workoutToDelete = workout },
-                        onShare: { share(workout, resolved: resolved) }
+                        onShare: { share(workout, resolved: resolved) },
+                        onMakePlan: { makePlan(workout) }
                     )
                 }
             }
@@ -325,7 +326,8 @@ struct RoutinesView: View {
                     onToggleFavorite: {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         favorites.toggleRoutine(routine.id)
-                    }
+                    },
+                    onMakePlan: { makePlan(routine) }
                 )
             }
         }
@@ -350,6 +352,27 @@ struct RoutinesView: View {
         } else {
             expanded.insert(id)
         }
+    }
+
+    // MARK: - Active plan
+
+    /// Commit a routine as the player's single active plan and return to Today,
+    /// where the hero card now renders it.
+    private func makePlan(_ routine: RoutineSpec) {
+        ActivePlan.commit(
+            ActivePlan(kind: .routine, referenceID: routine.id, title: routine.title, sessions: [routine.drillIDs]),
+            in: context
+        )
+        AppActionRouter.shared.pendingTab = .today
+    }
+
+    /// Commit a custom workout as the player's single active plan.
+    private func makePlan(_ workout: CustomWorkout) {
+        ActivePlan.commit(
+            ActivePlan(kind: .customWorkout, referenceID: workout.id.uuidString, title: workout.title, sessions: [workout.drillIDs]),
+            in: context
+        )
+        AppActionRouter.shared.pendingTab = .today
     }
 }
 
