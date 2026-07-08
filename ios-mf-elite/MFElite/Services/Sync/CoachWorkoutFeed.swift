@@ -11,9 +11,13 @@
 
 import Foundation
 import SwiftData
+import UIKit
 
 @MainActor
 enum CoachWorkoutFeed {
+    /// Newest coach-workout `createdAt` the player has already seen (or been
+    /// notified about) — guards against re-notifying on every sync.
+    private static let lastSeenKey = "MF_LAST_SEEN_COACH_WORKOUT_AT"
     /// Refresh the local cache from Supabase. Only runs when signed in. On a
     /// network failure the cache is left untouched (so it still shows offline);
     /// an explicit empty result clears stale cached workouts.
@@ -50,9 +54,36 @@ enum CoachWorkoutFeed {
 
         // Replace the cache wholesale — it's a disposable mirror of the server.
         let existing = (try? context.fetch(FetchDescriptor<CoachWorkout>())) ?? []
+        notifyIfNewWorkout(fetched: fetched, existing: existing)
         for workout in existing { context.delete(workout) }
         for workout in fetched { context.insert(workout) }
         try? context.save()
+    }
+
+    /// Fire a local "new workout from your coach" alert when a workout newer
+    /// than anything previously cached/seen lands while the app is backgrounded.
+    /// Foreground syncs just mark the row as seen (the Today card shows it).
+    private static func notifyIfNewWorkout(fetched: [CoachWorkout], existing: [CoachWorkout]) {
+        guard let newest = fetched.max(by: { $0.createdAt < $1.createdAt }) else { return }
+
+        let defaults = UserDefaults.standard
+        let lastSeen = defaults.object(forKey: lastSeenKey) as? Date ?? .distantPast
+        let previousNewest = existing.map(\.createdAt).max() ?? .distantPast
+        let seenCutoff = max(lastSeen, previousNewest)
+
+        if newest.createdAt > seenCutoff {
+            if UIApplication.shared.applicationState != .active {
+                NotificationService.shared.notifyCoachWorkout(
+                    coachName: newest.coachName,
+                    title: newest.title
+                )
+            }
+            defaults.set(newest.createdAt, forKey: lastSeenKey)
+        } else if newest.createdAt > lastSeen {
+            // Row was already cached before we started tracking — record it as
+            // seen without notifying.
+            defaults.set(newest.createdAt, forKey: lastSeenKey)
+        }
     }
 
     private static func parseDate(_ value: Any?) -> Date? {

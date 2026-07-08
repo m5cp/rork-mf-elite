@@ -135,12 +135,14 @@ struct MFEliteApp: App {
     }
 
     /// When backgrounding, warn the player tonight if they haven't trained today.
+    /// If they HAVE trained, keep the streak defended for tomorrow evening
+    /// instead of leaving no warning queued at all.
     private func scheduleStreakRiskIfNeeded() {
         let context = container.mainContext
         guard let player = try? context.fetch(FetchDescriptor<PlayerState>()).first else { return }
         let trainedToday = Calendar.current.isDateInToday(player.lastTrainedDate ?? .distantPast)
         if trainedToday {
-            NotificationService.shared.cancelStreakRisk()
+            NotificationService.shared.scheduleStreakRiskNextEvening(streak: player.streak)
         } else {
             NotificationService.shared.scheduleStreakRisk(streak: player.streak)
         }

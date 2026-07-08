@@ -42,7 +42,6 @@ enum GameIQStore {
                 player.streak += 1
             }
             player.lastTrainedDate = Date()
-            NotificationService.shared.cancelStreakRisk()
         }
 
         // Write a Tactical session so today's rings credit this like one drill.
@@ -78,6 +77,10 @@ enum GameIQStore {
             SyncEngine.shared.enqueuePlayerState(player)
         }
         WidgetBridge.refresh(context: context)
+
+        // Trained today — cancel tonight's streak warning, defend tomorrow
+        // evening, and refresh the pending parent weekly summary.
+        PostSessionNotifications.refresh(streak: player?.streak ?? 0, context: context)
 
         return Outcome(xpAwarded: xpReward, wasFirstCompletion: true)
     }

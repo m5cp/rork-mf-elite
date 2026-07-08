@@ -419,8 +419,6 @@ final class DrillPlayerViewModel {
                 player.freezesRemaining += 1
             }
 
-            // Logged today — cancel tonight's streak-risk warning.
-            NotificationService.shared.cancelStreakRisk()
             // Fire a milestone notification if this run hit a milestone.
             if let name = Self.milestoneName(for: player.streak) {
                 NotificationService.shared.scheduleMilestone(days: player.streak, name: name)
@@ -504,6 +502,10 @@ final class DrillPlayerViewModel {
 
         // Refresh Home/Lock Screen widgets with the new status.
         WidgetBridge.refresh(context: context)
+
+        // Trained today — cancel tonight's streak warning, defend tomorrow
+        // evening, and refresh the pending parent weekly summary.
+        PostSessionNotifications.refresh(streak: player?.streak ?? 0, context: context)
 
         // Perfect Day: all three daily rings closed for the first time today.
         evaluatePerfectDay(context: context)

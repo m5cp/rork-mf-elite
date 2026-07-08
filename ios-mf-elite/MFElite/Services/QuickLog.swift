@@ -54,8 +54,6 @@ enum QuickLog {
             if player.streak == 7 && player.freezesRemaining < 1 { player.freezesRemaining += 1 }
             if player.streak == 30 && player.freezesRemaining < 2 { player.freezesRemaining = 2 }
             if player.streak == 50 { player.freezesRemaining += 1 }
-
-            NotificationService.shared.cancelStreakRisk()
         }
 
         // Achievement badges (counts after this batch).
@@ -68,6 +66,10 @@ enum QuickLog {
         }
 
         try? context.save()
+
+        // Trained today — cancel tonight's streak warning, defend tomorrow
+        // evening, and refresh the pending parent weekly summary.
+        PostSessionNotifications.refresh(streak: player?.streak ?? 0, context: context)
 
         // Mirror the updated player state + touched drills to the cloud (no-op
         // when signed out / offline; fully background).
