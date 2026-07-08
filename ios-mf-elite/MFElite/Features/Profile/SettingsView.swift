@@ -600,7 +600,10 @@ struct SettingsView: View {
     // MARK: - Support
 
     private var supportSection: some View {
-        section("Legal & Support") {
+        section("About, Legal & Support") {
+            NavigationLink { AboutView() } label: { actionRowLabel("About MF Elite") }
+                .buttonStyle(PressableButtonStyle())
+            Hairline()
             NavigationLink { TermsOfUseView() } label: { actionRowLabel("Terms of Use") }
                 .buttonStyle(PressableButtonStyle())
             Hairline()
