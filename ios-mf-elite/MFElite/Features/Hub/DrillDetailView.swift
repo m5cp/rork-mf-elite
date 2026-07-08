@@ -36,6 +36,11 @@ struct DrillDetailView: View {
     @State private var showNoteEditor = false
     @State private var shareText: ShareableText?
 
+    /// Vertical space taken by the floating glass tab bar (68pt height + 26pt
+    /// bottom offset — mirrors CustomTabBar's metrics) so the pinned CTA
+    /// clears it instead of hiding behind it.
+    private let tabBarClearance: CGFloat = 94
+
     private var drillProgress: DrillProgress? {
         progress.first { $0.drillID == drill.id }
     }
@@ -131,7 +136,7 @@ struct DrillDetailView: View {
         .overlay(alignment: .bottom) {
             if let result = lastLogResult {
                 loggedToast(result)
-                    .padding(.bottom, DS.Spacing.s48)
+                    .padding(.bottom, DS.Spacing.s12)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -796,7 +801,7 @@ struct DrillDetailView: View {
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s12)
-        .padding(.bottom, DS.Spacing.s8)
+        .padding(.bottom, tabBarClearance + DS.Spacing.s12)
         .background(
             Rectangle()
                 .fill(.ultraThinMaterial)
