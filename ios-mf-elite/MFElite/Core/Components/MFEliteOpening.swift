@@ -119,6 +119,8 @@ public struct MFEliteOpeningView: View {
  }
  .modifier(ShakeEffect(travel: 16, progress: screenShake))
  .modifier(ShakeEffect(travel: 2.5, progress: settleShake))
+ .contentShape(Rectangle())
+ .onTapGesture { onFinished?() }
  .onAppear { run(size: size) }
  }
  .statusBarHidden()
