@@ -113,6 +113,8 @@ struct DrillEditFields: Equatable {
     var sets: Int
     var equipment: [String]
     var space: String
+    /// Public URL of an uploaded demo video, or nil when none is attached.
+    var videoURL: String?
 
     /// Build from an existing drill (for the edit screen).
     init(drill: Drill) {
@@ -125,6 +127,7 @@ struct DrillEditFields: Equatable {
         sets = drill.sets
         equipment = drill.equipment
         space = drill.space ?? ""
+        videoURL = drill.videoURL
     }
 
     /// Empty fields for the "add a new drill" screen.
@@ -133,6 +136,7 @@ struct DrillEditFields: Equatable {
         instructions = []; coachingPoints = []
         durationSec = 300; sets = 1
         equipment = []; space = ""
+        videoURL = nil
     }
 
     private func clean(_ list: [String]) -> [String] {
@@ -153,6 +157,7 @@ struct DrillEditFields: Equatable {
         ]
         let trimmedSpace = space.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedSpace.isEmpty { payload["space"] = trimmedSpace }
+        if let videoURL, !videoURL.isEmpty { payload["videoURL"] = videoURL }
         return payload
     }
 
@@ -175,6 +180,7 @@ struct DrillEditFields: Equatable {
         if eq != original.equipment { payload["equipment"] = eq }
         let sp = space.trimmingCharacters(in: .whitespacesAndNewlines)
         if sp != (original.space ?? "") { payload["space"] = sp }
+        if videoURL != original.videoURL { payload["videoURL"] = videoURL as Any }
         return payload
     }
 }

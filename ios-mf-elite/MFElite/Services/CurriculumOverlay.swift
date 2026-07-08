@@ -156,18 +156,31 @@ enum CurriculumOverlay {
 
         let payload = cached.payload
         let nextSort = (level.drills.map(\.sortIndex).max() ?? 0) + 1
+
+        let title = (payload["title"] as? String) ?? "Coach Drill"
+        let focus = (payload["focus"] as? String) ?? ""
+        let how = (payload["how"] as? String) ?? ""
+        let durationSec = (payload["durationSec"] as? Int) ?? 300
+        let sets = (payload["sets"] as? Int) ?? 1
+        let coachingPoints = (payload["coachingPoints"] as? [String]) ?? []
+        let instructions = (payload["instructions"] as? [String]) ?? []
+        let videoURL = payload["videoURL"] as? String
+        let equipment = (payload["equipment"] as? [String]) ?? []
+        let space = payload["space"] as? String
+
         let drill = Drill(
             id: cached.drillID,
-            title: (payload["title"] as? String) ?? "Coach Drill",
-            focus: (payload["focus"] as? String) ?? "",
-            how: (payload["how"] as? String) ?? "",
-            durationSec: (payload["durationSec"] as? Int) ?? 300,
-            sets: (payload["sets"] as? Int) ?? 1,
-            coachingPoints: (payload["coachingPoints"] as? [String]) ?? [],
-            instructions: (payload["instructions"] as? [String]) ?? [],
+            title: title,
+            focus: focus,
+            how: how,
+            videoURL: videoURL,
+            durationSec: durationSec,
+            sets: sets,
+            coachingPoints: coachingPoints,
+            instructions: instructions,
             sortIndex: nextSort,
-            equipment: (payload["equipment"] as? [String]) ?? [],
-            space: payload["space"] as? String
+            equipment: equipment,
+            space: space
         )
         drill.coachEditedBy = cached.updatedBy
         drill.coachNewSince = cached.firstSeenAt
@@ -186,6 +199,7 @@ enum CurriculumOverlay {
         if let v = payload["instructions"] as? [String] { drill.instructions = v }
         if let v = payload["equipment"] as? [String] { drill.equipment = v }
         if payload.keys.contains("space") { drill.space = payload["space"] as? String }
+        if payload.keys.contains("videoURL") { drill.videoURL = payload["videoURL"] as? String }
     }
 
     /// Undo a cached edit's content effect when it is reverted/deactivated.

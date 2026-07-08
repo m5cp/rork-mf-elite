@@ -92,6 +92,33 @@ final class SupabaseClient {
         return data
     }
 
+    // MARK: - Storage
+
+    /// Upload a file to a storage bucket. Overwrites any existing object at path.
+    /// POST {base}/storage/v1/object/{bucket}/{path} with x-upsert: true.
+    func uploadStorage(bucket: String, path: String, data: Data, contentType: String) async -> Bool {
+        guard var request = await makeStorageRequest(bucket: bucket, path: path, method: "POST") else { return false }
+        request.setValue(contentType, forHTTPHeaderField: "Content-Type")
+        request.setValue("true", forHTTPHeaderField: "x-upsert")
+        request.httpBody = data
+        guard let (_, response) = await send(request) else { return false }
+        return (200...299).contains(response.statusCode)
+    }
+
+    /// Public URL for an object in a PUBLIC bucket (no auth needed to read).
+    func publicStorageURL(bucket: String, path: String) -> String {
+        "\(SupabaseConfig.url)/storage/v1/object/public/\(bucket)/\(path)"
+    }
+
+    private func makeStorageRequest(bucket: String, path: String, method: String) async -> URLRequest? {
+        guard let url = URL(string: "\(SupabaseConfig.url)/storage/v1/object/\(bucket)/\(path)") else { return nil }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.timeoutInterval = 120
+        await applyAuthHeaders(to: &request)
+        return request
+    }
+
     // MARK: - Plumbing
 
     private func makeRequest(table: String, method: String, query: [URLQueryItem]) async -> URLRequest? {
@@ -101,12 +128,18 @@ final class SupabaseClient {
 
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.setValue(SupabaseConfig.apiKey, forHTTPHeaderField: "apikey")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        await applyAuthHeaders(to: &request)
+        return request
+    }
+
+    /// Attach the anon apikey and, when signed in, the bearer access token —
+    /// the exact auth headers every authenticated request carries.
+    private func applyAuthHeaders(to request: inout URLRequest) async {
+        request.setValue(SupabaseConfig.apiKey, forHTTPHeaderField: "apikey")
         if let token = await SupabaseAuth.shared.validAccessToken() {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-        return request
     }
 
     private func mutate(_ request: URLRequest, label: String) async -> Bool {

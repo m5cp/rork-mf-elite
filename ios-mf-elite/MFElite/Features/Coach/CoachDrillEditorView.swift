@@ -10,6 +10,8 @@
 
 import SwiftUI
 import SwiftData
+import PhotosUI
+import AVFoundation
 
 /// Pushes the coach drill-editor list inside the Coach tab.
 struct CoachDrillEditorRoute: Hashable {}
@@ -162,6 +164,12 @@ private struct CoachDrillEditSheet: View {
     @State private var fields: DrillEditFields
     @State private var isSaving = false
     @State private var showHideConfirm = false
+    @State private var pickedVideo: PhotosPickerItem?
+    @State private var uploadState: VideoUploadState = .idle
+
+    enum VideoUploadState: Equatable {
+        case idle, uploading, done(String), failed(String)
+    }
 
     init(drill: Drill, model: CoachViewModel) {
         self.drill = drill
@@ -172,6 +180,7 @@ private struct CoachDrillEditSheet: View {
     var body: some View {
         NavigationStack {
             DrillFieldForm(fields: $fields) {
+                videoSection
                 Section {
                     Button(role: .destructive) { showHideConfirm = true } label: {
                         Label("Hide this drill", systemImage: "eye.slash")
@@ -200,7 +209,7 @@ private struct CoachDrillEditSheet: View {
                     Button("Save") { Task { await save() } }
                         .fontWeight(.bold)
                         .foregroundStyle(fields.title.trimmingCharacters(in: .whitespaces).isEmpty ? DS.Colors.Ink.quaternary : DS.Colors.Ink.primary)
-                        .disabled(isSaving || fields.title.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .disabled(isSaving || uploadState == .uploading || fields.title.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
             }
             .confirmationDialog("Hide this drill?", isPresented: $showHideConfirm, titleVisibility: .visible) {
@@ -211,6 +220,93 @@ private struct CoachDrillEditSheet: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onChange(of: pickedVideo) { _, item in
+            guard let item else { return }
+            Task { await upload(item) }
+        }
+    }
+
+    // MARK: - Demo video
+
+    @ViewBuilder private var videoSection: some View {
+        Section {
+            switch uploadState {
+            case .uploading:
+                HStack(spacing: DS.Spacing.s12) {
+                    ProgressView()
+                    Text("Uploading video\u{2026}")
+                        .style(.body)
+                        .foregroundStyle(DS.Colors.Ink.secondary)
+                }
+                .listRowBackground(DS.Colors.Bg.card)
+            case .failed(let message):
+                VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                    Label(message, systemImage: "exclamationmark.triangle.fill")
+                        .style(.foot)
+                        .foregroundStyle(Color(hex: "#FF5A5A"))
+                    PhotosPicker(selection: $pickedVideo, matching: .videos) {
+                        Label("Retry upload", systemImage: "arrow.clockwise")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                    }
+                }
+                .listRowBackground(DS.Colors.Bg.card)
+            default:
+                if fields.videoURL != nil {
+                    Label("Video attached", systemImage: "checkmark.circle.fill")
+                        .style(.body)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .listRowBackground(DS.Colors.Bg.card)
+                    PhotosPicker(selection: $pickedVideo, matching: .videos) {
+                        Label("Replace video", systemImage: "arrow.triangle.2.circlepath")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                    }
+                    .listRowBackground(DS.Colors.Bg.card)
+                    Button(role: .destructive) {
+                        fields.videoURL = nil
+                        uploadState = .idle
+                    } label: {
+                        Label("Remove video", systemImage: "trash")
+                    }
+                    .listRowBackground(DS.Colors.Bg.card)
+                } else {
+                    PhotosPicker(selection: $pickedVideo, matching: .videos) {
+                        Label("Upload demo video", systemImage: "video.badge.plus")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                    }
+                    .listRowBackground(DS.Colors.Bg.card)
+                }
+            }
+        } header: {
+            Text("Demo video").foregroundStyle(DS.Colors.Ink.tertiary)
+        } footer: {
+            Text("Players see this clip on the drill. Export at 720p to keep it under 100 MB.")
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+        }
+    }
+
+    private func upload(_ item: PhotosPickerItem) async {
+        uploadState = .uploading
+        guard let data = try? await item.loadTransferable(type: Data.self) else {
+            uploadState = .failed("Couldn't read that video."); return
+        }
+        guard data.count <= 100_000_000 else {
+            uploadState = .failed("Video is over 100 MB \u{2014} export at 720p and try again."); return
+        }
+        let path = "\(drill.id).mp4"
+        let ok = await SupabaseClient.shared.uploadStorage(
+            bucket: "drill-videos", path: path, data: data, contentType: "video/mp4"
+        )
+        if ok {
+            let url = SupabaseClient.shared.publicStorageURL(bucket: "drill-videos", path: path)
+            fields.videoURL = url
+            uploadState = .done(url)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        } else {
+            uploadState = .failed("Upload failed \u{2014} check your connection and coach sign-in.")
+        }
     }
 
     private func save() async {
