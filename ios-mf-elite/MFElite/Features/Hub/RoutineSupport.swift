@@ -228,9 +228,7 @@ struct RoutineCard: View {
     let routine: RoutineSpec
     let resolved: [ResolvedDrill]
     let loggedToday: Set<String>
-    let isExpanded: Bool
     let isFavorited: Bool
-    let onToggle: () -> Void
     /// Start the routine from the given drill index (0 = from the top).
     let onStart: (Int) -> Void
     /// Log every drill in the routine at once, no timer.
@@ -250,47 +248,38 @@ struct RoutineCard: View {
     var body: some View {
         Card(raised: true) {
             VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-                Button(action: { withAnimation(DS.Motion.standardSpring) { onToggle() } }) {
-                    VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-                        HStack {
-                            Eyebrow(text: eyebrowText)
-                            Spacer()
-                            FavoriteHeartButton(isFavorited: isFavorited, action: onToggleFavorite)
-                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(DS.Colors.Ink.quaternary)
-                        }
+                VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                    HStack {
+                        Eyebrow(text: eyebrowText)
+                        Spacer()
+                        FavoriteHeartButton(isFavorited: isFavorited, action: onToggleFavorite)
+                    }
 
-                        Text(routine.title)
-                            .style(.title2)
-                            .foregroundStyle(DS.Colors.Ink.primary)
+                    Text(routine.title)
+                        .style(.title2)
+                        .foregroundStyle(DS.Colors.Ink.primary)
 
-                        Text(routine.blurb)
-                            .style(.foot)
-                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    Text(routine.blurb)
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
 
-                        HStack(spacing: DS.Spacing.s8) {
-                            Text("\(resolved.count) drills")
-                                .style(.micro)
-                                .foregroundStyle(DS.Colors.Ink.quaternary)
-                            if isCompletedToday {
-                                HStack(spacing: 3) {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 9, weight: .bold))
-                                    Text("Completed today")
-                                        .style(.micro)
-                                }
-                                .foregroundStyle(DS.Colors.Ink.primary)
+                    HStack(spacing: DS.Spacing.s8) {
+                        Text("\(resolved.count) drills")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                        if isCompletedToday {
+                            HStack(spacing: 3) {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 9, weight: .bold))
+                                Text("Completed today")
+                                    .style(.micro)
                             }
+                            .foregroundStyle(DS.Colors.Ink.primary)
                         }
                     }
-                    .contentShape(Rectangle())
                 }
-                .buttonStyle(PressableButtonStyle())
 
-                if isExpanded {
-                    DrillSequenceList(resolved: resolved, loggedToday: loggedToday, onStart: onStart)
-                }
+                DrillSequenceList(resolved: resolved, loggedToday: loggedToday, onStart: onStart)
 
                 Button {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -342,10 +331,8 @@ struct WorkoutCard: View {
     let title: String
     let resolved: [ResolvedDrill]
     let loggedToday: Set<String>
-    let isExpanded: Bool
     let isFavorited: Bool
     var isShared: Bool = false
-    let onToggle: () -> Void
     let onStart: (Int) -> Void
     let onMarkComplete: () -> Void
     let onToggleFavorite: () -> Void
@@ -367,65 +354,56 @@ struct WorkoutCard: View {
     var body: some View {
         Card(raised: true) {
             VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-                Button(action: { withAnimation(DS.Motion.standardSpring) { onToggle() } }) {
-                    VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-                        HStack {
-                            Eyebrow(text: eyebrowText)
-                            Spacer()
-                            FavoriteHeartButton(isFavorited: isFavorited, action: onToggleFavorite)
-                            Menu {
-                                Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
-                                Button { onDuplicate() } label: { Label("Duplicate", systemImage: "plus.square.on.square") }
-                                Button { onShare() } label: { Label("Share", systemImage: "qrcode") }
-                                Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
-                                Button { onMarkComplete() } label: { Label("Mark complete", systemImage: "checkmark.circle") }
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundStyle(DS.Colors.Ink.quaternary)
-                                    .frame(width: 44, height: 44)
-                                    .contentShape(Rectangle())
-                                    .accessibilityLabel("Workout options")
-                            }
-                            Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                                .font(.system(size: 12, weight: .semibold))
+                VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                    HStack {
+                        Eyebrow(text: eyebrowText)
+                        Spacer()
+                        FavoriteHeartButton(isFavorited: isFavorited, action: onToggleFavorite)
+                        Menu {
+                            Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
+                            Button { onDuplicate() } label: { Label("Duplicate", systemImage: "plus.square.on.square") }
+                            Button { onShare() } label: { Label("Share", systemImage: "qrcode") }
+                            Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
+                            Button { onMarkComplete() } label: { Label("Mark complete", systemImage: "checkmark.circle") }
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.system(size: 14, weight: .bold))
                                 .foregroundStyle(DS.Colors.Ink.quaternary)
-                        }
-
-                        Text(title)
-                            .style(.title2)
-                            .foregroundStyle(DS.Colors.Ink.primary)
-
-                        HStack(spacing: DS.Spacing.s8) {
-                            Text("\(resolved.count) drills")
-                                .style(.micro)
-                                .foregroundStyle(DS.Colors.Ink.quaternary)
-                            if isShared {
-                                Text("SHARED")
-                                    .style(.micro)
-                                    .foregroundStyle(DS.Colors.Ground.primary)
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 2)
-                                    .background(Color.white, in: Capsule())
-                            }
-                            if isCompletedToday {
-                                HStack(spacing: 3) {
-                                    Image(systemName: "checkmark")
-                                        .font(.system(size: 9, weight: .bold))
-                                    Text("Completed today")
-                                        .style(.micro)
-                                }
-                                .foregroundStyle(DS.Colors.Ink.primary)
-                            }
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                                .accessibilityLabel("Workout options")
                         }
                     }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(PressableButtonStyle())
 
-                if isExpanded {
-                    DrillSequenceList(resolved: resolved, loggedToday: loggedToday, onStart: onStart)
+                    Text(title)
+                        .style(.title2)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+
+                    HStack(spacing: DS.Spacing.s8) {
+                        Text("\(resolved.count) drills")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                        if isShared {
+                            Text("SHARED")
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Ground.primary)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 2)
+                                .background(Color.white, in: Capsule())
+                        }
+                        if isCompletedToday {
+                            HStack(spacing: 3) {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 9, weight: .bold))
+                                Text("Completed today")
+                                    .style(.micro)
+                            }
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        }
+                    }
                 }
+
+                DrillSequenceList(resolved: resolved, loggedToday: loggedToday, onStart: onStart)
 
                 Button {
                     UIImpactFeedbackGenerator(style: .medium).impactOccurred()
@@ -466,8 +444,8 @@ struct WorkoutCard: View {
 
 // MARK: - Drill sequence list
 
-/// The expandable list of drills inside a routine or workout card. Each row is
-/// tappable to start the session partway through.
+/// The always-visible list of drills inside a routine or workout card. Each row
+/// is tappable to start the session partway through.
 struct DrillSequenceList: View {
     let resolved: [ResolvedDrill]
     let loggedToday: Set<String>

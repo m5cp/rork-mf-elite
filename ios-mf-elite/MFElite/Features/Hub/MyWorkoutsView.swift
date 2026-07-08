@@ -21,7 +21,6 @@ struct MyWorkoutsView: View {
     @Environment(\.modelContext) private var context
 
     @State private var indexCache = DrillIndexCache()
-    @State private var expanded: Set<String> = []
     @State private var activeSession: TrainingQueue?
     @State private var showBuilder = false
     @State private var editingWorkout: CustomWorkout?
@@ -68,10 +67,8 @@ struct MyWorkoutsView: View {
                             title: workout.title,
                             resolved: resolved,
                             loggedToday: doneToday,
-                            isExpanded: expanded.contains(workout.id.uuidString),
                             isFavorited: favorites.isFavoriteWorkout(workout.id),
                             isShared: workout.isShared,
-                            onToggle: { toggle(workout.id.uuidString) },
                             onStart: { startIndex in start(name: workout.title, resolved: resolved, from: startIndex) },
                             onMarkComplete: {
                                 markCompleteTarget = MarkCompleteTarget(
@@ -225,10 +222,6 @@ struct MyWorkoutsView: View {
 
     private var markCompleteBinding: Binding<Bool> {
         Binding(get: { markCompleteTarget != nil }, set: { if !$0 { markCompleteTarget = nil } })
-    }
-
-    private func toggle(_ id: String) {
-        if expanded.contains(id) { expanded.remove(id) } else { expanded.insert(id) }
     }
 
     private func startCreate() {

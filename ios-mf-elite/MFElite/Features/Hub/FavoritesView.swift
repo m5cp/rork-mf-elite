@@ -22,7 +22,6 @@ struct FavoritesView: View {
 
     @State private var indexCache = DrillIndexCache()
     @State private var favorites = FavoritesStore.shared
-    @State private var expanded: Set<String> = []
     @State private var activeSession: TrainingQueue?
     @State private var markCompleteTarget: MarkCompleteTarget?
     @State private var sharingWorkout: ShareableWorkout?
@@ -135,9 +134,7 @@ struct FavoritesView: View {
                     routine: routine,
                     resolved: resolved,
                     loggedToday: doneToday,
-                    isExpanded: expanded.contains(routine.id),
                     isFavorited: true,
-                    onToggle: { toggle(routine.id) },
                     onStart: { startIndex in start(name: routine.title, source: .routine, resolved: resolved, from: startIndex) },
                     onMarkComplete: {
                         markCompleteTarget = MarkCompleteTarget(name: routine.title, source: .routine, contexts: resolved.map(\.context))
@@ -163,9 +160,7 @@ struct FavoritesView: View {
                     title: workout.title,
                     resolved: resolved,
                     loggedToday: doneToday,
-                    isExpanded: expanded.contains(workout.id.uuidString),
                     isFavorited: true,
-                    onToggle: { toggle(workout.id.uuidString) },
                     onStart: { startIndex in start(name: workout.title, source: .workout, resolved: resolved, from: startIndex) },
                     onMarkComplete: {
                         markCompleteTarget = MarkCompleteTarget(name: workout.title, source: .workout, contexts: resolved.map(\.context))
@@ -231,10 +226,6 @@ struct FavoritesView: View {
 
     private var markCompleteBinding: Binding<Bool> {
         Binding(get: { markCompleteTarget != nil }, set: { if !$0 { markCompleteTarget = nil } })
-    }
-
-    private func toggle(_ id: String) {
-        if expanded.contains(id) { expanded.remove(id) } else { expanded.insert(id) }
     }
 
     private func start(name: String, source: SessionSource, resolved: [ResolvedDrill], from startIndex: Int) {

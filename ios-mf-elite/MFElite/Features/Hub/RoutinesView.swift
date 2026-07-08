@@ -18,7 +18,6 @@ struct RoutinesView: View {
     @Environment(SubscriptionService.self) private var subscription
     @Environment(\.modelContext) private var context
 
-    @State private var expanded: Set<String> = []
     @State private var indexCache = DrillIndexCache()
     @State private var activeSession: TrainingQueue?
     @State private var showBuilder = false
@@ -190,9 +189,7 @@ struct RoutinesView: View {
                         title: workout.title,
                         resolved: resolved,
                         loggedToday: doneToday,
-                        isExpanded: expanded.contains(workout.id.uuidString),
                         isFavorited: favorites.isFavoriteWorkout(workout.id),
-                        onToggle: { toggle(workout.id.uuidString) },
                         onStart: { startIndex in start(name: workout.title, resolved: resolved, from: startIndex) },
                         onMarkComplete: {
                             markCompleteTarget = MarkCompleteTarget(
@@ -318,9 +315,7 @@ struct RoutinesView: View {
                     routine: routine,
                     resolved: resolved,
                     loggedToday: doneToday,
-                    isExpanded: expanded.contains(routine.id),
                     isFavorited: favorites.isFavoriteRoutine(routine.id),
-                    onToggle: { toggle(routine.id) },
                     onStart: { startIndex in start(routine: routine, resolved: resolved, from: startIndex) },
                     onMarkComplete: {
                         markCompleteTarget = MarkCompleteTarget(
@@ -350,14 +345,6 @@ struct RoutinesView: View {
             DrillContext(drill: $0.drill, level: $0.level, category: $0.category, discipline: $0.discipline)
         }
         activeSession = TrainingQueue(items: items, source: .routine, sourceName: routine.title)
-    }
-
-    private func toggle(_ id: String) {
-        if expanded.contains(id) {
-            expanded.remove(id)
-        } else {
-            expanded.insert(id)
-        }
     }
 
     // MARK: - Active plan
