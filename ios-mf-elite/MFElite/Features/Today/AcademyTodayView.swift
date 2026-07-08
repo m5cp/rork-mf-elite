@@ -32,7 +32,6 @@ struct AcademyTodayView: View {
     @State private var workoutIndexCache = TodayWorkoutIndexCache()
     @State private var activeSession: TrainingQueue?
     @State private var showBuilder = false
-    @State private var showQuickTrain = false
     @State private var router = AppActionRouter.shared
     @State private var retestStore = CombineRetestStore.shared
     @State private var activeLesson: GameIQLesson?
@@ -105,13 +104,12 @@ struct AcademyTodayView: View {
                     goalsCard(vm).entrance(6, appeared: appeared)
                     weeklyRecapCard.entrance(7, appeared: appeared)
                     CoachsChoiceSection().entrance(8, appeared: appeared)
-                    quickTrainRow.entrance(9, appeared: appeared)
-                    matchDayRow(vm).entrance(10, appeared: appeared)
-                    todaysFocusCard(vm).entrance(11, appeared: appeared)
-                    myWorkoutsSection.entrance(12, appeared: appeared)
-                    favoritesCard.entrance(13, appeared: appeared)
-                    continuePathway(vm).entrance(14, appeared: appeared)
-                    recommendedSection(vm).entrance(15, appeared: appeared)
+                    matchDayRow(vm).entrance(9, appeared: appeared)
+                    todaysFocusCard(vm).entrance(10, appeared: appeared)
+                    myWorkoutsSection.entrance(11, appeared: appeared)
+                    favoritesCard.entrance(12, appeared: appeared)
+                    continuePathway(vm).entrance(13, appeared: appeared)
+                    recommendedSection(vm).entrance(14, appeared: appeared)
                 }
                 .padding(.bottom, 120)
             }
@@ -169,17 +167,6 @@ struct AcademyTodayView: View {
         }
         .sheet(isPresented: $showBuilder) {
             WorkoutBuilderView()
-        }
-        .sheet(isPresented: $showQuickTrain) {
-            GenerateSessionSheet { items in
-                showQuickTrain = false
-                guard !items.isEmpty else { return }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                    activeSession = TrainingQueue(items: items, source: .workout, sourceName: "Generated")
-                }
-            }
-            .presentationDetents([.large])
-            .presentationBackground(DS.Colors.Bg.base)
         }
         .onChange(of: router.startTrainingToken) { _, _ in
             startRecommendedSession(vm)
@@ -485,48 +472,6 @@ struct AcademyTodayView: View {
         .buttonStyle(PressableButtonStyle())
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s12)
-    }
-
-    // MARK: - Quick Train
-
-    /// Tappable entry that opens the duration picker for a time-boxed session.
-    private var quickTrainRow: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            showQuickTrain = true
-        } label: {
-            HStack(spacing: DS.Spacing.s16) {
-                Image(systemName: "bolt.fill")
-                    .font(.system(size: 22, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                    .frame(width: 52, height: 52)
-                    .background(DS.Colors.Bg.raised)
-                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
-                    .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
-
-                VStack(alignment: .leading, spacing: DS.Spacing.s4) {
-                    Text("Quick Train")
-                        .style(.title3)
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                    Text("Short on time? Train in 5, 10 or 20 min")
-                        .style(.micro)
-                        .foregroundStyle(DS.Colors.Ink.tertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.quaternary)
-            }
-            .padding(DS.Spacing.s16)
-            .background(DS.Colors.Bg.elevated)
-            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
-            .overlay(RoundedRectangle(cornerRadius: DS.Radius.lg).stroke(DS.Colors.Line.hairline, lineWidth: 1))
-        }
-        .buttonStyle(PressableButtonStyle())
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s24 + 4)
     }
 
     /// Build a time-boxed queue and start it in the existing session player,
