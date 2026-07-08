@@ -101,6 +101,20 @@ enum RoutineCatalog {
     }
 }
 
+// MARK: - Subscription gating
+
+extension RoutineSpec {
+    /// A routine is free when every resolvable drill in it sits at a level
+    /// number within the free tier (level.number <= ProgressionRules.freeLevels).
+    /// Unknown drill IDs are ignored (consistent with render-time skipping).
+    func isLocked(hasFullAccess: Bool, resolve: (String) -> DrillContext?) -> Bool {
+        guard !hasFullAccess else { return false }
+        return drillIDs.compactMap(resolve).contains {
+            $0.level.number > ProgressionRules.freeLevels
+        }
+    }
+}
+
 // MARK: - Resolved drill
 
 /// A drill ID resolved to its full navigation context + title.

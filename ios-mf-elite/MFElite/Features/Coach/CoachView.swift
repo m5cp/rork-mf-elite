@@ -12,11 +12,26 @@ import SwiftData
 
 struct CoachView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @State private var model = CoachViewModel()
     @State private var sync = SyncEngine.shared
     @State private var showPublish = false
     @State private var showAnnounce = false
     @State private var shareText: ShareableText?
+    @State private var indexCache = DrillIndexCache()
+    @State private var showWODPicker = false
+    @State private var showClearWODConfirm = false
+
+    /// drillID → resolved drill for counts/minutes. Memoized via the shared helper.
+    private var drillIndex: [String: ResolvedDrill] {
+        buildDrillIndex(disciplines, cache: indexCache)
+    }
+
+    /// The players' current Workout of the Day: the most recent ACTIVE published
+    /// workout — the same "latest wins" rule the Today fallback chain uses.
+    private var currentWOD: CoachPublishedWorkout? {
+        model.publishedWorkouts.filter(\.active).max(by: { $0.createdAt < $1.createdAt })
+    }
 
     var body: some View {
         NavigationStack {
@@ -37,6 +52,7 @@ struct CoachView: View {
                         overviewSection
                         approvalsSection
                         announcementsSection
+                        workoutOfTheDaySection
                         workoutsSection
                         drillEditorSection
                         rosterSection
@@ -88,6 +104,24 @@ struct CoachView: View {
             WorkoutBuilderView { title, note, drillIDs in
                 Task { await model.publishWorkout(title: title, note: note, drillIDs: drillIDs) }
             }
+        }
+        .sheet(isPresented: $showWODPicker) {
+            WorkoutOfTheDayPicker(
+                coachWorkouts: model.publishedWorkouts,
+                drillIndex: drillIndex
+            ) { title, note, drillIDs in
+                Task { await model.publishWorkout(title: title, note: note, drillIDs: drillIDs) }
+            }
+        }
+        .confirmationDialog(
+            "Clear the Workout of the Day?",
+            isPresented: $showClearWODConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Clear", role: .destructive) { clearWorkoutOfTheDay() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Players will see the app's default daily routine until you set a new one.")
         }
         .sheet(item: $shareText) { item in
             ShareSheet(items: [item.text])
@@ -168,6 +202,88 @@ struct CoachView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - Workout of the Day
+
+    /// Shows the workout players currently see as the WOD, with actions to set a
+    /// new one (from existing workouts or stock routines) or clear it entirely.
+    private var workoutOfTheDaySection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Workout of the Day")
+
+            VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                if let wod = currentWOD {
+                    let drills = wod.drillIDs.compactMap { drillIndex[$0] }.map(\.drill)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(wod.title)
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                            .lineLimit(1)
+                        Text("\(wod.drillIDs.count) \(wod.drillIDs.count == 1 ? "drill" : "drills") · \(estimatedSessionMinutes(forDrills: drills)) min · Published \(CoachFormat.shortDate(wod.createdAt))")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                } else {
+                    Text("No workout set — players see the app default rotation.")
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                HStack(spacing: DS.Spacing.s8) {
+                    Button {
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                        showWODPicker = true
+                    } label: {
+                        Text("Set Workout of the Day")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(DS.Colors.Ground.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                            .background(Color.white)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(PressableButtonStyle())
+
+                    if currentWOD != nil {
+                        Button {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            showClearWODConfirm = true
+                        } label: {
+                            Text("Clear")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(DS.Colors.Ink.secondary)
+                                .padding(.horizontal, DS.Spacing.s20)
+                                .frame(height: 44)
+                                .background(DS.Colors.Bg.raised)
+                                .clipShape(Capsule())
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                        .accessibilityLabel("Clear the Workout of the Day")
+                    }
+                }
+            }
+            .padding(DS.Spacing.s16)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DS.Colors.Bg.card)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.md)
+                    .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+            )
+        }
+    }
+
+    /// Retire every active published workout via the existing active/inactive
+    /// mechanism so players fall back to the app default rotation after sync.
+    private func clearWorkoutOfTheDay() {
+        let active = model.publishedWorkouts.filter(\.active)
+        Task {
+            for workout in active {
+                await model.setWorkoutActive(workout, active: false)
             }
         }
     }

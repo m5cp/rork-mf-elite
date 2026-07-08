@@ -228,7 +228,13 @@ struct AcademyTodayView: View {
             let items = wod.drillIDs.compactMap { index[$0] }
             if !items.isEmpty { return (.coachWorkout(wod), items) }
         }
-        let specs = RoutineCatalog.all
+        // Free players only rotate through routines they can actually start;
+        // if the filter empties the list, fall back to the unfiltered catalog.
+        let all = RoutineCatalog.all
+        let unlocked = all.filter { spec in
+            !spec.isLocked(hasFullAccess: subscription.hasFullAccess, resolve: { index[$0] })
+        }
+        let specs = unlocked.isEmpty ? all : unlocked
         let dayIndex = Calendar.current.ordinality(of: .day, in: .era, for: Date()) ?? 0
         let spec = specs[dayIndex % specs.count]
         return (.appDefault(spec), spec.drillIDs.compactMap { index[$0] })

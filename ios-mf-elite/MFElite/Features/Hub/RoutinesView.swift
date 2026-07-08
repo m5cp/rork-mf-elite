@@ -310,6 +310,10 @@ struct RoutinesView: View {
         VStack(spacing: DS.Spacing.s16) {
             ForEach(RoutineCatalog.all) { routine in
                 let resolved = routine.drillIDs.compactMap { index[$0] }
+                let locked = routine.isLocked(
+                    hasFullAccess: subscription.hasFullAccess,
+                    resolve: { index[$0]?.context }
+                )
                 RoutineCard(
                     routine: routine,
                     resolved: resolved,
@@ -329,6 +333,8 @@ struct RoutinesView: View {
                     },
                     onMakePlan: { makePlan(routine) }
                 )
+                .disabled(locked)
+                .gated(isLocked: locked)
             }
         }
         .padding(.horizontal, DS.Spacing.s20)

@@ -23,10 +23,21 @@ private final class BuilderIndexCache {
     var index: [String: DrillContext] = [:]
 }
 
+/// One "work on this next" chip in the builder: a weak category and why it
+/// ranks — low mastery ("3 of 20 mastered") or a below-benchmark combine test.
+private struct FocusSuggestion: Identifiable {
+    let category: Category
+    let reason: String
+    var id: String { category.id }
+}
+
 struct WorkoutBuilderView: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionService.self) private var subscription
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
+    @Query private var progress: [DrillProgress]
+    @Query private var combineResults: [CombineResult]
 
     /// The workout being edited, or nil when creating a new one.
     let editing: CustomWorkout?
@@ -107,6 +118,7 @@ struct WorkoutBuilderView: View {
                 List {
                     nameSection
                     if isPublishing { noteSection }
+                    suggestionsSection
                     drillsSection
                     Section { Color.clear.frame(height: 80).listRowBackground(Color.clear) }
                 }
@@ -231,6 +243,138 @@ struct WorkoutBuilderView: View {
             } else {
                 Text("Drills run back-to-back, top to bottom. Drag to reorder.")
                     .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+        }
+    }
+
+    // MARK: - Suggested focus
+
+    /// Combine test id → the category it flags when the latest result sits
+    /// below the competitive benchmark for the player's age.
+    private static let combineTestCategory: [String: String] = [
+        "sprint20": "phys-a",
+        "broadjump": "phys-a",
+        "shuttle": "phys-b",
+        "coneweave": "phys-b",
+        "figure8": "phys-b",
+        "juggle": "tech-a",
+        "toetap30": "tech-a",
+        "wallpass": "tech-b"
+    ]
+
+    /// Category ids flagged by the player's latest combine results. Empty when
+    /// there's no combine data or no birth year set (this input is skipped).
+    private var combineFlaggedCategoryIDs: Set<String> {
+        guard let age = PlayerProfileStore.shared.age, !combineResults.isEmpty else { return [] }
+        var latest: [String: CombineResult] = [:]
+        for result in combineResults {
+            if let existing = latest[result.testID], existing.recordedAt >= result.recordedAt { continue }
+            latest[result.testID] = result
+        }
+        var flagged: Set<String> = []
+        for (testID, result) in latest {
+            guard let categoryID = Self.combineTestCategory[testID],
+                  let standing = CombineBenchmarks.shared.standing(
+                    testID: testID, value: result.value, age: age, female: false
+                  ) else { continue }
+            if standing.tier.rawValue < CombineTier.competitive.rawValue {
+                flagged.insert(categoryID)
+            }
+        }
+        return flagged
+    }
+
+    /// Up to 3 categories ranked weakest-first: lowest mastered fraction wins;
+    /// combine-flagged categories get a small boost. Mental is excluded.
+    private var focusSuggestions: [FocusSuggestion] {
+        let mastered = Set(progress.filter(\.isMastered).map(\.drillID))
+        let flagged = combineFlaggedCategoryIDs
+        var scored: [(suggestion: FocusSuggestion, score: Double)] = []
+        for discipline in disciplines {
+            for category in discipline.categories {
+                guard !category.id.hasPrefix("psy") else { continue }
+                let drills = category.levels.flatMap(\.drills).filter { !$0.isCoachHidden }
+                guard !drills.isEmpty, !drills.allSatisfy(\.isMentalExercise) else { continue }
+                let masteredCount = drills.filter { mastered.contains($0.id) }.count
+                guard masteredCount < drills.count else { continue }
+                var score = Double(masteredCount) / Double(drills.count)
+                let isFlagged = flagged.contains(category.id)
+                if isFlagged { score -= 0.25 }
+                let reason = isFlagged
+                    ? "Combine: below benchmark"
+                    : "\(masteredCount) of \(drills.count) mastered"
+                scored.append((FocusSuggestion(category: category, reason: reason), score))
+            }
+        }
+        return scored.sorted { $0.score < $1.score }.prefix(3).map(\.suggestion)
+    }
+
+    /// Tappable chips that pre-fill the workout from the player's weakest areas.
+    /// Hidden in the coach publish flow.
+    @ViewBuilder
+    private var suggestionsSection: some View {
+        let suggestions = focusSuggestions
+        if !isPublishing && !suggestions.isEmpty {
+            Section {
+                ScrollView(.horizontal) {
+                    HStack(spacing: DS.Spacing.s8) {
+                        ForEach(suggestions) { suggestion in
+                            suggestionChip(suggestion)
+                        }
+                    }
+                    .padding(.horizontal, DS.Spacing.s4)
+                }
+                .scrollIndicators(.hidden)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+            } header: {
+                Text("Suggested focus")
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            } footer: {
+                Text("Tap to add the next drills from your weakest areas — add or remove freely after.")
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+        }
+    }
+
+    private func suggestionChip(_ suggestion: FocusSuggestion) -> some View {
+        Button {
+            applySuggestion(suggestion)
+        } label: {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(suggestion.category.name)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Text(suggestion.reason)
+                    .font(.system(size: 11))
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 14)
+            .background(DS.Colors.Bg.raised)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(DS.Colors.Line.hairline, lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("Add \(suggestion.category.name) drills — \(suggestion.reason)")
+    }
+
+    /// Pre-fill with the next 3 unmastered, subscription-accessible drills from
+    /// the category (lowest level first). Only appends — never removes anything
+    /// the player already added, and skips drills already in the list.
+    private func applySuggestion(_ suggestion: FocusSuggestion) {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        let mastered = Set(progress.filter(\.isMastered).map(\.drillID))
+        let existing = Set(items.map(\.drillID))
+        var added = 0
+        for level in suggestion.category.levels.sorted(by: { $0.number < $1.number }) {
+            guard subscription.hasFullAccess || level.number <= ProgressionRules.freeLevels else { continue }
+            for drill in level.drills.sorted(by: { $0.sortIndex < $1.sortIndex })
+            where !drill.isCoachHidden && !mastered.contains(drill.id) && !existing.contains(drill.id) {
+                items.append(BuilderItem(drillID: drill.id))
+                added += 1
+                if added == 3 { return }
             }
         }
     }
