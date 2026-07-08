@@ -32,7 +32,7 @@ struct OnboardingCodeView: View {
                         .tracking(3)
                         .foregroundStyle(Color.white.opacity(0.75))
 
-                    Text("One coach.\nOne athlete.\nOne purpose.")
+                    Text("High Standards.\nBig Vision.")
                         .font(.system(size: 48, weight: .heavy))
                         .tracking(-1.6)
                         .lineSpacing(6)
