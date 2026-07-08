@@ -97,9 +97,11 @@ struct DrillDetailView: View {
                 }
                 notesSection
                 accountabilitySection(vm)
-                bottomCTA(vm)
             }
-            .padding(.bottom, 120)
+            .padding(.bottom, DS.Spacing.s24)
+        }
+        .safeAreaInset(edge: .bottom) {
+            bottomCTA(vm)
         }
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)
@@ -772,7 +774,7 @@ struct DrillDetailView: View {
     // MARK: - 8. Bottom CTA
 
     private func bottomCTA(_ vm: DrillDetailViewModel) -> some View {
-        VStack(spacing: DS.Spacing.s12) {
+        VStack(spacing: DS.Spacing.s8) {
             PrimaryButton(
                 label: drill.isMentalExercise ? "Begin exercise" : "Start drill",
                 hint: vm.drill.durationSec.minutesHint
@@ -788,12 +790,20 @@ struct DrillDetailView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(DS.Colors.Ink.tertiary)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 44)
+                    .frame(height: 40)
             }
             .buttonStyle(PressableButtonStyle())
         }
         .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s32)
-        .padding(.bottom, DS.Spacing.s48)
+        .padding(.top, DS.Spacing.s12)
+        .padding(.bottom, DS.Spacing.s8)
+        .background(
+            Rectangle()
+                .fill(.ultraThinMaterial)
+                .overlay(alignment: .top) {
+                    Divider().opacity(0.4)
+                }
+                .ignoresSafeArea(edges: .bottom)
+        )
     }
 }
