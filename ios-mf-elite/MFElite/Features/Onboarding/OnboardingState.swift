@@ -136,7 +136,7 @@ struct PitchPosition: Identifiable, Equatable {
 @Observable
 @MainActor
 final class OnboardingState {
-    var step: OnboardingStep = .splash
+    var step: OnboardingStep = .code
 
     var playerName: String = ""
     var classYear: Int? = nil
