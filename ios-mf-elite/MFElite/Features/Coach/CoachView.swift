@@ -375,7 +375,7 @@ struct CoachView: View {
     private var header: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-                Eyebrow(text: "Coach Mode")
+                Eyebrow(text: coachRoleLabel)
                 Text("Your Team")
                     .style(.title1)
                     .foregroundStyle(DS.Colors.Ink.primary)
@@ -403,6 +403,11 @@ struct CoachView: View {
             .disabled(model.overviewState == .loading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// "Head Coach" when the server role says so; otherwise the default label.
+    private var coachRoleLabel: String {
+        SubscriptionService.shared.coachRole == "head_coach" ? "Head Coach" : "Coach Mode"
     }
 
     private var updatedText: String {

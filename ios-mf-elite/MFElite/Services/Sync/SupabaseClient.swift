@@ -78,6 +78,20 @@ final class SupabaseClient {
         return await mutate(request, label: "RPC \(function)")
     }
 
+    /// Call a Postgres function (RPC) and return its raw JSON response body.
+    /// Returns nil on transport/HTTP failure (offline, 401 after retry, 5xx) so
+    /// callers can distinguish that from a successful call returning JSON `null`.
+    func rpcData(_ function: String, params: [String: Any] = [:]) async -> Data? {
+        guard var request = await makeRequest(table: "rpc/\(function)", method: "POST", query: []) else { return nil }
+        request.httpBody = try? JSONSerialization.data(withJSONObject: params)
+        guard let (data, http) = await send(request) else { return nil }
+        guard (200..<300).contains(http.statusCode) else {
+            print("[SupabaseClient] RPC \(function) failed: HTTP \(http.statusCode)")
+            return nil
+        }
+        return data
+    }
+
     // MARK: - Plumbing
 
     private func makeRequest(table: String, method: String, query: [URLQueryItem]) async -> URLRequest? {

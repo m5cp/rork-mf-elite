@@ -25,6 +25,10 @@ final class SubscriptionService {
     /// True when the signed-in account is an authorized coach. Coaches get full,
     /// free access everywhere and never see a paywall. Set by `SupabaseAuth`.
     var isCoach: Bool = false
+    /// Server-reported coach role ("head_coach" | "coach") from the
+    /// `my_coach_role()` RPC, or nil when unknown. Set by `SupabaseAuth`.
+    /// `isCoach` remains the boolean every gate uses — this is display-only.
+    var coachRole: String? = nil
     var offerings: Offerings?
     var isLoading: Bool = false
     var isPurchasing: Bool = false

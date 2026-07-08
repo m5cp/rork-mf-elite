@@ -82,6 +82,9 @@ final class SupabaseAuth {
     /// True when the signed-in account is on the active coach allow-list. Never
     /// cached across sign-outs — re-checked on every sign-in / launch.
     private(set) var isCoach: Bool = false
+    /// Server-reported coach role from the `my_coach_role()` RPC:
+    /// "head_coach", "coach", or nil when the account holds no role.
+    private(set) var storedCoachRole: String?
 
     private var accessToken: String?
     private var refreshToken: String?
@@ -308,6 +311,7 @@ final class SupabaseAuth {
         email = nil
         isSignedIn = false
         setCoach(false)
+        setCoachRole(nil)
         // Ballon d'Or approval is account-specific server state — reset it so it
         // is re-pulled fresh on the next sign-in (never inherited across accounts).
         BallonDorStore.shared.reset()
@@ -355,55 +359,65 @@ final class SupabaseAuth {
         return deleted
     }
 
-    // MARK: - Coach allow-list
+    // MARK: - Coach access
 
-    /// Re-check whether this account is an active coach. If so, stamp the coach
-    /// row's `user_id` once (required for the data-access policies). Fails soft:
-    /// any error leaves `isCoach` false and never blocks the app.
+    /// Re-check whether this account is an active coach.
+    /// Server truth: the `my_coach_role()` RPC (SECURITY DEFINER) matches the
+    /// JWT email against the active `coaches` table and returns "head_coach",
+    /// "coach", or null. The built-in `CoachAllowlist` remains as an offline /
+    /// App-Review fallback. A failed RPC (offline, 401) never revokes a
+    /// previously granted session — only an explicit null result does, and only
+    /// for non-allowlist accounts.
     func refreshCoachStatus() async {
-        guard isSignedIn, let mail = email, !mail.isEmpty else {
+        guard isSignedIn, let mail = email?.lowercased(), !mail.isEmpty else {
             setCoach(false)
+            setCoachRole(nil)
             return
         }
 
-        // Built-in allow-list: approved coaches + the Apple reviewer guest account
-        // always unlock the Coach dashboard, even offline or during review. This is
-        // layered on top of the live server check below.
+        // Fallback first: approved coaches + the Apple reviewer guest account
+        // keep Coach access even offline or during review.
         if CoachAllowlist.contains(mail) {
             setCoach(true)
         }
 
-        let rows = await SupabaseClient.shared.get(
-            table: "coaches",
-            query: [
-                URLQueryItem(name: "email", value: "ilike.\(mail)"),
-                URLQueryItem(name: "is_active", value: "eq.true"),
-                URLQueryItem(name: "limit", value: "1")
-            ]
-        )
-        guard let row = rows?.first else {
-            // Keep coach access if the built-in allow-list already granted it;
-            // otherwise this account is not a coach.
-            setCoach(CoachAllowlist.contains(mail))
+        // Server truth. nil = transport/HTTP failure → keep the last known state.
+        guard let result = await SupabaseClient.shared.rpcData("my_coach_role") else {
             return
         }
-        setCoach(true)
 
-        // Self-link: stamp our UUID onto the coach row once so RLS resolves by
-        // user_id thereafter. The database permits this self-link a single time.
-        if let userID, (row["user_id"] as? String) != userID {
-            await SupabaseClient.shared.update(
-                table: "coaches",
-                values: ["user_id": userID],
-                match: [URLQueryItem(name: "email", value: "ilike.\(mail)")]
-            )
+        if let role = Self.decodeCoachRole(from: result) {
+            setCoach(true)
+            setCoachRole(role)
+        } else {
+            // Successful call, explicit null — this account holds no coach role.
+            setCoachRole(nil)
+            if !CoachAllowlist.contains(mail) {
+                setCoach(false)
+            }
         }
+    }
+
+    /// Parse the `my_coach_role()` RPC payload. Accepts "head_coach" / "coach"
+    /// as a raw or quoted JSON string; returns nil for null/empty/anything else.
+    static func decodeCoachRole(from data: Data) -> String? {
+        guard let body = String(data: data, encoding: .utf8) else { return nil }
+        let cleaned = body
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
+        return (cleaned == "head_coach" || cleaned == "coach") ? cleaned : nil
     }
 
     /// Update both the local flag and the app-wide entitlement mirror.
     private func setCoach(_ value: Bool) {
         isCoach = value
         SubscriptionService.shared.isCoach = value
+    }
+
+    /// Update both the local role and the app-wide mirror on SubscriptionService.
+    private func setCoachRole(_ role: String?) {
+        storedCoachRole = role
+        SubscriptionService.shared.coachRole = role
     }
 
     // MARK: - Profile sync
