@@ -12,6 +12,7 @@ struct MFEliteApp: App {
     let container: ModelContainer
     @Environment(\.scenePhase) private var scenePhase
     @State private var profileStore = PlayerProfileStore.shared
+    @State private var openingDone = false
 
     init() {
         SubscriptionService.shared.configure()
@@ -83,26 +84,36 @@ struct MFEliteApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView()
-                .preferredColorScheme(.dark)
-                .fullScreenCover(isPresented: .constant(showOnboarding)) {
-                    OnboardingView {
-                        // Onboarding marks completion in PlayerProfileStore,
-                        // which flips `showOnboarding` and dismisses the cover.
+            ZStack {
+                MainTabView()
+                    .preferredColorScheme(.dark)
+                    .fullScreenCover(isPresented: .constant(showOnboarding && openingDone)) {
+                        OnboardingView {
+                            // Onboarding marks completion in PlayerProfileStore,
+                            // which flips `showOnboarding` and dismisses the cover.
+                        }
+                        .modelContainer(container)
                     }
-                    .modelContainer(container)
+                    .onAppear {
+                        // No notification permission request on launch — the soft
+                        // pre-permission sheet is shown after the first logged drill.
+                        // If already authorized, keep the daily reminder scheduled.
+                        NotificationService.shared.scheduleDailyReminderIfAuthorized()
+                        profileStore.incrementSession()
+                        KeyboardWarmup.run()
+                        submitTotalXPToGameCenter()
+                        WidgetBridge.refresh(context: container.mainContext)
+                    }
+
+                if !openingDone {
+                    MFEliteOpeningView {
+                        withAnimation(.easeOut(duration: 0.45)) { openingDone = true }
+                    }
+                    .transition(.opacity)
+                    .zIndex(1)
                 }
-                .preferredColorScheme(.dark)
-                .onAppear {
-                    // No notification permission request on launch — the soft
-                    // pre-permission sheet is shown after the first logged drill.
-                    // If already authorized, keep the daily reminder scheduled.
-                    NotificationService.shared.scheduleDailyReminderIfAuthorized()
-                    profileStore.incrementSession()
-                    KeyboardWarmup.run()
-                    submitTotalXPToGameCenter()
-                    WidgetBridge.refresh(context: container.mainContext)
-                }
+            }
+            .preferredColorScheme(.dark)
         }
         .modelContainer(container)
         .onChange(of: scenePhase) { _, newPhase in
