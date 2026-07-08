@@ -91,6 +91,15 @@ final class TrainingQueue: Identifiable {
         currentIndex += 1
     }
 
+    /// Move back to the previous drill, if there is one.
+    func goBack() {
+        guard currentIndex > 0 else { return }
+        currentIndex -= 1
+    }
+
+    /// True when there is a drill before the current one.
+    var hasPrevious: Bool { currentIndex > 0 }
+
     /// Record a finished drill for the end-of-session summary.
     func recordCompleted(_ summary: CompletedDrillSummary) {
         completed.append(summary)

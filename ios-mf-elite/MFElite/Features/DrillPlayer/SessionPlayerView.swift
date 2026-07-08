@@ -37,7 +37,9 @@ struct SessionPlayerView: View {
                         MentalExercisePlayerView(
                             context: context,
                             queue: queue,
+                            canGoBack: queue.hasPrevious,
                             onAdvance: advance,
+                            onGoBack: goBack,
                             onExit: { dismiss() },
                             onSessionComplete: finishSession
                         )
@@ -45,7 +47,9 @@ struct SessionPlayerView: View {
                         DrillPlayerView(
                             context: context,
                             queue: queue,
+                            canGoBack: queue.hasPrevious,
                             onAdvance: advance,
+                            onGoBack: goBack,
                             onExit: { dismiss() },
                             onSessionComplete: finishSession
                         )
@@ -80,6 +84,12 @@ struct SessionPlayerView: View {
     private func advance() {
         withAnimation(DS.Motion.standardSpring) {
             queue.advance()
+        }
+    }
+
+    private func goBack() {
+        withAnimation(DS.Motion.standardSpring) {
+            queue.goBack()
         }
     }
 

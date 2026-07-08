@@ -15,7 +15,12 @@ struct MentalExercisePlayerView: View {
     let context: DrillContext
     let queue: TrainingQueue
 
+    /// True when there is a drill before this one in the queue.
+    let canGoBack: Bool
+
     var onAdvance: () -> Void
+    /// Go back to the previous drill in the queue (swaps in place).
+    var onGoBack: () -> Void
     var onExit: () -> Void
     var onSessionComplete: () -> Void
 
@@ -56,13 +61,17 @@ struct MentalExercisePlayerView: View {
     init(
         context: DrillContext,
         queue: TrainingQueue,
+        canGoBack: Bool = false,
         onAdvance: @escaping () -> Void,
+        onGoBack: @escaping () -> Void = {},
         onExit: @escaping () -> Void,
         onSessionComplete: @escaping () -> Void
     ) {
         self.context = context
         self.queue = queue
+        self.canGoBack = canGoBack
         self.onAdvance = onAdvance
+        self.onGoBack = onGoBack
         self.onExit = onExit
         self.onSessionComplete = onSessionComplete
         _viewModel = State(
@@ -246,13 +255,34 @@ struct MentalExercisePlayerView: View {
                 }
                 .accessibilityHint("Logs this exercise as completed without going through the steps")
 
-                if queue.upNext != nil {
-                    skipDrillButton
+                HStack(spacing: DS.Spacing.s24) {
+                    if canGoBack && queue.isChained {
+                        previousDrillButton
+                    }
+                    if queue.upNext != nil {
+                        skipDrillButton
+                    }
                 }
             }
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.bottom, DS.Spacing.s40)
         }
+    }
+
+    /// A small text button that returns to the previous drill in the queue,
+    /// in its ready state. Only shown in chained sessions from drill 2 on.
+    private var previousDrillButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            onGoBack()
+        } label: {
+            Label("Previous drill", systemImage: "backward.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("Previous drill")
+        .accessibilityHint("Goes back to the previous drill in this session")
     }
 
     /// A small text button that skips this exercise entirely and advances to the

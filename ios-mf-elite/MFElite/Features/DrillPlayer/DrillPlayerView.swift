@@ -13,8 +13,13 @@ struct DrillPlayerView: View {
     let context: DrillContext
     let queue: TrainingQueue
 
+    /// True when there is a drill before this one in the queue.
+    let canGoBack: Bool
+
     /// Advance to the next drill in the queue (swaps in place — never dismisses).
     var onAdvance: () -> Void
+    /// Go back to the previous drill in the queue (swaps in place).
+    var onGoBack: () -> Void
     /// End the whole session and dismiss the player.
     var onExit: () -> Void
     /// The final drill was logged — show the session summary.
@@ -24,6 +29,7 @@ struct DrillPlayerView: View {
 
     @State private var viewModel: DrillPlayerViewModel
     @State private var showStopConfirm = false
+    @State private var showRestartConfirm = false
     @State private var ambient = AmbientLightMonitor.shared
     @State private var motion = MotionTracker.shared
 
@@ -51,13 +57,17 @@ struct DrillPlayerView: View {
     init(
         context: DrillContext,
         queue: TrainingQueue,
+        canGoBack: Bool = false,
         onAdvance: @escaping () -> Void,
+        onGoBack: @escaping () -> Void = {},
         onExit: @escaping () -> Void,
         onSessionComplete: @escaping () -> Void
     ) {
         self.context = context
         self.queue = queue
+        self.canGoBack = canGoBack
         self.onAdvance = onAdvance
+        self.onGoBack = onGoBack
         self.onExit = onExit
         self.onSessionComplete = onSessionComplete
         _viewModel = State(
@@ -157,6 +167,19 @@ struct DrillPlayerView: View {
             Text(queue.isChained
                  ? "Your completed drills are saved. You can log this one now or quit without logging."
                  : "You can log this drill now or quit without logging.")
+        }
+        .confirmationDialog(
+            "Restart this drill from set 1? Nothing you've done here is logged.",
+            isPresented: $showRestartConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Restart drill", role: .destructive) {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                withAnimation(DS.Motion.standardSpring) {
+                    viewModel.restartDrill()
+                }
+            }
+            Button("Keep going", role: .cancel) {}
         }
     }
 
@@ -314,7 +337,28 @@ struct DrillPlayerView: View {
                 .buttonStyle(PressableButtonStyle())
                 .accessibilityHint("Tap each set as you finish instead of running the timer")
             }
+
+            if canGoBack && queue.isChained {
+                previousDrillButton
+            }
         }
+    }
+
+    /// A small text button that returns to the previous drill in the queue,
+    /// in its ready state. Only shown in chained sessions from drill 2 on.
+    private var previousDrillButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            viewModel.stopSession()
+            onGoBack()
+        } label: {
+            Label("Previous drill", systemImage: "backward.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("Previous drill")
+        .accessibilityHint("Goes back to the previous drill in this session")
     }
 
     // MARK: - Tap-to-complete set checklist (optional)
@@ -579,9 +623,7 @@ struct DrillPlayerView: View {
                         }
                     }
 
-                    if queue.upNext != nil {
-                        skipDrillButton
-                    }
+                    transportRow
                 }
                 .padding(.bottom, DS.Spacing.s48 + DS.Spacing.s12)
             } else {
@@ -709,6 +751,47 @@ struct DrillPlayerView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(motion.repCount) reps counted")
+    }
+
+    /// Compact transport controls under the main timer buttons: previous drill,
+    /// restart set/drill, and skip drill. The primary Skip set / pause / stop
+    /// controls above stay untouched.
+    private var transportRow: some View {
+        HStack(spacing: DS.Spacing.s24) {
+            if canGoBack && queue.isChained {
+                previousDrillButton
+            }
+
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                withAnimation(DS.Motion.standardSpring) {
+                    viewModel.restartSet()
+                }
+            } label: {
+                Label("Restart set", systemImage: "arrow.counterclockwise")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+            .buttonStyle(PressableButtonStyle())
+            .accessibilityLabel("Restart set")
+            .accessibilityHint("Restarts the current set's countdown from the top")
+
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                showRestartConfirm = true
+            } label: {
+                Text("Restart drill")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+            .buttonStyle(PressableButtonStyle())
+            .accessibilityLabel("Restart drill")
+            .accessibilityHint("Restarts this drill from set 1. Nothing done so far is logged.")
+
+            if queue.upNext != nil {
+                skipDrillButton
+            }
+        }
     }
 
     /// A small text button that skips the current drill entirely and advances to

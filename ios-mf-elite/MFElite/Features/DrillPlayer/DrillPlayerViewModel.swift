@@ -273,6 +273,33 @@ final class DrillPlayerViewModel {
         completeSet()
     }
 
+    /// Restart the current set's timer from the top. Does not count as a skip
+    /// or a completion — the set simply starts over.
+    func restartSet() {
+        guard case .active(let setIndex) = phase else { return }
+        invalidateTimer()
+        beginActiveSet(setIndex)
+    }
+
+    /// Restart the whole drill: back to set 1 in the ready state, clearing this
+    /// drill's set counters. Nothing is logged — the player is starting over.
+    func restartDrill() {
+        invalidateTimer()
+        tearDownLiveSession(delayAudio: false)
+        phase = .ready
+        currentSetIndex = 0
+        setsCompleted = 0
+        setsSkipped = 0
+        completedSetsTrainingSec = 0
+        loggedEarly = false
+        isPaused = false
+        timeRemaining = 0
+        currentRestDuration = Self.restDuration
+        setStartDate = nil
+        pauseAccumulated = 0
+        pauseStartDate = nil
+    }
+
     /// Skip the remaining rest and start the next set immediately.
     func skipRest() {
         guard case let .resting(nextSetIndex) = phase else { return }
