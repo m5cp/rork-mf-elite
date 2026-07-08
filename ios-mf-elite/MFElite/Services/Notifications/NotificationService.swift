@@ -22,6 +22,7 @@ private enum NotificationID {
     static let coachWorkout = "mf.coach.workout"
     static let parentWeekly = "mf.parent.weekly"
     static func milestone(_ days: Int) -> String { "mf.milestone.\(days)" }
+    static func gamePrep(_ gameID: UUID) -> String { "mf.game.prep.\(gameID.uuidString)" }
 }
 
 /// Schedules and cancels the app's local notifications.
@@ -214,6 +215,37 @@ final class NotificationService {
             trigger: trigger
         )
         center.add(request)
+    }
+
+    // MARK: - Game prep (7:00 PM the evening before a scheduled game)
+
+    /// Schedules a one-shot reminder at 7:00 PM the evening before a scheduled
+    /// game. Skipped when that evening has already passed. Adds nothing when
+    /// notifications aren't authorized — never triggers the permission prompt.
+    func scheduleGamePrepReminder(gameID: UUID, gameDate: Date, opponent: String) {
+        let cal = Calendar.current
+        guard let evening = cal.date(
+            bySettingHour: 19, minute: 0, second: 0,
+            of: cal.date(byAdding: .day, value: -1, to: gameDate) ?? gameDate
+        ), evening > Date() else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = opponent.isEmpty ? "Game tomorrow" : "Game tomorrow vs \(opponent)"
+        content.body = "Do your Match Day prep tonight — activate, visualize, lock in."
+        content.sound = .default
+        content.categoryIdentifier = NotificationCategory.milestone.rawValue
+        let trigger = UNCalendarNotificationTrigger(
+            dateMatching: cal.dateComponents([.year, .month, .day, .hour, .minute], from: evening),
+            repeats: false
+        )
+        center.add(UNNotificationRequest(
+            identifier: NotificationID.gamePrep(gameID), content: content, trigger: trigger))
+    }
+
+    /// Cancels the night-before reminder for a deleted game.
+    func cancelGamePrepReminder(gameID: UUID) {
+        center.removePendingNotificationRequests(
+            withIdentifiers: [NotificationID.gamePrep(gameID)])
     }
 
     // MARK: - Cleanup
