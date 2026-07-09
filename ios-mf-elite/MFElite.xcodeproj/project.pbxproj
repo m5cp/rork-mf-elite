@@ -10,7 +10,6 @@
 		XX298127CFBB2CF3FA631BXX /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = XXDCC169DE7B2F3C1C8B10XX /* RevenueCat */; };
 		XX7D086D86C8D531B0782CXX /* MFEliteWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = XX221B9B521B11BFAABF10XX /* MFEliteWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		XX8BC77460D2D30DADFD64XX /* MFEliteWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = XX736801C9B1440EE7F0F8XX /* MFEliteWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		XX75FAD558EC0932D4F6F9XX /* MFEliteWatchComplication.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = XX2D15305BDEA9801EEE14XX /* MFEliteWatchComplication.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,13 +33,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = XX93DDADF30E1AEC27C065XX;
 			remoteInfo = MFEliteWatch;
-		};
-		XX4A4E43E8C3F20E0E408BXX /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 105FC5722E9EAD3100EA8BCF /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = XXD1A6732CB79A242DBA58XX;
-			remoteInfo = MFEliteWatchComplication;
 		};
 		XX91DA875C0FA03855FA70XX /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -74,17 +66,6 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		XXWATCHCOMPLEMBEDXX /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				XX75FAD558EC0932D4F6F9XX /* MFEliteWatchComplication.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
@@ -92,7 +73,6 @@
 		105FC5892E9EAD3200EA8BCF /* MFEliteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MFEliteTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		105FC5932E9EAD3200EA8BCF /* MFEliteUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MFEliteUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		XX221B9B521B11BFAABF10XX /* MFEliteWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MFEliteWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		XX2D15305BDEA9801EEE14XX /* MFEliteWatchComplication.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MFEliteWatchComplication.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		XX736801C9B1440EE7F0F8XX /* MFEliteWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MFEliteWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -110,13 +90,6 @@
 				Info.plist,
 			);
 			target = 105FC5792E9EAD3100EA8BCF /* MFElite */;
-		};
-		XXCFCC9685DB391444BD63XX /* Exceptions for "MFEliteWatchComplication" folder in "MFEliteWatchComplication" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = XXD1A6732CB79A242DBA58XX /* MFEliteWatchComplication */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -148,14 +121,6 @@
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MFEliteWatch;
 			sourceTree = "<group>";
-		};
-		XX53B88BA86CDA59BDB9B4XX /* MFEliteWatchComplication */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MFEliteWatchComplication;
-			sourceTree = "<group>";
-			exceptions = (
-				XXCFCC9685DB391444BD63XX /* Exceptions for "MFEliteWatchComplication" folder in "MFEliteWatchComplication" target */,
-			);
 		};
 		XX660654CEC028BD8B123EXX /* MFEliteWidget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -190,13 +155,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		XX2A9854F1FC3755AA0D77XX /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		XX499A19DA1EE70264401EXX /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -224,7 +182,6 @@
 				XX660654CEC028BD8B123EXX /* MFEliteWidget */,
 				XX1111222233334444AAAAXX /* MFEliteShared */,
 				XX2CBE782EE026C2530067XX /* MFEliteWatch */,
-				XX53B88BA86CDA59BDB9B4XX /* MFEliteWatchComplication */,
 			);
 			sourceTree = "<group>";
 		};
@@ -236,7 +193,6 @@
 				105FC5932E9EAD3200EA8BCF /* MFEliteUITests.xctest */,
 				XX221B9B521B11BFAABF10XX /* MFEliteWidget.appex */,
 				XX736801C9B1440EE7F0F8XX /* MFEliteWatch.app */,
-				XX2D15305BDEA9801EEE14XX /* MFEliteWatchComplication.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -346,12 +302,10 @@
 				XX8188EB9875400C75A509XX /* Sources */,
 				XX499A19DA1EE70264401EXX /* Frameworks */,
 				XXEE538F7E3582993A17D9XX /* Resources */,
-				XXWATCHCOMPLEMBEDXX /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				XX214786D457572505F9C7XX /* PBXTargetDependency */,
 			);
 			name = MFEliteWatch;
 			productName = MFEliteWatch;
@@ -359,26 +313,6 @@
 			productType = "com.apple.product-type.application";
 			fileSystemSynchronizedGroups = (
 				XX2CBE782EE026C2530067XX /* MFEliteWatch */,
-			);
-		};
-		XXD1A6732CB79A242DBA58XX /* MFEliteWatchComplication */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = XXB4D85CF1D66C7F09C3F5XX /* Build configuration list for PBXNativeTarget "MFEliteWatchComplication" */;
-			buildPhases = (
-				XXEF264445A9A4D00E1BB7XX /* Sources */,
-				XX2A9854F1FC3755AA0D77XX /* Frameworks */,
-				XX64E5D4D32F5628102FADXX /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = MFEliteWatchComplication;
-			productName = MFEliteWatchComplication;
-			productReference = XX2D15305BDEA9801EEE14XX /* MFEliteWatchComplication.appex */;
-			productType = "com.apple.product-type.app-extension";
-			fileSystemSynchronizedGroups = (
-				XX53B88BA86CDA59BDB9B4XX /* MFEliteWatchComplication */,
 			);
 		};
 /* End PBXNativeTarget section */
@@ -423,7 +357,6 @@
 				105FC5922E9EAD3200EA8BCF /* MFEliteUITests */,
 				XX1912BBFE1E73FB4DDA09XX /* MFEliteWidget */,
 				XX93DDADF30E1AEC27C065XX /* MFEliteWatch */,
-				XXD1A6732CB79A242DBA58XX /* MFEliteWatchComplication */,
 			);
 			packageReferences = (
 				XX4AC81916604C4344ADC0XX /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
@@ -447,13 +380,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		105FC5912E9EAD3200EA8BCF /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		XX64E5D4D32F5628102FADXX /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -512,13 +438,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		XXEF264445A9A4D00E1BB7XX /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -531,11 +450,6 @@
 			isa = PBXTargetDependency;
 			target = 105FC5792E9EAD3100EA8BCF /* MFElite */;
 			targetProxy = 105FC5942E9EAD3200EA8BCF /* PBXContainerItemProxy */;
-		};
-		XX214786D457572505F9C7XX /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = XXD1A6732CB79A242DBA58XX /* MFEliteWatchComplication */;
-			targetProxy = XX4A4E43E8C3F20E0E408BXX /* PBXContainerItemProxy */;
 		};
 		XX9215D5EA1677E413385AXX /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
@@ -951,54 +865,6 @@
 			};
 			name = Debug;
 		};
-		XXA02825591B70F2714691XX /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = MFEliteWatchComplication/MFEliteWatchComplication.entitlements;
-				PRODUCT_BUNDLE_IDENTIFIER = app.rork.pgx8pb996dmcvbhdfnx8x.mfelitewatchcomplication;
-				PRODUCT_NAME = MFEliteWatchComplication;
-				SDKROOT = watchos;
-				WATCHOS_DEPLOYMENT_TARGET = 11.0;
-				SUPPORTED_PLATFORMS = "watchos watchsimulator";
-				TARGETED_DEVICE_FAMILY = 4;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = MFEliteWatchComplication/Info.plist;
-				SWIFT_VERSION = 5.0;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				MARKETING_VERSION = 1.1.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
-			};
-			name = Release;
-		};
-		XXECE8753B3F2E879CE026XX /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = MFEliteWatchComplication/MFEliteWatchComplication.entitlements;
-				PRODUCT_BUNDLE_IDENTIFIER = app.rork.pgx8pb996dmcvbhdfnx8x.mfelitewatchcomplication;
-				PRODUCT_NAME = MFEliteWatchComplication;
-				SDKROOT = watchos;
-				WATCHOS_DEPLOYMENT_TARGET = 11.0;
-				SUPPORTED_PLATFORMS = "watchos watchsimulator";
-				TARGETED_DEVICE_FAMILY = 4;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = MFEliteWatchComplication/Info.plist;
-				SWIFT_VERSION = 5.0;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SKIP_INSTALL = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				MARKETING_VERSION = 1.1.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks";
-				INFOPLIST_KEY_CFBundleDisplayName = "$(PRODUCT_NAME)";
-			};
-			name = Debug;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1052,15 +918,6 @@
 			buildConfigurations = (
 				XX889794D2F32F70E0ACF1XX /* Debug */,
 				XX10453D130AB6CB89C493XX /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		XXB4D85CF1D66C7F09C3F5XX /* Build configuration list for PBXNativeTarget "MFEliteWatchComplication" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				XXECE8753B3F2E879CE026XX /* Debug */,
-				XXA02825591B70F2714691XX /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
