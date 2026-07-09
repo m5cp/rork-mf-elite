@@ -10,7 +10,7 @@ struct AboutView: View {
         LegalDocumentView(
             title: "About MF Elite",
             subtitle: "Founded by Coach Matteo Finazzi",
-            intro: "MF Elite Training develops complete soccer players — technically, physically, tactically, and mentally. This app puts our academy's full training methodology in your pocket.",
+            intro: "MF Elite Training develops complete soccer players — technically, physically, tactically, and mentally. This app puts our academy's full training methodology in your pocket, on iPhone and Apple Watch.",
             sections: [
                 LegalSection(
                     heading: "Coach Matteo Finazzi",
@@ -27,6 +27,10 @@ struct AboutView: View {
                 LegalSection(
                     heading: "The Method",
                     body: "The MF Elite curriculum covers four disciplines — Technical, Physical, Tactical, and Mental — through a progressive level system. Master the fundamentals, earn your certifications, and build the habits that separate elite players: consistency, accountability, and honest work."
+                ),
+                LegalSection(
+                    heading: "Train Anywhere, Stay in Sync",
+                    body: "MF Elite comes with an Apple Watch companion app. Glance at your session, activity rings, streak, and daily steps right on your wrist, run a drill session with on-wrist timers and haptics between sets, and quick-log a completed session without your phone. Everything syncs both ways — your streak, XP, and training history stay consistent across iPhone and Apple Watch. With your permission, your daily steps from Apple Health appear on the Progress tab against a goal you set."
                 )
             ]
         )

@@ -9,7 +9,7 @@ Reference for pasting into App Store Connect. Code-side compliance (privacy mani
 - **Primary category:** Health & Fitness
 - **Secondary category:** Sports
 - **Bundle ID:** app.rork.pgx8pb996dmcvbhdfnx8x
-- **Version:** 1.0.0
+- **Version:** 1.1.0
 
 ## Keywords (100 char max)
 
@@ -109,6 +109,41 @@ CONTENT MANAGEMENT
 
 AUDIENCE
 - Designed for youth athletes (10+) with parental oversight.
+
+CONTACT: mf.elitetraining@gmail.com
+```
+
+## What's New / App Review notes — version 1.1.0 update
+
+This is an update to an already-approved app. Below is what changed in 1.1.0 so the reviewer knows exactly where to look. Nothing about the sign-in flow, subscriptions, account deletion, or content management has changed — see the notes above, which still apply.
+
+```
+WHAT CHANGED IN 1.1.0 (update to a previously approved app)
+
+1. APPLE WATCH COMPANION APP (new)
+- The build now includes a bundled Apple Watch app (watchOS target) plus a watch-face complication.
+- On the watch you can: glance at today's session, activity rings, current streak, and today's step count; run a drill session on the wrist with set/rest timers and haptics; and quick-log a completed session.
+- The watch and iPhone stay in sync through WatchConnectivity — a quick-log on the watch flows back through the SAME session-logging pipeline used on the phone, so streak, XP, and history update everywhere. No separate account or login is used on the watch.
+- WHERE TO SEE IT: install on an iPhone paired with an Apple Watch, then open the MF Elite watch app. (The watch app cannot be exercised in the iOS Simulator; it is excluded from iPhone-simulator installs only and ships fully on device/TestFlight builds.)
+
+2. STEP TRACKING (new, optional)
+- Progress tab now has a "Today's Steps" card (below the training rings, above the leaderboard) that shows today's steps against an adjustable daily goal.
+- This is READ-ONLY from Apple Health and is optional: on first use the app requests permission to READ step count only. If declined or unavailable, the app behaves exactly as before. We still never READ any other Health data, and we continue to WRITE completed sessions as workouts as in 1.0.0.
+- New usage string: NSHealthShareUsageDescription (read steps). NSHealthUpdateUsageDescription (write workouts) was already present.
+
+3. NAVIGATION CHANGES (no features removed)
+- The first tab "TODAY" was renamed to "HOME". Same screen, same behavior.
+- The separate "Train" tab was merged into the "MF Hub" tab: Routines, My Plan, Coach's Workouts, and Continue Your Pathway now live inside MF Hub. The player tab bar is now four tabs (Home, MF Hub, Progress, Profile). The Coach tab still appears for allowlisted coach accounts.
+- All existing deep links / shortcuts that pointed at the old Train tab now resolve to the corresponding place inside MF Hub, so nothing is unreachable.
+
+4. SESSION PLAYER TRANSPORT CONTROLS (minor)
+- Added Previous drill, Restart set, and Restart drill controls to the in-session player. These do not affect XP, logging, or streaks.
+
+ENTITLEMENTS / CAPABILITIES ADDED FOR THIS UPDATE
+- App Group (shared between iPhone and Apple Watch) for phone-watch data sync.
+- HealthKit read access for step count (write access was already used in 1.0.0).
+
+NOTHING ELSE CHANGED: sign-in (Apple / email+password), coach allowlist, in-app account deletion, RevenueCat subscriptions + Restore Purchases, Game Center, privacy manifest, and coach-managed content all work exactly as described in the notes above.
 
 CONTACT: mf.elitetraining@gmail.com
 ```
