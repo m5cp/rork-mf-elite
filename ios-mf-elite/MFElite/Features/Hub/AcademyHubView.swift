@@ -41,6 +41,8 @@ struct AcademyHubView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     masthead
                     standingStrip(viewModel)
+                    CoachsChoiceSection()
+                        .padding(.top, DS.Spacing.s24)
                     trainingSection
                     pathwaysSection(viewModel)
                     scalabilityFooter(viewModel)

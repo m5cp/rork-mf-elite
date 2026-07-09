@@ -530,6 +530,9 @@ final class DrillPlayerViewModel {
         // Refresh Home/Lock Screen widgets with the new status.
         WidgetBridge.refresh(context: context)
 
+        // Refresh the Apple Watch glance/complication with the new status.
+        WatchSyncBridge.shared.refreshAndPush()
+
         // Trained today — cancel tonight's streak warning, defend tomorrow
         // evening, and refresh the pending parent weekly summary.
         PostSessionNotifications.refresh(streak: player?.streak ?? 0, context: context)

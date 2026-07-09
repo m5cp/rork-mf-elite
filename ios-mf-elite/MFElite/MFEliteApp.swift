@@ -44,6 +44,7 @@ struct MFEliteApp: App {
         CombineSeed.seedIfNeeded(context: container.mainContext)
         GameIQSeed.seedIfNeeded(context: container.mainContext)
         SyncEngine.shared.configure(context: container.mainContext)
+        WatchSyncBridge.shared.configure(context: container.mainContext)
     }
 
     /// Builds the SwiftData container. If the on-disk store can't be opened
@@ -105,6 +106,7 @@ struct MFEliteApp: App {
                         KeyboardWarmup.run()
                         submitTotalXPToGameCenter()
                         WidgetBridge.refresh(context: container.mainContext)
+                        WatchSyncBridge.shared.refreshAndPush()
                     }
 
                 if !openingDone {
@@ -123,6 +125,7 @@ struct MFEliteApp: App {
                 scheduleStreakRiskIfNeeded()
             } else if newPhase == .active {
                 SyncEngine.shared.onForeground()
+                WatchSyncBridge.shared.refreshAndPush()
             }
         }
     }

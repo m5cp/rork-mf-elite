@@ -8,6 +8,10 @@
 //  an explicit permission prompt; if HealthKit is unavailable or permission is
 //  denied, the app behaves exactly as before.
 //
+//  Also provides read-only access to the player's daily step count (from
+//  iPhone and/or a paired Apple Watch — HealthKit merges both sources) for
+//  the "Today's Steps" card on the Progress tab. Steps are never written.
+//
 
 import Foundation
 import HealthKit
@@ -21,6 +25,14 @@ final class HealthKitService {
     /// Settings switch so the logging path can check it cheaply.
     static let syncEnabledKey = "MF_HEALTH_SYNC"
 
+    /// Persisted daily step goal shown against the Progress tab steps card.
+    static let stepGoalKey = "MF_STEP_GOAL"
+    static let defaultStepGoal = 8000
+
+    /// Whether the player has ever been asked for step-read access, so we only
+    /// prompt once (declining doesn't re-prompt every time the card appears).
+    static let stepsAccessRequestedKey = "MF_STEPS_ACCESS_REQUESTED"
+
     private let store = HKHealthStore()
 
     /// Whether the device supports HealthKit at all (false on, e.g., iPad without Health).
@@ -29,8 +41,21 @@ final class HealthKitService {
     /// Mirror of the persisted opt-in flag.
     private(set) var isSyncEnabled: Bool
 
+    /// Whether step-read access has already been requested once.
+    private(set) var hasRequestedStepsAccess: Bool
+
+    /// The player's daily step goal, editable from the Progress tab.
+    var stepGoal: Int {
+        get {
+            let saved = UserDefaults.standard.integer(forKey: Self.stepGoalKey)
+            return saved > 0 ? saved : Self.defaultStepGoal
+        }
+        set { UserDefaults.standard.set(max(1000, newValue), forKey: Self.stepGoalKey) }
+    }
+
     private init() {
         isSyncEnabled = UserDefaults.standard.bool(forKey: Self.syncEnabledKey)
+        hasRequestedStepsAccess = UserDefaults.standard.bool(forKey: Self.stepsAccessRequestedKey)
     }
 
     /// The HealthKit types we write: a workout plus its active-energy sample.
@@ -105,6 +130,48 @@ final class HealthKitService {
                     builder.finishWorkout { _, _ in }
                 }
             }
+        }
+    }
+
+    // MARK: - Steps (read-only)
+
+    /// Ask for read access to step count. Covers steps logged by the iPhone or
+    /// a paired Apple Watch — HealthKit merges both sources automatically.
+    func requestStepsAccess() async -> Bool {
+        guard isAvailable, let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else {
+            return false
+        }
+        hasRequestedStepsAccess = true
+        UserDefaults.standard.set(true, forKey: Self.stepsAccessRequestedKey)
+        do {
+            try await store.requestAuthorization(toShare: [], read: [stepType])
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    /// Today's cumulative step count from midnight to now, summed across all
+    /// sources (iPhone + Apple Watch). Returns 0 if unavailable or denied —
+    /// HealthKit read-authorization status can't be inspected directly, so a
+    /// zero result silently means either "no steps yet" or "no access".
+    func fetchTodaySteps() async -> Int {
+        guard isAvailable, let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else {
+            return 0
+        }
+        let start = Calendar.current.startOfDay(for: Date())
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: Date(), options: .strictStartDate)
+
+        return await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(
+                quantityType: stepType,
+                quantitySamplePredicate: predicate,
+                options: .cumulativeSum
+            ) { _, statistics, _ in
+                let count = statistics?.sumQuantity()?.doubleValue(for: .count()) ?? 0
+                continuation.resume(returning: Int(count.rounded()))
+            }
+            store.execute(query)
         }
     }
 }

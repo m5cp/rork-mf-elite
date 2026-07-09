@@ -10,7 +10,6 @@ import SwiftUI
 /// The tabs of the app. The `coach` tab is only shown to authorized coaches.
 enum AppTab: Int, CaseIterable, Identifiable {
     case today
-    case train
     case hub
     case progress
     case profile
@@ -20,8 +19,7 @@ enum AppTab: Int, CaseIterable, Identifiable {
 
     var label: String {
         switch self {
-        case .today:    return "TODAY"
-        case .train:    return "TRAIN"
+        case .today:    return "HOME"
         case .hub:      return "MF HUB"
         case .progress: return "PROGRESS"
         case .profile:  return "PROFILE"
@@ -31,7 +29,7 @@ enum AppTab: Int, CaseIterable, Identifiable {
 
     /// The tabs visible for the current role. Players never see the Coach tab.
     static func visible(isCoach: Bool) -> [AppTab] {
-        var tabs: [AppTab] = [.today, .train, .hub, .progress, .profile]
+        var tabs: [AppTab] = [.today, .hub, .progress, .profile]
         if isCoach { tabs.append(.coach) }
         return tabs
     }
@@ -50,7 +48,6 @@ struct TabBarIcon: View {
             let path: Path
             switch tab {
             case .today:    path = housePath(in: canvasSize)
-            case .train:    path = targetPath(in: canvasSize)
             case .hub:      path = gridPath(in: canvasSize)
             case .progress: path = chartPath(in: canvasSize)
             case .profile:  path = personPath(in: canvasSize)

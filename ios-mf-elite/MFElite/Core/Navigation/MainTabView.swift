@@ -75,7 +75,6 @@ struct MainTabView: View {
     private var tabContent: some View {
         switch selectedTab {
         case .today:    AcademyTodayView()
-        case .train:    TrainView()
         case .hub:      AcademyHubView()
         case .progress: ProgressTabView()
         case .profile:  ProfileTabView()

@@ -91,6 +91,9 @@ enum QuickLog {
         // Refresh Home/Lock Screen widgets with the new status.
         WidgetBridge.refresh(context: context)
 
+        // Refresh the Apple Watch glance/complication with the new status.
+        WatchSyncBridge.shared.refreshAndPush()
+
         let perfectDay = evaluatePerfectDay(context: context)
 
         return Result(

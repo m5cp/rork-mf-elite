@@ -28,6 +28,8 @@ struct ProgressTabView: View {
     @State private var selectedDay: IdentifiableDate?
     @State private var gameCenter = GameCenterService.shared
     @State private var profile = PlayerProfileStore.shared
+    @State private var health = HealthKitService.shared
+    @State private var todaySteps: Int = 0
     @State private var appeared = false
 
     private var viewModel: ProgressDashboardViewModel {
@@ -41,6 +43,7 @@ struct ProgressTabView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     header.entrance(0, appeared: appeared)
                     todayRings(vm).entrance(1, appeared: appeared)
+                    stepsCard.entrance(1, appeared: appeared)
                     LeaderboardTeaserCard().entrance(2, appeared: appeared)
                     if sessions.isEmpty {
                         emptyState.entrance(2, appeared: appeared)
@@ -65,7 +68,11 @@ struct ProgressTabView: View {
             .scrollIndicators(.hidden)
             .navigationBarHidden(true)
             .onAppear { appeared = true }
-            .refreshable { await LeaderboardTeaserModel.shared.refresh() }
+            .task { await refreshSteps() }
+            .refreshable {
+                await LeaderboardTeaserModel.shared.refresh()
+                await refreshSteps()
+            }
             .navigationDestination(for: WeeklyRoute.self) { _ in HistoryCalendarView() }
             .navigationDestination(for: AcademyProgressionRoute.self) { _ in AcademyProgressionView() }
             .navigationDestination(for: CombineRoute.self) { _ in CombineView() }
@@ -90,6 +97,57 @@ struct ProgressTabView: View {
         if recap.hasActivity {
             WeeklyRecapSection(recap: recap, playerName: profile.displayName)
         }
+    }
+
+    // MARK: - Today's steps
+
+    /// Requests Health read access the first time this card appears, then
+    /// fetches today's cumulative step count. Read-only — never writes steps.
+    private func refreshSteps() async {
+        if !health.hasRequestedStepsAccess {
+            _ = await health.requestStepsAccess()
+        }
+        todaySteps = await health.fetchTodaySteps()
+    }
+
+    private var stepsCard: some View {
+        let goal = health.stepGoal
+        let progress = min(1, Double(todaySteps) / Double(max(1, goal)))
+        return Card {
+            HStack(spacing: DS.Spacing.s20) {
+                ZStack {
+                    Circle()
+                        .stroke(DS.Colors.Bg.raised, lineWidth: 7)
+                    Circle()
+                        .trim(from: 0, to: progress)
+                        .stroke(Color.white, style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .animation(DS.Motion.standardSpring, value: progress)
+                    Image(systemName: "figure.walk")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                }
+                .frame(width: 56, height: 56)
+
+                VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                    Eyebrow(text: "Today's Steps")
+                    HStack(alignment: .firstTextBaseline, spacing: DS.Spacing.s4) {
+                        CountUp(value: todaySteps)
+                            .font(DS.Typography.num(size: 26))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("/ \(goal.formatted()) goal")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                    }
+                    Text("From iPhone & Apple Watch")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s20)
     }
 
     // MARK: - Today's rings
