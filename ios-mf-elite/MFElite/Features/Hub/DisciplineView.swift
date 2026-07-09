@@ -62,7 +62,7 @@ struct DisciplineView: View {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(DS.Colors.Ink.tertiary)
-                Text("The Curriculum")
+                Text("MF Hub")
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(DS.Colors.Ink.tertiary)
             }

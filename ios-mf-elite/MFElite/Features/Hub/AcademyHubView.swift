@@ -102,7 +102,7 @@ struct AcademyHubView: View {
             SlashRule()
                 .padding(.top, DS.Spacing.s12 + 2)
 
-            Text("The\nCurriculum")
+            Text("MF\nHub")
                 .style(.hero)
                 .foregroundStyle(DS.Colors.Ink.primary)
                 .lineSpacing(-6)
