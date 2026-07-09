@@ -26,13 +26,22 @@ Train like the elite. Master drills, earn certifications, build streaks, and ris
 ## Description
 
 ```
-MF Elite is the training app for serious young soccer players. Built around a structured academy curriculum, it transforms daily practice into measurable development.
+MF Elite is the training app for serious young soccer players — built by a professional coach, powered by a real academy curriculum, and now with an Apple Watch companion so you can train anywhere.
+
+BUILT BY COACH MATTEO FINAZZI
+MF Elite Training is founded by Coach Matteo Finazzi — a former professional player born in Argentina and raised in Spain, who came up through Atlético de Madrid's academy (through U19) and went on to play professionally for Lyn FK in Norway. Matteo brings 10+ years coaching high-level players across five top soccer nations — Spain, Norway, England, Portugal, and the USA — including a 2025 Player of the Year and 2025 Offensive Player of the Year. His academy coaches 1,000+ players a year on the field, and the same curriculum, standards, and coaching points now live in your pocket.
 
 FOUR DEVELOPMENT PATHWAYS
 Progress through Technical, Physical, Tactical, and Psychological training — the four pillars of elite player development.
 
 STRUCTURED CURRICULUM
 Train through mastery levels, complete drills, and earn certifications. Every drill has coaching points, a timed challenge, and an honor-code accountability system.
+
+APPLE WATCH COMPANION
+Train with the MF Elite watch app on your wrist. Glance at today's session, your activity rings, streak, and daily steps; run a drill session with on-wrist timers and haptics between sets; and quick-log a completed session without your phone. Everything syncs both ways — your streak, XP, and training history stay consistent across iPhone and Apple Watch. Add the watch-face complication for a one-tap start.
+
+STEP TRACKING
+The Progress tab shows your daily steps against a goal you set. With your permission, steps are read from Apple Health (covering both iPhone and Apple Watch) — read-only, and never shared.
 
 STREAK ENGINE
 Build daily training habits. Track your streak, earn freeze tokens, and hit milestones from Week One to Century.
