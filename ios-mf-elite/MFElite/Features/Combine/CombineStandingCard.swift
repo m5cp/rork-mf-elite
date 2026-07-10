@@ -21,10 +21,26 @@ struct CombineStandingCard: View {
     @State private var profile = PlayerProfileStore.shared
     @State private var pickerYear: Int = Calendar.current.component(.year, from: Date()) - 12
 
+    /// User's comparison override, persisted per device. Empty = use own age.
+    @AppStorage("MF_COMBINE_CMP_BAND") private var overrideBandID: String = ""
+    /// Which scales to show: "both", "male", or "female". Default: both.
+    @AppStorage("MF_COMBINE_CMP_SCALE") private var scaleMode: String = "both"
+
     private let benchmarks = CombineBenchmarks.shared
 
     /// The 5 ball-skill (technical) tests share one scale for everyone.
     private var isSkillTest: Bool { test.category == "technical" }
+
+    /// The band to place the score against: the user's override when set and
+    /// valid, otherwise the band auto-resolved from their profile age.
+    private var effectiveBand: CombineBenchmarks.AgeBand? {
+        if !overrideBandID.isEmpty,
+           let band = benchmarks.ageBands.first(where: { $0.id == overrideBandID }) {
+            return band
+        }
+        if let age = profile.age { return benchmarks.ageBand(for: age) }
+        return nil
+    }
 
     var body: some View {
         Card {
@@ -35,9 +51,8 @@ struct CombineStandingCard: View {
                     Text("No benchmark scale for this test yet.")
                         .style(.foot)
                         .foregroundStyle(DS.Colors.Ink.tertiary)
-                } else if let age = profile.age,
-                          let band = benchmarks.ageBand(for: age) {
-                    content(age: age, bandLabel: band.label)
+                } else if let band = effectiveBand {
+                    content(band: band)
                 } else {
                     birthYearPrompt
                 }
@@ -48,21 +63,21 @@ struct CombineStandingCard: View {
     // MARK: - Resolved standing
 
     @ViewBuilder
-    private func content(age: Int, bandLabel: String) -> some View {
-        let male = value.flatMap { benchmarks.standing(testID: test.id, value: $0, age: age, female: false) }
-        let female = value.flatMap { benchmarks.standing(testID: test.id, value: $0, age: age, female: true) }
-        let maleBounds = benchmarks.boundaries(testID: test.id, age: age, female: false)
-        let femaleBounds = benchmarks.boundaries(testID: test.id, age: age, female: true)
+    private func content(band: CombineBenchmarks.AgeBand) -> some View {
+        let showMale = scaleMode != "female"
+        let showFemale = scaleMode != "male"
+        let male = value.flatMap { benchmarks.tier(testID: test.id, value: $0, bandID: band.id, female: false) }
+        let female = value.flatMap { benchmarks.tier(testID: test.id, value: $0, bandID: band.id, female: true) }
+        let maleBounds = benchmarks.boundaries(testID: test.id, bandID: band.id, female: false)
+        let femaleBounds = benchmarks.boundaries(testID: test.id, bandID: band.id, female: true)
 
-        Text(bandLabel)
-            .style(.foot)
-            .foregroundStyle(DS.Colors.Ink.tertiary)
+        comparisonHeader(band: band)
 
-        if let maleBounds {
-            scaleRow(title: "Boys / Men", tier: male?.tier, boundaries: maleBounds)
+        if showMale, let maleBounds {
+            scaleRow(title: "Boys / Men", tier: male, boundaries: maleBounds)
         }
-        if let femaleBounds {
-            scaleRow(title: "Girls / Women", tier: female?.tier, boundaries: femaleBounds)
+        if showFemale, let femaleBounds {
+            scaleRow(title: "Girls / Women", tier: female, boundaries: femaleBounds)
         }
 
         legend
@@ -72,6 +87,68 @@ struct CombineStandingCard: View {
             .foregroundStyle(DS.Colors.Ink.quaternary)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.top, DS.Spacing.s4)
+    }
+
+    // MARK: - Comparison header + picker
+
+    /// The band label plus a compact menu to override the age band and scale.
+    private func comparisonHeader(band: CombineBenchmarks.AgeBand) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(band.label)
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                if isComparing {
+                    Text("Comparing")
+                        .style(.microSm)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+            }
+
+            Spacer(minLength: DS.Spacing.s8)
+
+            comparisonMenu
+        }
+    }
+
+    /// True when the user is viewing a band or scale other than their default.
+    private var isComparing: Bool {
+        !overrideBandID.isEmpty || scaleMode != "both"
+    }
+
+    private var comparisonMenu: some View {
+        Menu {
+            Picker("Age band", selection: $overrideBandID) {
+                Text("My age").tag("")
+                ForEach(benchmarks.ageBands, id: \.id) { band in
+                    Text(band.label).tag(band.id)
+                }
+            }
+            Picker("Scale", selection: $scaleMode) {
+                Text("Both scales").tag("both")
+                Text("Boys / Men").tag("male")
+                Text("Girls / Women").tag("female")
+            }
+            if isComparing {
+                Divider()
+                Button("Reset to my age") {
+                    overrideBandID = ""
+                    scaleMode = "both"
+                }
+            }
+        } label: {
+            HStack(spacing: DS.Spacing.s4) {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("Compare")
+                    .style(.microSm)
+            }
+            .foregroundStyle(DS.Colors.Ink.secondary)
+            .padding(.horizontal, DS.Spacing.s12)
+            .padding(.vertical, DS.Spacing.s8)
+            .background(DS.Colors.Bg.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
+        }
     }
 
     private var footnote: String {

@@ -73,6 +73,12 @@ struct CombineBenchmarks {
         root?.tests[testID] != nil
     }
 
+    /// All age bands defined in the benchmark file, youngest first. Used to let a
+    /// user compare against a band other than their own.
+    var ageBands: [AgeBand] {
+        root?.ageBands ?? []
+    }
+
     /// The age band for a player's age: the first band whose `maxAge >= age`,
     /// falling back to the final (Adult / Pro) band.
     func ageBand(for age: Int) -> AgeBand? {
@@ -102,6 +108,22 @@ struct CombineBenchmarks {
         let table = female ? test.female : test.male
         guard let boundaries = table[band.id], boundaries.count == 4 else { return nil }
         return boundaries
+    }
+
+    /// The 4 ascending tier cut points for a test on a specific band id (rather
+    /// than deriving the band from age), or nil when the test or band has no data.
+    func boundaries(testID: String, bandID: String, female: Bool) -> [Double]? {
+        guard let root, let test = root.tests[testID] else { return nil }
+        let table = female ? test.female : test.male
+        guard let boundaries = table[bandID], boundaries.count == 4 else { return nil }
+        return boundaries
+    }
+
+    /// Resolve the tier for a `value` on a given scale for a specific band id.
+    /// `nil` when the test or band has no benchmark data.
+    func tier(testID: String, value: Double, bandID: String, female: Bool) -> CombineTier? {
+        guard let boundaries = boundaries(testID: testID, bandID: bandID, female: female) else { return nil }
+        return Self.tier(value: value, boundaries: boundaries, lowerIsBetter: lowerIsBetter(for: testID))
     }
 
     /// Whether a smaller value is better for a test (timed events).
