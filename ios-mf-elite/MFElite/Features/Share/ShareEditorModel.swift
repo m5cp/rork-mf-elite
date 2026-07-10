@@ -126,9 +126,11 @@ final class ShareEditorModel: ObservableObject {
     @Published var stickers: [EditorSticker] = []
     @Published var selectedStickerID: UUID?
 
-    /// Parent permission for photo backdrops. Wiring lands in a later phase, so
-    /// this stays `false` here — My Photo shows the lock glyph + toast only.
-    @Published var photoAllowed = false
+    /// Parent permission for photo backdrops. Sourced from `SharePhotoPermission`
+    /// (a parent-gated, per-athlete grant). When `false`, My Photo stays locked.
+    @Published var photoAllowed: Bool = SharePhotoPermission.shared.isGranted
+    /// The picked photo used by the `.photo` backdrop, when allowed.
+    @Published var photo: UIImage?
 
     // Transient UI state.
     @Published var activeTool: ShareEditorTool = .theme
@@ -208,6 +210,20 @@ final class ShareEditorModel: ObservableObject {
 
     func removeCaption() {
         caption = nil
+    }
+
+    // MARK: - Photo backdrop
+
+    /// Records the parent's grant and unlocks photo backdrops for this athlete.
+    func grantPhotoPermission() {
+        SharePhotoPermission.shared.grant()
+        photoAllowed = true
+    }
+
+    /// Sets the picked photo and switches the card to the photo backdrop.
+    func setPhoto(_ image: UIImage) {
+        photo = image
+        backdrop = .photo
     }
 
     func moveCaption(x: CGFloat, y: CGFloat) {

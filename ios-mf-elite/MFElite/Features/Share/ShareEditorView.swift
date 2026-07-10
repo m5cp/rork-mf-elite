@@ -10,6 +10,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct ShareEditorView: View {
     @StateObject private var model: ShareEditorModel
@@ -17,6 +18,13 @@ struct ShareEditorView: View {
 
     @State private var exported: ShareableImage?
     @State private var captionDraft = ""
+    @State private var captionError: String?
+
+    @State private var gate = ParentGate.shared
+    @State private var gateMode: ParentGateMode?
+    @State private var pendingPhotoUnlock = false
+    @State private var showPhotoPicker = false
+    @State private var photoItem: PhotosPickerItem?
 
     /// Gold used for the editor chrome accents (matches DS gold).
     private let gold = Color(hex: "E8B84B")
@@ -52,6 +60,19 @@ struct ShareEditorView: View {
             .sheet(item: $exported) { item in
                 ShareSheet(items: [item.image])
                     .presentationDetents([.medium, .large])
+            }
+            .sheet(item: $gateMode) { mode in
+                ParentGateView(mode: mode)
+                    .presentationDetents([.large])
+                    .preferredColorScheme(.dark)
+            }
+            .photosPicker(isPresented: $showPhotoPicker, selection: $photoItem, matching: .images, photoLibrary: .shared())
+            .onChange(of: photoItem) { _, newItem in loadPickedPhoto(newItem) }
+            .onChange(of: gate.hasPIN) { _, hasPIN in
+                guard hasPIN, pendingPhotoUnlock else { return }
+                pendingPhotoUnlock = false
+                model.grantPhotoPermission()
+                openPhotoPickerSoon()
             }
         }
     }
@@ -133,7 +154,7 @@ struct ShareEditorView: View {
                 MFShareCardV2(
                     moment: model.moment, theme: model.theme, format: format,
                     backdrop: model.backdrop, show: model.show,
-                    photoAllowed: model.photoAllowed
+                    photoAllowed: model.photoAllowed, photo: model.photo
                 )
                 .scaleEffect(scale, anchor: .center)
                 .frame(width: onW, height: onH)
@@ -239,12 +260,11 @@ struct ShareEditorView: View {
     }
 
     private func styleChip(_ backdrop: ShareBackdrop) -> some View {
-        let active = model.backdrop == backdrop && !backdrop.isGated
+        let active = model.backdrop == backdrop && !(backdrop.isGated && !model.photoAllowed)
         let locked = backdrop.isGated && !model.photoAllowed
         return Button {
-            if locked {
-                model.flashToast("Photo backgrounds need parent permission — ask a parent in Settings")
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            if backdrop.isGated {
+                handlePhotoTap()
             } else {
                 withAnimation(.easeOut(duration: 0.18)) { model.backdrop = backdrop }
             }
@@ -266,6 +286,49 @@ struct ShareEditorView: View {
             .clipShape(Capsule())
         }
         .buttonStyle(PressableButtonStyle())
+    }
+
+    // MARK: - Photo backdrop gate
+
+    /// Tapping “My Photo”: unlock via the parent gate the first time, then pick.
+    private func handlePhotoTap() {
+        if model.photoAllowed {
+            model.backdrop = .photo
+            showPhotoPicker = true
+        } else {
+            requestPhotoUnlock()
+        }
+    }
+
+    /// Requires a parent to approve before photo backdrops unlock for this athlete.
+    private func requestPhotoUnlock() {
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        if gate.hasPIN {
+            gateMode = .verify(title: "Parent permission") {
+                model.grantPhotoPermission()
+                openPhotoPickerSoon()
+            }
+        } else {
+            pendingPhotoUnlock = true
+            gateMode = .set
+        }
+    }
+
+    /// Opens the picker after the gate sheet has had time to dismiss.
+    private func openPhotoPickerSoon() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { showPhotoPicker = true }
+    }
+
+    private func loadPickedPhoto(_ item: PhotosPickerItem?) {
+        guard let item else { return }
+        Task {
+            if let data = try? await item.loadTransferable(type: Data.self),
+               let image = UIImage(data: data) {
+                let resized = image.mf_resized(maxDimension: 1600)
+                model.setPhoto(resized)
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+        }
     }
 
     // MARK: - Text tray
@@ -422,7 +485,7 @@ struct ShareEditorView: View {
 
     private var captionSheet: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+            VStack(alignment: .leading, spacing: DS.Spacing.s12) {
                 TextField("Say something…", text: $captionDraft, axis: .vertical)
                     .font(.system(size: 17, weight: .semibold))
                     .textInputAutocapitalization(.characters)
@@ -430,13 +493,38 @@ struct ShareEditorView: View {
                     .padding(DS.Spacing.s16)
                     .background(DS.Colors.Bg.card)
                     .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DS.Radius.md)
+                            .stroke(captionError == nil ? Color.clear : Color(hex: "F04A55"), lineWidth: 1)
+                    )
                     .onChange(of: captionDraft) { _, newValue in
-                        if newValue.count > 40 { captionDraft = String(newValue.prefix(40)) }
+                        if newValue.count > CaptionModerator.maxLength {
+                            captionDraft = String(newValue.prefix(CaptionModerator.maxLength))
+                        }
+                        if captionError != nil { captionError = nil }
                     }
 
-                Text("\(captionDraft.count)/40")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                HStack {
+                    if let captionError {
+                        Text(captionError)
+                            .font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(Color(hex: "F04A55"))
+                            .fixedSize(horizontal: false, vertical: true)
+                            .transition(.opacity)
+                    }
+                    Spacer(minLength: DS.Spacing.s8)
+                    Text("\(captionDraft.count)/\(CaptionModerator.maxLength)")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+
+                Label(
+                    "Captions are checked before they go on your card. Hateful or inappropriate words are blocked.",
+                    systemImage: "checkmark.shield.fill"
+                )
+                .font(.system(size: 12))
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+                .fixedSize(horizontal: false, vertical: true)
 
                 Spacer()
             }
@@ -450,18 +538,29 @@ struct ShareEditorView: View {
                         .foregroundStyle(DS.Colors.Ink.secondary)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Add to card") {
-                        model.setCaption(captionDraft)
-                        model.showCaptionSheet = false
-                    }
-                    .fontWeight(.bold)
-                    .foregroundStyle(gold)
-                    .disabled(captionDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("Add to card") { submitCaption() }
+                        .fontWeight(.bold)
+                        .foregroundStyle(gold)
+                        .disabled(captionDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .preferredColorScheme(.dark)
         }
-        .presentationDetents([.height(260)])
+        .presentationDetents([.height(320)])
+    }
+
+    /// Runs local moderation and either places the caption or shows the inline error.
+    private func submitCaption() {
+        switch CaptionModerator.moderate(captionDraft) {
+        case .allowed:
+            model.setCaption(captionDraft)
+            model.showCaptionSheet = false
+        case let .blocked(word):
+            withAnimation(.easeOut(duration: 0.18)) {
+                captionError = "“\(word)” isn’t allowed. Keep it positive — this card represents you."
+            }
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+        }
     }
 
     // MARK: - Export
@@ -475,7 +574,7 @@ struct ShareEditorView: View {
             moment: model.moment, theme: model.theme, format: model.format,
             backdrop: model.backdrop, show: model.show,
             caption: model.caption, stickers: model.stickers,
-            photoAllowed: model.photoAllowed
+            photoAllowed: model.photoAllowed, photo: model.photo
         )
         let image = ShareCardRenderer.renderCard(composite, format: model.format)
         model.isExporting = false
