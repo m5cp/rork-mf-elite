@@ -42,7 +42,7 @@ struct MomentsGalleryView: View {
         .scrollIndicators(.hidden)
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(item: $preview) { moment in
-            SharePreviewView(moment: moment)
+            ShareEditorView(moment: moment)
         }
         .onAppear {
             if let initialKind, preview == nil {

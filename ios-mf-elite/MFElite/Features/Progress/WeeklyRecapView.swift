@@ -178,7 +178,7 @@ struct WeeklyRecapSection: View {
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32 - 4)
         .fullScreenCover(item: $sharePreview) { moment in
-            SharePreviewView(moment: moment)
+            ShareEditorView(moment: moment)
         }
     }
 

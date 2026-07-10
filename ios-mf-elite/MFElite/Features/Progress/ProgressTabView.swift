@@ -85,7 +85,7 @@ struct ProgressTabView: View {
                     .presentationDetents([.large])
             }
             .fullScreenCover(item: $sharePreview) { moment in
-                SharePreviewView(moment: moment)
+                ShareEditorView(moment: moment)
             }
         }
     }

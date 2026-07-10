@@ -111,7 +111,7 @@ struct StreakMilestoneView: View {
         }
         .preferredColorScheme(.dark)
         .fullScreenCover(item: $sharePreview) { moment in
-            SharePreviewView(moment: moment)
+            ShareEditorView(moment: moment)
         }
         .onAppear {
             UINotificationFeedbackGenerator().notificationOccurred(.success)

@@ -301,7 +301,7 @@ struct CombineTestFlowView: View {
             .padding(.bottom, DS.Spacing.s40)
         }
         .fullScreenCover(item: $sharePreview) { moment in
-            SharePreviewView(moment: moment)
+            ShareEditorView(moment: moment)
         }
     }
 
