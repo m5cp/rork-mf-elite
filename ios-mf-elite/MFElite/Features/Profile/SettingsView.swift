@@ -633,6 +633,11 @@ struct SettingsView: View {
             iconRow(icon: "exclamationmark.bubble", label: "Report a Problem") {
                 composeSupport(subject: "MF Elite — Report a Problem")
             }
+            #if DEBUG
+            Hairline()
+            NavigationLink { ShareCardDebugPreviewView() } label: { actionRowLabel("Share Cards (Debug)") }
+                .buttonStyle(PressableButtonStyle())
+            #endif
         }
     }
 

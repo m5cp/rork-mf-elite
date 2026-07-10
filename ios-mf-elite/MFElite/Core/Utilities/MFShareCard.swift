@@ -69,4 +69,14 @@ enum ShareCardRenderer {
         renderer.isOpaque = true
         return renderer.uiImage
     }
+
+    /// Renders a share card that is already laid out at its full design size (the
+    /// V2 cards are built at 1080-wide, so `scale = 1` yields the exact export
+    /// pixel size — e.g. 1080×1920 for a Story). Pass the desired export format.
+    static func renderCard<V: View>(_ view: V, format: ShareFormat) -> UIImage? {
+        let renderer = ImageRenderer(content: view.frame(width: format.width, height: format.height))
+        renderer.scale = 1
+        renderer.isOpaque = true
+        return renderer.uiImage
+    }
 }
