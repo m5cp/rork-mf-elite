@@ -17,6 +17,7 @@ struct ShareEditorView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var exported: ShareableImage?
+    @State private var shareOptions: ShareableImage?
     @State private var captionDraft = ""
     @State private var captionError: String?
 
@@ -58,8 +59,28 @@ struct ShareEditorView: View {
             .preferredColorScheme(.dark)
             .sheet(isPresented: $model.showCaptionSheet) { captionSheet }
             .sheet(item: $exported) { item in
-                ShareSheet(items: [item.image])
+                ShareSheet(items: [item.image, ShareCardItemSource()])
                     .presentationDetents([.medium, .large])
+            }
+            .confirmationDialog(
+                "Share your card",
+                isPresented: Binding(
+                    get: { shareOptions != nil },
+                    set: { if !$0 { shareOptions = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("Instagram Stories") {
+                    if let image = shareOptions?.image {
+                        InstagramStoriesSharer.share(image)
+                    }
+                    shareOptions = nil
+                }
+                Button("More options\u{2026}") {
+                    exported = shareOptions
+                    shareOptions = nil
+                }
+                Button("Cancel", role: .cancel) { shareOptions = nil }
             }
             .sheet(item: $gateMode) { mode in
                 ParentGateView(mode: mode)
@@ -578,7 +599,14 @@ struct ShareEditorView: View {
         )
         let image = ShareCardRenderer.renderCard(composite, format: model.format)
         model.isExporting = false
-        if let image { exported = ShareableImage(image: image) }
+        guard let image else { return }
+        // Offer the Instagram Stories fast-path when Instagram is installed,
+        // otherwise go straight to the native share sheet.
+        if InstagramStoriesSharer.isAvailable {
+            shareOptions = ShareableImage(image: image)
+        } else {
+            exported = ShareableImage(image: image)
+        }
     }
 }
 
