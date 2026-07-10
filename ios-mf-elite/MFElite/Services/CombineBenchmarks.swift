@@ -92,6 +92,23 @@ struct CombineBenchmarks {
         return Standing(tier: tier, band: band)
     }
 
+    /// The 4 ascending tier cut points for a test on a given (sex, age) scale,
+    /// or nil when the test or band has no benchmark data. These are the US
+    /// soccer standard range-band boundaries separating the 5 tiers.
+    func boundaries(testID: String, age: Int, female: Bool) -> [Double]? {
+        guard let root,
+              let test = root.tests[testID],
+              let band = ageBand(for: age) else { return nil }
+        let table = female ? test.female : test.male
+        guard let boundaries = table[band.id], boundaries.count == 4 else { return nil }
+        return boundaries
+    }
+
+    /// Whether a smaller value is better for a test (timed events).
+    func lowerIsBetter(for testID: String) -> Bool {
+        root?.tests[testID]?.lowerIsBetter ?? false
+    }
+
     /// Map a raw value to a tier given the 4 ascending difficulty cut points.
     ///
     /// higher-is-better: value >= boundaries[3] → proLevel, >= [2] → elite,

@@ -32,11 +32,9 @@ struct CombineTestDetailView: View {
                 header
                 statStrip
                 trendSection
-                if let best {
-                    CombineStandingCard(test: test, value: best)
-                        .padding(.horizontal, DS.Spacing.s20)
-                        .padding(.top, DS.Spacing.s24)
-                }
+                CombineStandingCard(test: test, value: best)
+                    .padding(.horizontal, DS.Spacing.s20)
+                    .padding(.top, DS.Spacing.s24)
             }
             .padding(.bottom, 140)
         }

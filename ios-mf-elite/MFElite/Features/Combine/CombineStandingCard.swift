@@ -14,7 +14,9 @@ import SwiftUI
 struct CombineStandingCard: View {
     let test: CombineTest
     /// The value to place on the scales (e.g. the just-saved attempt or the PB).
-    let value: Double
+    /// When nil the card still shows the standard range bands, just without a
+    /// highlighted tier — so every test displays the standards before testing.
+    let value: Double?
 
     @State private var profile = PlayerProfileStore.shared
     @State private var pickerYear: Int = Calendar.current.component(.year, from: Date()) - 12
@@ -47,18 +49,20 @@ struct CombineStandingCard: View {
 
     @ViewBuilder
     private func content(age: Int, bandLabel: String) -> some View {
-        let male = benchmarks.standing(testID: test.id, value: value, age: age, female: false)
-        let female = benchmarks.standing(testID: test.id, value: value, age: age, female: true)
+        let male = value.flatMap { benchmarks.standing(testID: test.id, value: $0, age: age, female: false) }
+        let female = value.flatMap { benchmarks.standing(testID: test.id, value: $0, age: age, female: true) }
+        let maleBounds = benchmarks.boundaries(testID: test.id, age: age, female: false)
+        let femaleBounds = benchmarks.boundaries(testID: test.id, age: age, female: true)
 
         Text(bandLabel)
             .style(.foot)
             .foregroundStyle(DS.Colors.Ink.tertiary)
 
-        if let male {
-            scaleRow(title: "Boys / Men", tier: male.tier)
+        if let maleBounds {
+            scaleRow(title: "Boys / Men", tier: male?.tier, boundaries: maleBounds)
         }
-        if let female {
-            scaleRow(title: "Girls / Women", tier: female.tier)
+        if let femaleBounds {
+            scaleRow(title: "Girls / Women", tier: female?.tier, boundaries: femaleBounds)
         }
 
         legend
@@ -77,16 +81,16 @@ struct CombineStandingCard: View {
 
     // MARK: - Scale row
 
-    private func scaleRow(title: String, tier: CombineTier) -> some View {
+    private func scaleRow(title: String, tier: CombineTier?, boundaries: [Double]) -> some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s8) {
             HStack {
                 Text(title)
                     .style(.foot)
                     .foregroundStyle(DS.Colors.Ink.secondary)
                 Spacer(minLength: DS.Spacing.s8)
-                Text(tier.label)
+                Text(tier?.label ?? "Not tested")
                     .style(.foot)
-                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .foregroundStyle(tier == nil ? DS.Colors.Ink.quaternary : DS.Colors.Ink.primary)
             }
 
             HStack(spacing: 3) {
@@ -97,12 +101,26 @@ struct CombineStandingCard: View {
                         .frame(maxWidth: .infinity)
                 }
             }
+
+            Text(rangeCaption(boundaries))
+                .style(.microSm)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
+    /// The numeric tier cutoffs beneath a scale so the range bands are explicit
+    /// standards, not just a bar.
+    private func rangeCaption(_ boundaries: [Double]) -> String {
+        let nums = boundaries.map { CombineFormat.value($0, unit: test.unit) }.joined(separator: " · ")
+        return "Tiers at " + nums + " " + test.unit
+    }
+
     /// Fill the bar up to the player's tier: lower segments dim, the current tier
-    /// bright (the accent), and segments above unreached.
-    private func fill(for segment: CombineTier, current: CombineTier) -> Color {
+    /// bright (the accent), and segments above unreached. With no value yet every
+    /// segment stays neutral so the standards read as an empty scale.
+    private func fill(for segment: CombineTier, current: CombineTier?) -> Color {
+        guard let current else { return DS.Colors.Bg.raised }
         if segment.rawValue < current.rawValue { return Color.white.opacity(0.34) }
         if segment.rawValue == current.rawValue { return Color.white }
         return DS.Colors.Bg.raised

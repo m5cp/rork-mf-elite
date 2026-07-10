@@ -389,6 +389,7 @@ final class SupabaseAuth {
         if let role = Self.decodeCoachRole(from: result) {
             setCoach(true)
             setCoachRole(role)
+            await linkCoachUserID()
         } else {
             // Successful call, explicit null — this account holds no coach role.
             setCoachRole(nil)
@@ -396,6 +397,27 @@ final class SupabaseAuth {
                 setCoach(false)
             }
         }
+    }
+
+    /// Stamp the signed-in user's auth UUID onto this account's `coaches` row.
+    ///
+    /// Every coach write policy (coach_workouts, drills, curriculum_edits) checks
+    /// `coaches.user_id`, but nothing else ever populates it — so without this the
+    /// row keeps `user_id = NULL` and all coach saves silently fail. The
+    /// `coaches_self_link` RLS policy permits exactly this update: a signed-in
+    /// user may stamp `user_id` on the row whose email matches their own JWT email
+    /// and is not yet linked. Fire-and-forget — any failure is ignored and simply
+    /// retried on the next sign-in; it never blocks the UI.
+    private func linkCoachUserID() async {
+        guard let userID, let mail = email?.lowercased(), !mail.isEmpty else { return }
+        await SupabaseClient.shared.update(
+            table: "coaches",
+            values: ["user_id": userID],
+            match: [
+                URLQueryItem(name: "email", value: "ilike.\(mail)"),
+                URLQueryItem(name: "user_id", value: "is.null")
+            ]
+        )
     }
 
     /// Parse the `my_coach_role()` RPC payload. Accepts "head_coach" / "coach"

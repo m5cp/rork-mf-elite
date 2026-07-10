@@ -304,6 +304,12 @@ final class SyncEngine {
                        coalesce: ["id": result.id.uuidString])
     }
 
+    /// Enqueue deletion of a combine result by id (a user editing their own log).
+    func enqueueCombineResultDeletion(id: UUID) {
+        enqueueGeneric(table: "combine_results", opType: "delete",
+                       row: ["id": id.uuidString], coalesce: ["id": id.uuidString])
+    }
+
     /// Enqueue a drill note upsert keyed (user_id, drill_id). Empty notes delete.
     func enqueueDrillNote(drillID: String, text: String, updatedAt: Date) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)

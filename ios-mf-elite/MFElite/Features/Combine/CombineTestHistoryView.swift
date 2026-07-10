@@ -17,7 +17,9 @@ struct CombineTestHistoryView: View {
     let test: CombineTest
 
     @Query private var allResults: [CombineResult]
+    @Environment(\.modelContext) private var modelContext
     @State private var profile = PlayerProfileStore.shared
+    @State private var editingResult: CombineResult?
 
     /// This test's attempts, oldest → newest.
     private var history: [CombineResult] {
@@ -52,6 +54,24 @@ struct CombineTestHistoryView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("History")
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $editingResult) { result in
+            CombineEditSheet(test: test, result: result) { newValue in
+                result.value = newValue
+                try? modelContext.save()
+                SyncEngine.shared.enqueueCombineResult(result)
+            }
+        }
+    }
+
+    // MARK: - Edit / delete
+
+    /// Permanently remove one attempt from the log and enqueue the server delete.
+    private func delete(_ result: CombineResult) {
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        let id = result.id
+        modelContext.delete(result)
+        try? modelContext.save()
+        SyncEngine.shared.enqueueCombineResultDeletion(id: id)
     }
 
     // MARK: - Chart
@@ -196,6 +216,26 @@ struct CombineTestHistoryView: View {
                     .style(.micro)
                     .foregroundStyle(DS.Colors.Ink.quaternary)
             }
+
+            Menu {
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    editingResult = result
+                } label: {
+                    Label("Edit Score", systemImage: "pencil")
+                }
+                Button(role: .destructive) {
+                    delete(result)
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+            }
         }
         .padding(.vertical, DS.Spacing.s16)
     }
@@ -207,6 +247,83 @@ struct CombineTestHistoryView: View {
               let female = benchmarks.standing(testID: test.id, value: value, age: age, female: true)
         else { return nil }
         return "M: \(male.tier.label) · W: \(female.tier.label)"
+    }
+}
+
+// MARK: - Edit sheet
+
+/// A compact sheet to correct or fix a past attempt's value. Editing preserves
+/// the original date; only the recorded value changes.
+private struct CombineEditSheet: View {
+    let test: CombineTest
+    let result: CombineResult
+    let onSave: (Double) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var text: String
+    @FocusState private var focused: Bool
+
+    init(test: CombineTest, result: CombineResult, onSave: @escaping (Double) -> Void) {
+        self.test = test
+        self.result = result
+        self.onSave = onSave
+        _text = State(initialValue: CombineFormat.value(result.value, unit: test.unit))
+    }
+
+    private var parsed: Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard let value = Double(trimmed), value > 0 else { return nil }
+        return value
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+                Text(result.recordedAt, format: .dateTime.month(.abbreviated).day().year())
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+
+                HStack(spacing: DS.Spacing.s12) {
+                    TextField("0", text: $text)
+                        .keyboardType(.decimalPad)
+                        .focused($focused)
+                        .font(DS.Typography.num(size: 40))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text(test.unit)
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
+                .padding(DS.Spacing.s16)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(DS.Colors.Bg.elevated)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+
+                Spacer(minLength: 0)
+            }
+            .padding(DS.Spacing.s20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(DS.Colors.Bg.base)
+            .navigationTitle("Edit " + test.name)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        if let parsed {
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            onSave(parsed)
+                            dismiss()
+                        }
+                    }
+                    .disabled(parsed == nil)
+                }
+            }
+            .onAppear { focused = true }
+        }
+        .presentationDetents([.height(260)])
+        .preferredColorScheme(.dark)
     }
 }
 
