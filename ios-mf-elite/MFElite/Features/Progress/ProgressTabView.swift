@@ -26,6 +26,7 @@ struct ProgressTabView: View {
     @Query(sort: \CombineTest.sortIndex) private var combineTests: [CombineTest]
 
     @State private var selectedDay: IdentifiableDate?
+    @State private var sharePreview: ShareMoment?
     @State private var gameCenter = GameCenterService.shared
     @State private var profile = PlayerProfileStore.shared
     @State private var health = HealthKitService.shared
@@ -78,9 +79,13 @@ struct ProgressTabView: View {
             .navigationDestination(for: CombineRoute.self) { _ in CombineView() }
             .navigationDestination(for: FriendsLeaderboardRoute.self) { _ in FriendsLeaderboardView() }
             .navigationDestination(for: ProofOfProgressRoute.self) { _ in ProofOfProgressView() }
+            .navigationDestination(for: ShareRoute.self) { _ in MomentsGalleryView() }
             .sheet(item: $selectedDay) { wrapped in
                 DayDetailView(date: wrapped.date)
                     .presentationDetents([.large])
+            }
+            .fullScreenCover(item: $sharePreview) { moment in
+                SharePreviewView(moment: moment)
             }
         }
     }
@@ -546,7 +551,20 @@ struct ProgressTabView: View {
     private var combineTrendStrip: some View {
         if !combineResults.isEmpty {
             VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-                Eyebrow(text: "Combine Trends")
+                HStack {
+                    Eyebrow(text: "Combine Trends")
+                    Spacer()
+                    Button {
+                        shareCombineResult()
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                            .frame(width: 32, height: 32)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .accessibilityLabel("Share combine result")
+                }
 
                 let columns = Array(repeating: GridItem(.flexible(), spacing: DS.Spacing.s8), count: 4)
                 LazyVGrid(columns: columns, spacing: DS.Spacing.s12) {
@@ -586,6 +604,16 @@ struct ProgressTabView: View {
         .background(DS.Colors.Bg.card)
         .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
         .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+    }
+
+    /// Deep-links into the share flow with the player's latest combine PB
+    /// preselected as a Combine Result card.
+    private func shareCombineResult() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        guard let latest = combineResults.max(by: { $0.recordedAt < $1.recordedAt }),
+              let test = combineTests.first(where: { $0.id == latest.testID }),
+              let best = CombineStats.personalBest(test, results: combineResults) else { return }
+        sharePreview = ShareMomentBuilder.combineResult(test: test, value: best, results: combineResults)
     }
 
     private func trendSymbol(_ delta: CombineDelta) -> String {
@@ -641,6 +669,11 @@ struct ProgressTabView: View {
 
     private var quickLinks: some View {
         VStack(spacing: 0) {
+            NavigationLink(value: ShareRoute()) {
+                QuickLinkRow(icon: "square.and.arrow.up", label: "Share Your Grind", detail: "Turn your wins into shareable cards", isLast: false)
+            }
+            .buttonStyle(PressableButtonStyle())
+
             NavigationLink(value: WeeklyRoute()) {
                 QuickLinkRow(icon: "calendar", label: "History", isLast: false)
             }

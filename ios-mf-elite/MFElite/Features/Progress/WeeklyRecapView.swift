@@ -130,8 +130,7 @@ struct WeeklyRecapSection: View {
     let recap: WeekRecap
     let playerName: String
 
-    @State private var shareImage: ShareableImage?
-    @State private var isExporting = false
+    @State private var sharePreview: ShareMoment?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -164,9 +163,9 @@ struct WeeklyRecapSection: View {
             }
 
             Button {
-                exportAndShare()
+                shareThisWeek()
             } label: {
-                Label(isExporting ? "Preparing…" : "Share this week", systemImage: "square.and.arrow.up")
+                Label("Share this", systemImage: "square.and.arrow.up")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(DS.Colors.Ink.tertiary)
                     .frame(maxWidth: .infinity)
@@ -178,9 +177,8 @@ struct WeeklyRecapSection: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32 - 4)
-        .sheet(item: $shareImage) { item in
-            ShareSheet(items: [item.image])
-                .presentationDetents([.medium, .large])
+        .fullScreenCover(item: $sharePreview) { moment in
+            SharePreviewView(moment: moment)
         }
     }
 
@@ -213,13 +211,11 @@ struct WeeklyRecapSection: View {
             .frame(width: 1, height: 44)
     }
 
-    private func exportAndShare() {
-        guard !isExporting else { return }
-        isExporting = true
+    /// Deep-links into the share flow with this week's recap preselected as a
+    /// branded Weekly Recap card.
+    private func shareThisWeek() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        let image = ShareCardRenderer.render(WeeklyRecapShareCard(recap: recap, playerName: playerName))
-        isExporting = false
-        if let image { shareImage = ShareableImage(image: image) }
+        sharePreview = ShareMomentBuilder.weeklyRecap(recap)
     }
 }
 

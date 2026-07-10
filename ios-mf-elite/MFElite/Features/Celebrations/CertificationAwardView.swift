@@ -21,8 +21,7 @@ struct CertificationAwardView: View {
 
     @State private var profile = PlayerProfileStore.shared
     @State private var revealSeal = false
-    @State private var shareImage: UIImage?
-    @State private var showShare = false
+    @State private var sharePreview: ShareMoment?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -73,7 +72,7 @@ struct CertificationAwardView: View {
                         onClose()
                         dismiss()
                     }
-                    SecondaryButton(label: "Share certificate") { shareCertificate() }
+                    SecondaryButton(label: "Share this") { shareCertificate() }
                 }
                 .padding(.horizontal, DS.Spacing.s20)
                 .padding(.bottom, DS.Spacing.s40)
@@ -81,10 +80,8 @@ struct CertificationAwardView: View {
             .padding(.horizontal, DS.Spacing.s20)
         }
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $showShare) {
-            if let shareImage {
-                ShareSheet(items: [shareImage])
-            }
+        .fullScreenCover(item: $sharePreview) { moment in
+            SharePreviewView(moment: moment)
         }
         .onAppear {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -109,21 +106,11 @@ struct CertificationAwardView: View {
 
     // MARK: - Certificate sharing
 
-    /// Renders the seal + cert details on a black card and opens the share sheet.
+    /// Deep-links into the share flow with a branded "Certified" badge card
+    /// preselected.
     private func shareCertificate() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        let card = CertificateShareCard(
-            categoryName: category.certName,
-            disciplineName: discipline.name,
-            playerName: profile.displayName,
-            dateEarned: Date()
-        )
-        let renderer = ImageRenderer(content: card)
-        renderer.scale = 3.0
-        if let image = renderer.uiImage {
-            shareImage = image
-            showShare = true
-        }
+        sharePreview = ShareMomentBuilder.badge(.firstCert)
     }
 
     private func rewardPill(text: String, icon: String?) -> some View {

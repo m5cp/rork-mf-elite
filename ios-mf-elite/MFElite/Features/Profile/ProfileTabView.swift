@@ -53,6 +53,9 @@ struct ProfileTabView: View {
             .navigationDestination(for: PlayerCardRoute.self) { _ in
                 PlayerCardView()
             }
+            .navigationDestination(for: ShareRoute.self) { _ in
+                MomentsGalleryView()
+            }
             .sheet(isPresented: $showAvatarPicker) {
                 AvatarPickerSheet()
             }
@@ -214,6 +217,9 @@ struct ProfileTabView: View {
             Hairline()
             menuRow(icon: "shield.lefthalf.filled", label: "Badges",
                     route: BadgesRoute())
+            Hairline()
+            menuRow(icon: "square.and.arrow.up", label: "Share Your Grind",
+                    route: ShareRoute())
             Hairline()
             menuRow(icon: "gearshape", label: "Settings",
                     route: SettingsRoute())

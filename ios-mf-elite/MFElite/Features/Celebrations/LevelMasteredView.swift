@@ -23,8 +23,7 @@ struct LevelMasteredView: View {
 
     @State private var profile = PlayerProfileStore.shared
     @State private var revealNumeral = false
-    @State private var showShare = false
-    @State private var shareItems: [Any] = []
+    @State private var sharePreview: ShareMoment?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var masteredIDs: Set<String> {
@@ -100,7 +99,7 @@ struct LevelMasteredView: View {
                         onClose()
                         dismiss()
                     }
-                    SecondaryButton(label: "Share") { share() }
+                    SecondaryButton(label: "Share this") { share() }
                     GhostButton(label: "Back to pathway") {
                         onClose()
                         dismiss()
@@ -112,8 +111,8 @@ struct LevelMasteredView: View {
             .padding(.horizontal, DS.Spacing.s20)
         }
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $showShare) {
-            ShareSheet(items: shareItems)
+        .fullScreenCover(item: $sharePreview) { moment in
+            SharePreviewView(moment: moment)
         }
         .onAppear {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -127,13 +126,17 @@ struct LevelMasteredView: View {
         }
     }
 
-    /// Shares the rendered Player Card when one is configured, otherwise a
-    /// text line — never blocks sharing on card setup.
+    /// Deep-links into the share flow with this mastered level preselected as a
+    /// branded Level Mastered card.
     private func share() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        let fallback = "\(ShareText.firstName(profile.displayName)) just mastered Level \(level.number) — \(level.name) on MF Elite ⚽\u{FE0F}"
-        shareItems = CelebrationShare.items(player: players.first, fallbackText: fallback)
-        showShare = true
+        sharePreview = ShareMomentBuilder.levelMastered(
+            levelNumber: level.number,
+            totalLevels: totalLevels,
+            drillName: level.name,
+            category: category.name,
+            sessions: level.drills.count
+        )
     }
 
     private var certCard: some View {

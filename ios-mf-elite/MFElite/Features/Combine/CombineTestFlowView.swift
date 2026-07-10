@@ -23,8 +23,7 @@ struct CombineTestFlowView: View {
     @State private var entryText = ""
     @State private var savedValue: Double = 0
     @State private var wasPersonalBest = false
-    @State private var shareImage: ShareableImage?
-    @State private var isExporting = false
+    @State private var sharePreview: ShareMoment?
     @State private var celebrate = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -288,9 +287,9 @@ struct CombineTestFlowView: View {
             VStack(spacing: DS.Spacing.s12) {
                 PrimaryButton(label: "Done") { dismiss() }
                 Button {
-                    exportAndShare()
+                    shareResult()
                 } label: {
-                    Label(isExporting ? "Preparing…" : "Share result", systemImage: "square.and.arrow.up")
+                    Label("Share this", systemImage: "square.and.arrow.up")
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(DS.Colors.Ink.tertiary)
                         .frame(maxWidth: .infinity)
@@ -301,54 +300,18 @@ struct CombineTestFlowView: View {
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.bottom, DS.Spacing.s40)
         }
-        .sheet(item: $shareImage) { item in
-            ShareSheet(items: [item.image])
-                .presentationDetents([.medium, .large])
+        .fullScreenCover(item: $sharePreview) { moment in
+            SharePreviewView(moment: moment)
         }
     }
 
-    // MARK: - Share card (renderable, dark MF style)
+    // MARK: - Share
 
-    private var tierCaption: String? {
-        guard let age = PlayerProfileStore.shared.age,
-              let male = CombineBenchmarks.shared.standing(testID: test.id, value: savedValue, age: age, female: false),
-              let female = CombineBenchmarks.shared.standing(testID: test.id, value: savedValue, age: age, female: true)
-        else { return nil }
-        return "M: \(male.tier.label)  ·  W: \(female.tier.label)"
-    }
-
-    private var shareCard: some View {
-        MFShareCard(eyebrow: wasPersonalBest ? "New Personal Best" : "Combine Result") {
-            VStack(spacing: DS.Spacing.s8) {
-                Text(ShareText.firstName(PlayerProfileStore.shared.displayName))
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.7))
-                Text(CombineFormat.value(savedValue, unit: test.unit))
-                    .font(.system(size: 56, weight: .bold))
-                    .monospacedDigit()
-                    .foregroundStyle(.white)
-                Text(test.name)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.7))
-                if let tierCaption {
-                    Text(tierCaption)
-                        .font(.system(size: 12, weight: .bold))
-                        .tracking(0.5)
-                        .foregroundStyle(.white.opacity(0.55))
-                        .padding(.top, DS.Spacing.s4)
-                }
-            }
-            .padding(.vertical, DS.Spacing.s8)
-        }
-    }
-
-    private func exportAndShare() {
-        guard !isExporting else { return }
-        isExporting = true
+    /// Deep-links into the share flow with this result preselected as a branded
+    /// Combine Result card.
+    private func shareResult() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        let image = ShareCardRenderer.render(shareCard)
-        isExporting = false
-        if let image { shareImage = ShareableImage(image: image) }
+        sharePreview = ShareMomentBuilder.combineResult(test: test, value: savedValue, results: results)
     }
 
     private var celebration: some View {

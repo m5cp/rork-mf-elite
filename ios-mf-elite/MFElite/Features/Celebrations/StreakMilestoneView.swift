@@ -24,8 +24,7 @@ struct StreakMilestoneView: View {
 
     @State private var profile = PlayerProfileStore.shared
     @State private var reveal = false
-    @State private var showShare = false
-    @State private var shareItems: [Any] = []
+    @State private var sharePreview: ShareMoment?
 
     private static let ember = Color(red: 1.0, green: 0.55, blue: 0.16)
 
@@ -103,7 +102,7 @@ struct StreakMilestoneView: View {
                         onClose()
                         dismiss()
                     }
-                    SecondaryButton(label: "Share") { share() }
+                    SecondaryButton(label: "Share this") { share() }
                 }
                 .padding(.horizontal, DS.Spacing.s20)
                 .padding(.bottom, DS.Spacing.s40)
@@ -111,8 +110,8 @@ struct StreakMilestoneView: View {
             .padding(.horizontal, DS.Spacing.s20)
         }
         .preferredColorScheme(.dark)
-        .sheet(isPresented: $showShare) {
-            ShareSheet(items: shareItems)
+        .fullScreenCover(item: $sharePreview) { moment in
+            SharePreviewView(moment: moment)
         }
         .onAppear {
             UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -138,13 +137,11 @@ struct StreakMilestoneView: View {
         }
     }
 
-    /// Shares the rendered Player Card when one is configured, otherwise a
-    /// text line — never blocks sharing on card setup.
+    /// Deep-links into the share flow with this streak milestone preselected as
+    /// a branded Streak card.
     private func share() {
         UIImpactFeedbackGenerator(style: .light).impactOccurred()
-        let fallback = "\(firstName) just hit a \(days)-day training streak on MF Elite ⚽️"
-        shareItems = CelebrationShare.items(player: players.first, fallbackText: fallback)
-        showShare = true
+        sharePreview = ShareMomentBuilder.streak(days: days)
     }
 }
 
