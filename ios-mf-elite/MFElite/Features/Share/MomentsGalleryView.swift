@@ -72,28 +72,48 @@ struct MomentsGalleryView: View {
 
     // MARK: - Grid
 
+    private func isEarned(_ kind: ShareMomentKind) -> Bool {
+        ShareMomentBuilder.isEarned(
+            kind,
+            players: players,
+            progress: progress,
+            combineResults: combineResults,
+            combineTests: combineTests
+        )
+    }
+
     private var grid: some View {
         LazyVGrid(columns: columns, spacing: 12) {
             ForEach(ShareMomentKind.allCases) { kind in
+                let unlocked = isEarned(kind)
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     preview = moment(for: kind)
                 } label: {
-                    tile(kind)
+                    tile(kind, locked: !unlocked)
                 }
                 .buttonStyle(PressableButtonStyle())
+                .disabled(!unlocked)
             }
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s24)
     }
 
-    private func tile(_ kind: ShareMomentKind) -> some View {
+    private func tile(_ kind: ShareMomentKind, locked: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-            Image(kind.tileAsset)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 44, height: 44)
+            ZStack(alignment: .topTrailing) {
+                Image(kind.tileAsset)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 44, height: 44)
+                if locked {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .offset(x: 10, y: -4)
+                }
+            }
 
             Text(kind.label)
                 .style(.foot)
@@ -102,10 +122,12 @@ struct MomentsGalleryView: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
-            Text("CREATE CARD ›")
+            Text(locked ? unlockHint(kind) : "CREATE CARD ›")
                 .font(.system(size: 10.5, weight: .semibold))
                 .tracking(0.8)
-                .foregroundStyle(Color(hex: "E8B84B"))
+                .foregroundStyle(locked ? DS.Colors.Ink.tertiary : Color(hex: "E8B84B"))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
         .padding(.horizontal, 12)
@@ -116,6 +138,19 @@ struct MomentsGalleryView: View {
             RoundedRectangle(cornerRadius: 18)
                 .stroke(DS.Colors.Line.hairline, lineWidth: 1)
         )
+        .opacity(locked ? 0.55 : 1)
+    }
+
+    /// Short hint telling the player how to unlock a locked card.
+    private func unlockHint(_ kind: ShareMomentKind) -> String {
+        switch kind {
+        case .streak: return "START A STREAK"
+        case .badge: return "EARN A BADGE"
+        case .combineResult: return "DO A COMBINE TEST"
+        case .combineScorecard: return "FINISH THE COMBINE"
+        case .levelMastered: return "MASTER A LEVEL"
+        default: return "LOCKED"
+        }
     }
 
     // MARK: - Moment resolution
