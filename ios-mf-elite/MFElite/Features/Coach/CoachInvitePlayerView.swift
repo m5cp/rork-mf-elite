@@ -2,38 +2,33 @@
 //  CoachInvitePlayerView.swift
 //  MFElite
 //
-//  Lets a coach generate a roster invite code for a new player, optionally
-//  pre-filled with a name, kit number, and position. The code is a short,
-//  unambiguous 6-character string the player enters during onboarding to
-//  join the roster. Fails soft when offline.
+//  Coach-side sheet that generates a join code adding a player to this coach's
+//  roster (via the `roster_invites` table). Optional pre-fill (name / kit /
+//  position) is stamped onto the invite so the player lands with their details.
 //
 
 import SwiftUI
 
 struct CoachInvitePlayerView: View {
-    @Bindable var model: CoachViewModel
-
+    let model: CoachViewModel
     @Environment(\.dismiss) private var dismiss
+
     @State private var name = ""
     @State private var kit = ""
     @State private var position = ""
-    @State private var isCreating = false
-    @State private var generatedCode: String?
+    @State private var code: String?
+    @State private var isWorking = false
+    @State private var failed = false
     @State private var shareText: ShareableText?
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: DS.Spacing.s20) {
-                    if let code = generatedCode {
-                        codeCard(code)
+                    if let code {
+                        generated(code)
                     } else {
-                        formFields
-                        PrimaryButton(label: isCreating ? "Creating…" : "Create invite code") {
-                            createInvite()
-                        }
-                        .opacity(isCreating ? 0.6 : 1)
-                        .disabled(isCreating)
+                        form
                     }
                 }
                 .padding(DS.Spacing.s20)
@@ -43,10 +38,9 @@ struct CoachInvitePlayerView: View {
             .navigationTitle("Invite a Player")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.secondary)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") { dismiss() }
+                        .fontWeight(.semibold)
                 }
             }
             .sheet(item: $shareText) { item in
@@ -54,106 +48,116 @@ struct CoachInvitePlayerView: View {
                     .presentationDetents([.medium, .large])
             }
         }
+        .preferredColorScheme(.dark)
     }
 
-    private var formFields: some View {
+    private var form: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s16) {
-            Text("Generate a one-time code your player enters during sign-up to join your roster. Name, kit, and position are optional — the player can fill them in themselves.")
+            Text("Generate a code and share it with a player. When they enter it under \u{201C}Join a coach\u{2019}s team,\u{201D} they\u{2019}re added to your roster. Pre-fill is optional.")
                 .style(.foot)
-                .foregroundStyle(DS.Colors.Ink.tertiary)
+                .foregroundStyle(DS.Colors.Ink.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            field(label: "Name (optional)", prompt: "Player name", text: $name)
-            field(label: "Kit number (optional)", prompt: "e.g. 10", text: $kit)
-                .keyboardType(.numberPad)
-            field(label: "Position (optional)", prompt: "e.g. ST", text: $position)
+            field("Player name (optional)") {
+                TextField("e.g. Leo", text: $name)
+                    .textInputAutocapitalization(.words)
+            }
+            field("Kit number (optional)") {
+                TextField("e.g. 10", text: $kit)
+                    .keyboardType(.numberPad)
+                    .onChange(of: kit) { _, v in kit = String(v.filter(\.isNumber).prefix(2)) }
+            }
+            field("Position (optional)") {
+                TextField("e.g. ST", text: $position)
+                    .textInputAutocapitalization(.characters)
+                    .onChange(of: position) { _, v in position = String(v.prefix(4)) }
+            }
+
+            PrimaryButton(label: isWorking ? "Generating\u{2026}" : "Generate invite code") {
+                generate()
+            }
+            .disabled(isWorking)
+
+            if failed {
+                Text("Couldn\u{2019}t create the code. Check your connection and try again.")
+                    .style(.foot)
+                    .foregroundStyle(Color(hex: "#FF5A5F"))
+            }
         }
     }
 
-    private func field(label: String, prompt: String, text: Binding<String>) -> some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-            Eyebrow(text: label)
-            TextField("", text: text, prompt: Text(prompt).foregroundColor(DS.Colors.Ink.quaternary))
-                .style(.body)
+    private func generated(_ value: String) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+            Eyebrow(text: "Share this code")
+
+            Text(value)
+                .font(.system(size: 44, weight: .heavy, design: .monospaced))
+                .tracking(6)
                 .foregroundStyle(DS.Colors.Ink.primary)
-                .padding(DS.Spacing.s16)
-                .frame(height: 52)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, DS.Spacing.s20)
                 .background(DS.Colors.Bg.card)
                 .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
-                .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Radius.md)
+                        .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+                )
+
+            HStack(spacing: DS.Spacing.s12) {
+                Button {
+                    UIPasteboard.general.string = value
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                } label: {
+                    Text("Copy")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.secondary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                        .background(DS.Colors.Bg.raised)
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(PressableButtonStyle())
+
+                PrimaryButton(label: "Share", size: .medium) {
+                    shareText = ShareableText(text: "Join my team on MF Elite. Open the app \u{2192} Profile \u{2192} Join a coach\u{2019}s team, and enter code \(value).")
+                }
+            }
+
+            Button("Create another code") {
+                code = nil; name = ""; kit = ""; position = ""; failed = false
+            }
+            .font(.system(size: 14, weight: .semibold))
+            .foregroundStyle(DS.Colors.Ink.secondary)
+            .padding(.top, DS.Spacing.s4)
         }
     }
 
-    private func codeCard(_ code: String) -> some View {
-        VStack(spacing: DS.Spacing.s20) {
-            VStack(spacing: DS.Spacing.s8) {
-                Eyebrow(text: "Invite Code")
-                Text(code)
-                    .font(.system(size: 44, weight: .heavy, design: .monospaced))
-                    .tracking(6)
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                Text("Share this code with your player. They'll enter it during sign-up to join your roster.")
-                    .style(.foot)
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
-                    .multilineTextAlignment(.center)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(DS.Spacing.s24)
-            .background(DS.Colors.Bg.card)
-            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
-            .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
-
-            PrimaryButton(label: "Share code") {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                shareText = ShareableText(text: "Join our team on MF Elite! Use invite code \(code) when you sign up.")
-            }
-
-            Button("Done") { dismiss() }
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(DS.Colors.Ink.secondary)
+    private func field<C: View>(_ label: String, @ViewBuilder content: () -> C) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            Eyebrow(text: label)
+            content()
+                .font(DS.Typography.body)
+                .foregroundStyle(DS.Colors.Ink.primary)
+                .tint(.white)
+                .padding(DS.Spacing.s16)
+                .background(DS.Colors.Bg.raised)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private func createInvite() {
-        guard !isCreating else { return }
-        isCreating = true
+    private func generate() {
+        isWorking = true
+        failed = false
         Task {
-            let code = await Self.createRosterInvite(name: name, kit: kit, position: position)
-            isCreating = false
-            if let code {
+            let result = await model.createRosterInvite(name: name, kit: kit, position: position)
+            isWorking = false
+            if let result {
+                code = result
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
-                generatedCode = code
             } else {
-                UINotificationFeedbackGenerator().notificationOccurred(.error)
+                failed = true
             }
         }
-    }
-
-    /// Create a pending roster invite owned by this coach and return its share
-    /// code. Optional pre-fill (name / kit / position) is stamped on the invite.
-    /// Fails soft, returning nil when offline or not an active coach.
-    private static func createRosterInvite(name: String, kit: String, position: String) async -> String? {
-        guard let coachID = SupabaseAuth.shared.userID else { return nil }
-        let code = generateInviteCode()
-        var row: [String: Any] = [
-            "code": code,
-            "coach_id": coachID,
-            "status": "pending"
-        ]
-        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !n.isEmpty { row["display_name"] = n }
-        let k = kit.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !k.isEmpty { row["kit_number"] = k }
-        let p = position.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !p.isEmpty { row["position"] = p }
-        let ok = await SupabaseClient.shared.insert(table: "roster_invites", values: row)
-        return ok ? code : nil
-    }
-
-    /// A 6-character invite code using unambiguous characters (no 0/O/1/I).
-    private static func generateInviteCode() -> String {
-        let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
-        return String((0..<6).compactMap { _ in alphabet.randomElement() })
     }
 }

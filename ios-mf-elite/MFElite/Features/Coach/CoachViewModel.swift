@@ -623,6 +623,35 @@ final class CoachViewModel {
         pendingApprovals.removeAll { $0.id == approval.id }
     }
 
+    // MARK: - Roster invites (join codes)
+
+    /// Create a pending roster invite owned by this coach and return its share
+    /// code. Optional pre-fill (name / kit / position) is stamped on the invite.
+    /// Fails soft, returning nil when offline or not an active coach.
+    func createRosterInvite(name: String, kit: String, position: String) async -> String? {
+        guard let coachID = SupabaseAuth.shared.userID else { return nil }
+        let code = Self.generateInviteCode()
+        var row: [String: Any] = [
+            "code": code,
+            "coach_id": coachID,
+            "status": "pending"
+        ]
+        let n = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !n.isEmpty { row["display_name"] = n }
+        let k = kit.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !k.isEmpty { row["kit_number"] = k }
+        let p = position.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !p.isEmpty { row["position"] = p }
+        let ok = await SupabaseClient.shared.insert(table: "roster_invites", values: row)
+        return ok ? code : nil
+    }
+
+    /// A 6-character invite code using unambiguous characters (no 0/O/1/I).
+    private static func generateInviteCode() -> String {
+        let alphabet = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+        return String((0..<6).compactMap { _ in alphabet.randomElement() })
+    }
+
     // MARK: - Player detail
 
     /// Load one player's detail. Uses cached data immediately when present, then
