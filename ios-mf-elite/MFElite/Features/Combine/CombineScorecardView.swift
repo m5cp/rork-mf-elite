@@ -22,6 +22,8 @@ struct CombineScorecardView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: DS.Spacing.s24) {
+                    gradedSummary
+
                     scorecard
                         .raisedElevation()
                         .padding(.top, DS.Spacing.s8)
@@ -110,6 +112,81 @@ struct CombineScorecardView: View {
         }
     }
 
+    // MARK: - Total combine score (in-app only, graded vs age/gender band)
+
+    private var totalScore: Int? {
+        guard let age = PlayerProfileStore.shared.age,
+              let band = CombineBenchmarks.shared.ageBand(for: age) else { return nil }
+        let female = PlayerProfileStore.shared.gradesFemale
+        let benchmarks = CombineBenchmarks.shared
+        let calendar = Calendar.current
+        var scores: [Int] = []
+        for test in tests {
+            guard let today = results
+                .filter({ $0.testID == test.id && calendar.isDateInToday($0.recordedAt) })
+                .max(by: { $0.recordedAt < $1.recordedAt }) else { continue }
+            if let tier = benchmarks.tier(testID: test.id, value: today.value, bandID: band.id, female: female) {
+                scores.append(Self.tierScore(tier))
+            }
+        }
+        guard !scores.isEmpty else { return nil }
+        return Int((Double(scores.reduce(0, +)) / Double(scores.count)).rounded())
+    }
+
+    /// Maps a benchmark tier to a 0-100 combine-score contribution.
+    private static func tierScore(_ tier: CombineTier) -> Int {
+        switch tier {
+        case .recreational: return 45
+        case .club: return 58
+        case .competitive: return 72
+        case .elite: return 86
+        case .proLevel: return 98
+        }
+    }
+
+    /// Label for the band the score is graded against.
+    private var gradeBandLabel: String {
+        let scale = PlayerProfileStore.shared.gradesFemale ? "Girls / Women" : "Boys / Men"
+        if let age = PlayerProfileStore.shared.age,
+           let band = CombineBenchmarks.shared.ageBand(for: age) {
+            return "\(band.label) · \(scale)"
+        }
+        return scale
+    }
+
+    /// In-app-only graded summary. Never part of the exported (shared) scorecard,
+    /// which stays raw per the "no comparison on share cards" rule.
+    @ViewBuilder
+    private var gradedSummary: some View {
+        Card {
+            VStack(spacing: DS.Spacing.s8) {
+                Eyebrow(text: "Your Combine Score")
+                if let total = totalScore {
+                    Text("\(total)")
+                        .style(.num(size: 64))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text("Graded vs \(gradeBandLabel)")
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.secondary)
+                        .multilineTextAlignment(.center)
+                    Text("Stays in the app — your shared scorecard shows raw results only.")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text("Add your birth year and grading category in Edit Profile to see your combine score.")
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, DS.Spacing.s8)
+        }
+    }
+
     // MARK: - Scorecard (renderable, light theme)
 
     private var scorecard: some View {
@@ -162,12 +239,6 @@ struct CombineScorecardView: View {
                 Text(row.unit)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.black.opacity(0.4))
-                if let tierCaption = row.tierCaption {
-                    Text(tierCaption)
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.black.opacity(0.55))
-                        .padding(.top, 1)
-                }
             }
 
             Spacer(minLength: 0)
