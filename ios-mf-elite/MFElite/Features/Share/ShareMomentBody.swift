@@ -198,7 +198,7 @@ private struct PlayerCardBody: View {
                     VStack(spacing: 8) {
                         Text("\(stat.value)")
                             .font(ShareFont.display(84))
-                            .foregroundStyle(stat.value >= 88 ? theme.accent : theme.ink)
+                            .foregroundStyle(theme.ink)
                         Text(stat.key)
                             .font(ShareFont.text(26, weight: .bold))
                             .tracking(4)
@@ -252,18 +252,20 @@ private struct CombineResultBody: View {
                 .font(ShareFont.text(40, weight: .bold))
                 .foregroundStyle(theme.ink)
 
-            VStack(spacing: 14) {
-                ZStack(alignment: .leading) {
-                    Capsule().fill(theme.neutralFill(0.12))
-                    Capsule().fill(theme.accent)
-                        .frame(width: 760 * CGFloat(min(100, max(0, pct))) / 100)
-                }
-                .frame(width: 760, height: 22)
+            if !pctLabel.isEmpty {
+                VStack(spacing: 14) {
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(theme.neutralFill(0.12))
+                        Capsule().fill(theme.accent)
+                            .frame(width: 760 * CGFloat(min(100, max(0, pct))) / 100)
+                    }
+                    .frame(width: 760, height: 22)
 
-                Text(pctLabel.uppercased())
-                    .font(ShareFont.text(28, weight: .bold))
-                    .tracking(3)
-                    .foregroundStyle(theme.sub)
+                    Text(pctLabel.uppercased())
+                        .font(ShareFont.text(28, weight: .bold))
+                        .tracking(3)
+                        .foregroundStyle(theme.sub)
+                }
             }
         }
 
@@ -455,7 +457,7 @@ private struct InviteBody: View {
         .multilineTextAlignment(.center)
 
         if show.name {
-            Text("FRIEND CODE   \(code)")
+            Text("FRIEND CODE \(code)")
                 .font(ShareFont.text(40, weight: .bold))
                 .tracking(6)
                 .foregroundStyle(theme.ink)
