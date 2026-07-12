@@ -37,10 +37,10 @@ final class AnnouncementStore {
         defaults.set(dismissedID, forKey: key)
     }
 
-    /// Whether this announcement has already been shown as a one-time pop-up alert.
+    /// True until the player has seen the one-time pop-up for this announcement.
     func hasPopped(_ id: UUID) -> Bool { poppedID == id.uuidString }
 
-    /// Records that this announcement's one-time pop-up alert has been shown.
+    /// Record that the pop-up for this announcement has been shown.
     func markPopped(_ id: UUID) {
         poppedID = id.uuidString
         defaults.set(poppedID, forKey: poppedKey)
@@ -81,12 +81,16 @@ enum AnnouncementFeed {
 
         if let row = visible,
            let idStr = row["id"] as? String, let id = UUID(uuidString: idStr) {
+            let title = (row["title"] as? String) ?? ""
+            let body = (row["body"] as? String) ?? ""
             context.insert(Announcement(
                 id: id,
-                title: (row["title"] as? String) ?? "",
-                body: (row["body"] as? String) ?? "",
+                title: title,
+                body: body,
                 createdAt: parseDate(row["created_at"]) ?? Date()
             ))
+            // Fire a one-time local notification for a newly-seen announcement.
+            NotificationService.shared.notifyAnnouncement(id: idStr, title: title, body: body)
         }
         try? context.save()
     }
