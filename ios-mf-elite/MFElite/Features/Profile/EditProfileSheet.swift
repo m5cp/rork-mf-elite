@@ -15,10 +15,18 @@ struct EditProfileSheet: View {
 
     @State private var name: String = ""
     @State private var kit: String = ""
+    @State private var gender: String = ""
+    @State private var birthYear: Int = 0
     @State private var showAvatarPicker = false
 
     private var canSave: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// Plausible player birth years, newest first.
+    private var birthYearRange: [Int] {
+        let current = Calendar.current.component(.year, from: Date())
+        return Array((current - 60)...(current - 4)).reversed()
     }
 
     var body: some View {
@@ -43,6 +51,27 @@ struct EditProfileSheet: View {
                                     let digits = newValue.filter(\.isNumber)
                                     kit = String(digits.prefix(2))
                                 }
+                        }
+                        field(label: "Grading category") {
+                            Picker("Grading category", selection: $gender) {
+                                Text("Male").tag("male")
+                                Text("Female").tag("female")
+                                Text("Prefer not to say").tag("")
+                            }
+                            .pickerStyle(.menu)
+                            .tint(DS.Colors.Ink.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        field(label: "Birth year") {
+                            Picker("Birth year", selection: $birthYear) {
+                                Text("Not set").tag(0)
+                                ForEach(birthYearRange, id: \.self) { year in
+                                    Text(String(year)).tag(year)
+                                }
+                            }
+                            .pickerStyle(.menu)
+                            .tint(DS.Colors.Ink.primary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         }
                     }
                 }
@@ -69,6 +98,8 @@ struct EditProfileSheet: View {
         .onAppear {
             name = profile.displayName == "Player" ? "" : profile.displayName
             kit = profile.kitNumber
+            gender = profile.gender
+            birthYear = profile.birthYear
         }
     }
 
@@ -123,7 +154,11 @@ struct EditProfileSheet: View {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         profile.displayName = trimmed.isEmpty ? "Player" : trimmed
         profile.kitNumber = kit
+        profile.gender = gender
+        profile.birthYear = birthYear
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        // Push the updated identity (incl. gender) up when signed in.
+        Task { await SupabaseAuth.shared.syncPlayerProfile() }
         dismiss()
     }
 }
