@@ -21,6 +21,7 @@ struct CoachView: View {
     @State private var indexCache = DrillIndexCache()
     @State private var showWODPicker = false
     @State private var showClearWODConfirm = false
+    @State private var showInvite = false
     @AppStorage("MF_COACH_GUIDE_SEEN") private var coachGuideSeen = false
     @State private var showCoachGuide = false
 
@@ -68,9 +69,9 @@ struct CoachView: View {
             .background(DS.Colors.Bg.base)
             .scrollIndicators(.hidden)
             .refreshable {
-            await model.loadOverviewAndRoster(context: modelContext)
-            await model.loadApprovals(context: modelContext)
-        }
+                await model.loadOverviewAndRoster(context: modelContext)
+                await model.loadApprovals(context: modelContext)
+            }
             .navigationDestination(for: RosterPlayer.self) { player in
                 CoachPlayerDetailView(player: player, model: model)
             }
@@ -142,6 +143,9 @@ struct CoachView: View {
         .sheet(item: $shareText) { item in
             ShareSheet(items: [item.text])
                 .presentationDetents([.medium, .large])
+        }
+        .sheet(isPresented: $showInvite) {
+            CoachInvitePlayerView(model: model)
         }
     }
 
@@ -576,9 +580,27 @@ struct CoachView: View {
 
     private var rosterSection: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-            HStack {
+            HStack(spacing: DS.Spacing.s12) {
                 Eyebrow(text: "Roster")
                 Spacer()
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showInvite = true
+                } label: {
+                    HStack(spacing: DS.Spacing.s4) {
+                        Image(systemName: "person.badge.plus")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("Invite")
+                            .style(.microSm)
+                    }
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+                    .padding(.horizontal, DS.Spacing.s12)
+                    .padding(.vertical, DS.Spacing.s8)
+                    .background(DS.Colors.Bg.card)
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                }
+                .buttonStyle(PressableButtonStyle())
                 Text("\(model.roster.count)")
                     .style(.micro)
                     .foregroundStyle(DS.Colors.Ink.quaternary)
