@@ -42,6 +42,7 @@ final class PlayerProfileStore {
         static let foot = "MF_PLAYER_FOOT"
         static let classYear = "MF_PLAYER_CLASS_YEAR"
         static let birthYear = "MF_PLAYER_BIRTH_YEAR"
+        static let gender = "MF_PLAYER_GENDER"
         static let trainingLevel = "MF_PLAYER_TRAINING_LEVEL"
         static let skipped = "MF_ONBOARDING_SKIPPED"
         static let promptDismissed = "MF_PROFILE_PROMPT_DISMISSED"
@@ -86,6 +87,11 @@ final class PlayerProfileStore {
     var birthYear: Int {
         didSet { defaults.set(birthYear, forKey: Keys.birthYear) }
     }
+    /// Grading gender for combine benchmarks: "male", "female", or "" (unspecified).
+    /// "" and "male" grade on the male scale; "female" grades on the female scale.
+    var gender: String {
+        didSet { defaults.set(gender, forKey: Keys.gender) }
+    }
     /// Self-reported starting skill level captured at onboarding. Empty when unset.
     /// Biases the default recommendation and session generator; never locks content.
     var trainingLevel: String {
@@ -119,6 +125,7 @@ final class PlayerProfileStore {
         foot = defaults.string(forKey: Keys.foot) ?? "Right"
         classYear = defaults.integer(forKey: Keys.classYear)
         birthYear = defaults.integer(forKey: Keys.birthYear)
+        gender = defaults.string(forKey: Keys.gender) ?? ""
         trainingLevel = defaults.string(forKey: Keys.trainingLevel) ?? ""
         onboardingSkipped = defaults.bool(forKey: Keys.skipped)
         profilePromptDismissed = defaults.bool(forKey: Keys.promptDismissed)
@@ -242,6 +249,10 @@ final class PlayerProfileStore {
         let value = currentYear - birthYear
         return (value >= 4 && value <= 99) ? value : nil
     }
+
+    /// Whether combine results grade on the female benchmark scale. Male and
+    /// unspecified ("prefer not to say") both use the male scale by design.
+    var gradesFemale: Bool { gender == "female" }
 
     /// True when the player is known to be under 13 (COPPA-relevant).
     var isLikelyUnder13: Bool {
