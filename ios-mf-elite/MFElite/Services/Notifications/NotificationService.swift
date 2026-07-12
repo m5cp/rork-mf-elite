@@ -13,6 +13,7 @@ enum NotificationCategory: String {
     case dailyReminder = "DAILY_REMINDER"
     case streakRisk = "STREAK_RISK"
     case milestone = "MILESTONE"
+    case announcement = "ANNOUNCEMENT"
 }
 
 /// Stable identifiers so we can update or cancel individual notifications.
@@ -67,6 +68,33 @@ final class NotificationService {
         center.getNotificationSettings { settings in
             guard settings.authorizationStatus == .authorized else { return }
             DispatchQueue.main.async { self.scheduleDailyReminder() }
+        }
+    }
+
+    // MARK: - Coach announcement (immediate, once per announcement)
+
+    /// Fires a local notification for a newly-published team announcement. Only
+    /// when notifications are authorized, and only once per announcement id
+    /// (tracked in UserDefaults) so repeated feed refreshes never re-notify.
+    func notifyAnnouncement(id: String, title: String, body: String) {
+        let defaults = UserDefaults.standard
+        let key = "MF_NOTIFIED_ANNOUNCEMENT_ID"
+        guard defaults.string(forKey: key) != id else { return }
+        center.getNotificationSettings { [weak self] settings in
+            guard let self, settings.authorizationStatus == .authorized else { return }
+            let content = UNMutableNotificationContent()
+            content.title = title.isEmpty ? "Team announcement" : title
+            if !body.isEmpty { content.body = body }
+            content.sound = .default
+            content.categoryIdentifier = NotificationCategory.announcement.rawValue
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: "mf.announcement.\(id)",
+                content: content,
+                trigger: trigger
+            )
+            self.center.add(request)
+            DispatchQueue.main.async { defaults.set(id, forKey: key) }
         }
     }
 
