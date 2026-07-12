@@ -19,6 +19,7 @@ struct MomentsGalleryView: View {
     var initialKind: ShareMomentKind?
 
     @Query private var players: [PlayerState]
+    @Query private var progress: [DrillProgress]
     @Query private var combineResults: [CombineResult]
     @Query(sort: \CombineTest.sortIndex) private var combineTests: [CombineTest]
     @Query private var sessions: [SessionLogEntry]
@@ -123,6 +124,7 @@ struct MomentsGalleryView: View {
         ShareMomentBuilder.galleryMoment(
             kind,
             players: players,
+            progress: progress,
             combineResults: combineResults,
             combineTests: combineTests,
             sessions: sessions

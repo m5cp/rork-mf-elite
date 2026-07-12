@@ -51,7 +51,7 @@ enum ShareMomentBuilder {
 
     /// Weekly-recap card from a computed `WeekRecap`.
     static func weeklyRecap(_ recap: WeekRecap) -> ShareMoment {
-        guard recap.hasActivity else { return .sample(.weeklyRecap, playerLine: playerLine) }
+        // Always real: shows this week's actual numbers (zeros are honest, not faked).
         let grid = [
             ShareStat(key: "SESSIONS", value: recap.sessions),
             ShareStat(key: "MINUTES", value: recap.minutes),
@@ -71,9 +71,6 @@ enum ShareMomentBuilder {
     /// just-saved attempt or a personal best). Delta and tier are resolved from
     /// the result history and the bundled benchmarks when possible.
     static func combineResult(test: CombineTest, value: Double, results: [CombineResult] = []) -> ShareMoment {
-        let benchmarks = CombineBenchmarks.shared
-        let profile = PlayerProfileStore.shared
-
         let valueText = CombineFormat.value(value, unit: test.unit)
         let unit = test.unit == "seconds" ? "SEC" : test.unit.uppercased()
 
@@ -90,16 +87,9 @@ enum ShareMomentBuilder {
             deltaText = "\(improved ? "▲" : "▼") \(magnitude) vs last test"
         }
 
-        // Tier standing on the player's age band (male scale as the shared default
-        // when sex is unknown). Falls back cleanly when age/benchmark is missing.
-        var pct = 0
-        var pctLabel = ""
-        if let age = profile.age,
-           let band = benchmarks.ageBand(for: age),
-           let tier = benchmarks.tier(testID: test.id, value: value, bandID: band.id, female: false) {
-            pct = tierPercent(tier)
-            pctLabel = "\(tier.label.uppercased()) TIER · \(band.id)"
-        }
+        // Shareables show the raw result only — no population comparison / percentile.
+        let pct = 0
+        let pctLabel = ""
 
         return ShareMoment(
             kind: .combineResult,
@@ -210,22 +200,42 @@ enum ShareMomentBuilder {
 
     // MARK: - Player card
 
-    /// Player-card showcase. Name/position come from the live profile; the FIFA-
-    /// style rating scales with the player's XP. Attribute stats are illustrative
-    /// (the app has no per-attribute ratings), so this reads as a stylised card.
-    static func playerCard(xp: Int) -> ShareMoment {
+    /// Player-card showcase built entirely from real data — no invented rating or
+    /// attribute numbers. The hero number is the player's jersey number (falling
+    /// back to drills mastered); the six cells are real training milestones.
+    static func playerCard(player: PlayerState?, progress: [DrillProgress], sessions: [SessionLogEntry]) -> ShareMoment {
         let profile = PlayerProfileStore.shared
-        let rating = min(99, 62 + xp / 900)
         let position = profile.positionCode.isEmpty ? "MF" : profile.positionCode.uppercased()
         let name = ShareText.firstName(profile.displayName).uppercased()
-        let sample = ShareMoment.sample(.playerCard).data
-        var stats: [ShareStat] = []
-        if case let .playerCard(_, _, _, _, sampleStats) = sample { stats = sampleStats }
+
+        let mastered = progress.filter { $0.isMastered }.count
+        let streak = player?.streak ?? 0
+        let sessionCount = sessions.count
+        let minutes = sessions.map(\.durationSec).reduce(0, +) / 60
+        let distinctDrills = Set(sessions.map { $0.drillID }).count
+        let badges = earnedBadgeCount()
+
+        let kit = Int(profile.kitNumber.trimmingCharacters(in: .whitespaces))
+        let heroNumber = kit ?? mastered
+
+        let stats = [
+            ShareStat(key: "STREAK", value: streak),
+            ShareStat(key: "MASTERED", value: mastered),
+            ShareStat(key: "SESSIONS", value: sessionCount),
+            ShareStat(key: "MINUTES", value: minutes),
+            ShareStat(key: "DRILLS", value: distinctDrills),
+            ShareStat(key: "BADGES", value: badges),
+        ]
         return ShareMoment(
             kind: .playerCard,
-            data: .playerCard(rating: rating, position: position, name: name, club: "MF ELITE", stats: stats),
+            data: .playerCard(rating: heroNumber, position: position, name: name, club: "MF ELITE", stats: stats),
             playerLine: playerLine
         )
+    }
+
+    /// Count of achievement badges the player has actually earned.
+    static func earnedBadgeCount() -> Int {
+        badgePriority.filter { AchievementStore.isEarned($0) }.count
     }
 
     // MARK: - Gallery resolver
@@ -235,6 +245,7 @@ enum ShareMomentBuilder {
     static func galleryMoment(
         _ kind: ShareMomentKind,
         players: [PlayerState],
+        progress: [DrillProgress],
         combineResults: [CombineResult],
         combineTests: [CombineTest],
         sessions: [SessionLogEntry]
@@ -257,7 +268,7 @@ enum ShareMomentBuilder {
             if let badge = bestEarnedBadge() { return self.badge(badge) }
             return .sample(.badge, playerLine: playerLine)
         case .playerCard:
-            return playerCard(xp: player?.xp ?? 0)
+            return playerCard(player: player, progress: progress, sessions: sessions)
         case .invite:
             return invite()
         case .repBadge:
@@ -266,6 +277,32 @@ enum ShareMomentBuilder {
             // No cheap "most recently mastered level" lookup here — the real card
             // is deep-linked from the mastery celebration; the tile previews a sample.
             return .sample(.levelMastered, playerLine: playerLine)
+        }
+    }
+
+    /// Whether a gallery card is "earned" and openable. The four always-on cards
+    /// (player card, weekly recap, invite, rep the badge) are never locked; the
+    /// rest unlock once the player has generated the underlying accomplishment.
+    static func isEarned(
+        _ kind: ShareMomentKind,
+        players: [PlayerState],
+        progress: [DrillProgress],
+        combineResults: [CombineResult],
+        combineTests: [CombineTest]
+    ) -> Bool {
+        switch kind {
+        case .playerCard, .weeklyRecap, .invite, .repBadge:
+            return true
+        case .streak:
+            return (players.first?.streak ?? 0) > 0
+        case .badge:
+            return bestEarnedBadge() != nil
+        case .combineResult:
+            return !combineResults.isEmpty
+        case .combineScorecard:
+            return CombineStats.lastFullCombineDay(tests: combineTests, results: combineResults) != nil
+        case .levelMastered:
+            return progress.contains { $0.isMastered }
         }
     }
 
