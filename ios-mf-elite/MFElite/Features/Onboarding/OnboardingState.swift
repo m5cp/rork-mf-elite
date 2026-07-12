@@ -142,6 +142,9 @@ final class OnboardingState {
     var classYear: Int? = nil
     var birthYear: Int? = nil
     var selectedPosition: PitchPosition? = nil
+    /// True when the person identifies as a coach (on the sideline) rather than
+    /// picking a spot on the pitch. Self-reported only — does not unlock Coach Mode.
+    var isCoach: Bool = false
     var foot: String = "Right"
     var trainingLevel: TrainingLevel? = nil
     var pledgeTier: PledgeTier = .standard
@@ -162,8 +165,14 @@ final class OnboardingState {
         Calendar.current.component(.year, from: Date()) - 14
     }
 
-    var positionName: String { selectedPosition?.name ?? skippedPositionName ?? "Anywhere" }
-    var positionCode: String { selectedPosition?.code.replacingOccurrences(of: "2", with: "") ?? "—" }
+    var positionName: String {
+        if isCoach { return "Coach" }
+        return selectedPosition?.name ?? skippedPositionName ?? "Anywhere"
+    }
+    var positionCode: String {
+        if isCoach { return "COACH" }
+        return selectedPosition?.code.replacingOccurrences(of: "2", with: "") ?? "—"
+    }
 
     /// Derived initials for the monogram / passport.
     var initials: String {
