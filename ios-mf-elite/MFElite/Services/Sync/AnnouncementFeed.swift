@@ -20,11 +20,14 @@ final class AnnouncementStore {
     static let shared = AnnouncementStore()
     private let defaults = UserDefaults.standard
     private let key = "MF_DISMISSED_ANNOUNCEMENT_ID"
+    private let poppedKey = "MF_POPPED_ANNOUNCEMENT_ID"
 
     private(set) var dismissedID: String
+    private(set) var poppedID: String
 
     private init() {
         dismissedID = defaults.string(forKey: key) ?? ""
+        poppedID = defaults.string(forKey: poppedKey) ?? ""
     }
 
     func isDismissed(_ id: UUID) -> Bool { dismissedID == id.uuidString }
@@ -32,6 +35,15 @@ final class AnnouncementStore {
     func dismiss(_ id: UUID) {
         dismissedID = id.uuidString
         defaults.set(dismissedID, forKey: key)
+    }
+
+    /// Whether this announcement has already been shown as a one-time pop-up alert.
+    func hasPopped(_ id: UUID) -> Bool { poppedID == id.uuidString }
+
+    /// Records that this announcement's one-time pop-up alert has been shown.
+    func markPopped(_ id: UUID) {
+        poppedID = id.uuidString
+        defaults.set(poppedID, forKey: poppedKey)
     }
 }
 

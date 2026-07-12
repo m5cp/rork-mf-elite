@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import AVKit
 
 /// Navigation route carrying a drill plus its parents for breadcrumb context.
 struct DrillRoute: Hashable, Identifiable {
@@ -81,6 +82,7 @@ struct DrillDetailView: View {
                 topBar
                 titleBlock(vm)
                 statStrip(vm)
+                demoVideoSection
                 historySection
                 if let setup = drill.setupSummary {
                     setupSection(setup)
@@ -313,6 +315,32 @@ struct DrillDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s20)
+    }
+
+    // MARK: - Demo video (coach-uploaded)
+
+    /// A 16:9 player for the coach-uploaded demo video, shown only when the drill
+    /// has a usable video URL (synced down via the curriculum overlay).
+    @ViewBuilder
+    private var demoVideoSection: some View {
+        if let raw = drill.videoURL,
+           !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           let url = URL(string: raw) {
+            VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                Eyebrow(text: "Demo video")
+                DrillDemoVideoView(url: url)
+                    .frame(maxWidth: .infinity)
+                    .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: DS.Radius.md)
+                            .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+                    )
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s20)
+        }
     }
 
     private var setDurationLabel: String {
@@ -825,5 +853,23 @@ struct DrillDetailView: View {
                 }
                 .ignoresSafeArea(edges: .bottom)
         )
+    }
+}
+
+
+// MARK: - Demo video player
+
+/// Wraps an `AVPlayer` in `@State` so it is created once for the drill's video
+/// and paused when the view scrolls away. Streams the public `drill-videos` URL.
+private struct DrillDemoVideoView: View {
+    @State private var player: AVPlayer
+
+    init(url: URL) {
+        _player = State(initialValue: AVPlayer(url: url))
+    }
+
+    var body: some View {
+        VideoPlayer(player: player)
+            .onDisappear { player.pause() }
     }
 }
