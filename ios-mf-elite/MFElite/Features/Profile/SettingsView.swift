@@ -41,6 +41,7 @@ struct SettingsView: View {
     @State private var sync = SyncEngine.shared
 
     @State private var showSignInSheet = false
+    @State private var showJoinTeam = false
     @State private var showSignOutConfirm = false
     @State private var showDeleteConfirm = false
     @State private var isDeleting = false
@@ -65,6 +66,7 @@ struct SettingsView: View {
                 headerView
                 accountSection
                 syncSection
+                teamSection
                 subscriptionSection
                 familySafetySection
                 trainingSection
@@ -94,6 +96,11 @@ struct SettingsView: View {
             AccountSyncSignInSheet { showSignInSheet = false }
                 .preferredColorScheme(.dark)
                 .presentationDetents([.medium])
+        }
+        .sheet(isPresented: $showJoinTeam) {
+            JoinTeamView()
+                .preferredColorScheme(.dark)
+                .presentationDetents([.medium, .large])
         }
         .confirmationDialog(
             "Sign out of this account?",
@@ -312,6 +319,14 @@ struct SettingsView: View {
     }
 
     // MARK: - Subscription
+
+    private var teamSection: some View {
+        section("Team") {
+            actionRow(label: "Join a coach's team") {
+                showJoinTeam = true
+            }
+        }
+    }
 
     private var subscriptionSection: some View {
         section("Subscription") {
