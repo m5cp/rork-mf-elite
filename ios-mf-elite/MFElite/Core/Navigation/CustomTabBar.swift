@@ -46,28 +46,29 @@ struct CustomTabBar: View {
             VStack(spacing: DS.Spacing.s4) {
                 TabBarIcon(
                     tab: tab,
-                    color: isActive ? .white : Color.white.opacity(0.62)
+                    color: isActive ? DS.Colors.Gold.base : Color.white.opacity(0.62)
                 )
                 Text(tab.label)
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
                     .tracking(1.2)
                     .textCase(.uppercase)
-                    .foregroundStyle(isActive ? .white : Color.white.opacity(0.62))
+                    .foregroundStyle(isActive ? DS.Colors.Gold.textLight : Color.white.opacity(0.62))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .contentShape(Rectangle())
             .overlay(alignment: .top) {
                 if isActive {
                     RoundedRectangle(cornerRadius: 1)
-                        .fill(Color.white)
+                        .fill(DS.Colors.Gold.base)
                         .frame(width: 22, height: 2)
                         .padding(.top, 4)
+                        .shadow(color: DS.Colors.Gold.base.opacity(0.70), radius: 6)
                 }
             }
             .background(alignment: .center) {
                 if isActive {
                     RadialGradient(
-                        colors: [Color.white.opacity(0.22), .clear],
+                        colors: [DS.Colors.Gold.base.opacity(0.20), .clear],
                         center: .center,
                         startRadius: 0,
                         endRadius: 46
