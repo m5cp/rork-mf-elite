@@ -40,6 +40,7 @@ struct TabBarIcon: View {
     let tab: AppTab
     var size: CGFloat = 22
     var color: Color = .white
+    var metallic: Bool = false
 
     private let strokeWidth: CGFloat = 1.6
 
@@ -54,11 +55,33 @@ struct TabBarIcon: View {
             case .coach:    path = shieldPath(in: canvasSize)
             }
 
+            let strokeShading: GraphicsContext.Shading
+            if metallic {
+                strokeShading = .linearGradient(
+                    Gradient(colors: [
+                        Color(hex: "#FFF7D6"), Color(hex: "#F8DE95"), Color(hex: "#E8B84B"),
+                        Color(hex: "#B07E1E"), Color(hex: "#795310")
+                    ]),
+                    startPoint: CGPoint(x: canvasSize.width / 2, y: 0),
+                    endPoint: CGPoint(x: canvasSize.width / 2, y: canvasSize.height)
+                )
+            } else {
+                strokeShading = .color(color)
+            }
             context.stroke(
                 path,
-                with: .color(color),
+                with: strokeShading,
                 style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round, lineJoin: .round)
             )
+            if metallic {
+                var hi = context
+                hi.translateBy(x: 0, y: -0.6)
+                hi.stroke(
+                    path,
+                    with: .color(Color.white.opacity(0.5)),
+                    style: StrokeStyle(lineWidth: 0.6, lineCap: .round, lineJoin: .round)
+                )
+            }
 
             // Progress chart gets a filled dot at the peak.
             if tab == .progress {
@@ -70,7 +93,7 @@ struct TabBarIcon: View {
                     x: peak.x - dotR, y: peak.y - dotR,
                     width: dotR * 2, height: dotR * 2
                 ))
-                context.fill(dot, with: .color(color))
+                context.fill(dot, with: metallic ? .color(DS.Colors.Gold.base) : .color(color))
             }
         }
         .frame(width: size, height: size)
