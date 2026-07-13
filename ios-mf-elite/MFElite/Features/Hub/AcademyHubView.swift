@@ -353,7 +353,7 @@ struct MoreRow: View {
             HStack(spacing: DS.Spacing.s16) {
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .metallicSymbol(.gold)
                     .frame(width: 40, height: 40)
                     .background(DS.Colors.Bg.raised)
                     .clipShape(Circle())
