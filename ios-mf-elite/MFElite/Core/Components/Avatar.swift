@@ -27,15 +27,12 @@ struct Avatar: View {
             )
             .frame(width: size, height: size)
             .overlay(
-                Circle()
-                    .stroke(Color.white.opacity(0.18), lineWidth: 1)
-            )
-            .overlay(
                 Text(initials)
                     .font(.system(size: size * 0.36, weight: .heavy))
                     .tracking(0.6)
                     .foregroundStyle(.white)
             )
+            .goldRing()
     }
 }
 
