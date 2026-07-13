@@ -46,7 +46,8 @@ struct CustomTabBar: View {
             VStack(spacing: DS.Spacing.s4) {
                 TabBarIcon(
                     tab: tab,
-                    color: isActive ? DS.Colors.Gold.base : Color.white.opacity(0.62)
+                    color: isActive ? DS.Colors.Gold.base : Color.white.opacity(0.62),
+                    metallic: isActive
                 )
                 Text(tab.label)
                     .font(.system(size: 9, weight: .semibold, design: .monospaced))
