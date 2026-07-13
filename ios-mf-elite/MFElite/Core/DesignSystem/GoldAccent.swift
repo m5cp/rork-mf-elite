@@ -55,6 +55,56 @@ extension DS.Colors {
  startPoint: .topLeading,
  endPoint: .bottomTrailing
  )
+
+ /// Metallic gold for symbols/icons — light top to dark base (3-D sheen).
+ static let symbolGradient = LinearGradient(
+ colors: [
+ Color(hex: "#FFF7D6"), Color(hex: "#F8DE95"), Color(hex: "#E8B84B"),
+ Color(hex: "#B07E1E"), Color(hex: "#795310")
+ ],
+ startPoint: .top, endPoint: .bottom
+ )
+ }
+}
+
+// MARK: - Silver tokens (secondary metal)
+
+extension DS.Colors {
+ enum Silver {
+ static let base = Color(hex: "#C3CBD3")
+ static let textLight = Color(hex: "#EDF1F5")
+ static let line = Color(hex: "#C3CBD3").opacity(0.50)
+
+ /// Metallic silver for secondary/utility symbols & icons.
+ static let symbolGradient = LinearGradient(
+ colors: [
+ Color(hex: "#FFFFFF"), Color(hex: "#EDF1F5"), Color(hex: "#C3CBD3"),
+ Color(hex: "#899099"), Color(hex: "#586069")
+ ],
+ startPoint: .top, endPoint: .bottom
+ )
+ }
+}
+
+// MARK: - Metallic symbol modifier
+
+/// A 3-D metallic finish (gold or silver) for an SF Symbol / image: a top-lit
+/// metal gradient plus a soft drop shadow for lift.
+struct MetallicSymbol: ViewModifier {
+ enum Finish { case gold, silver }
+ var finish: Finish = .gold
+
+ func body(content: Content) -> some View {
+ content
+ .foregroundStyle(finish == .gold ? DS.Colors.Gold.symbolGradient : DS.Colors.Silver.symbolGradient)
+ .shadow(color: .black.opacity(0.45), radius: 2, y: 1.5)
+ }
+}
+
+extension View {
+ /// Metallic gold (default) or silver finish for a symbol / icon.
+ func metallicSymbol(_ finish: MetallicSymbol.Finish = .gold) -> some View {
+ modifier(MetallicSymbol(finish: finish))
  }
 }
 
@@ -114,7 +164,7 @@ struct GoldRing: ViewModifier {
  content
  .overlay(shape.stroke(Color.black, lineWidth: 3).padding(1.5))
  .overlay(shape.stroke(DS.Colors.Gold.textLight.opacity(0.40), lineWidth: 1).padding(3.5))
- .overlay(shape.stroke(DS.Colors.Gold.base.opacity(0.90), lineWidth: 1))
+ .overlay(shape.stroke(DS.Colors.Gold.symbolGradient, lineWidth: 2))
  .shadow(color: .black.opacity(0.55), radius: 5, y: 4)
  .shadow(color: DS.Colors.Gold.base.opacity(0.22), radius: 7)
  }
