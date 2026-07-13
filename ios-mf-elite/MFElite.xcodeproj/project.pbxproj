@@ -209,6 +209,7 @@
 				105FC5782E9EAD3100EA8BCF /* Resources */,
 				XXFDBF39561687C1172362XX /* Embed Foundation Extensions */,
 				XX81FF245A222E3682268EXX /* Embed Watch Content */,
+				AA11BB22CC33DD44EE55FF66 /* Strip Watch Content for Simulator */,
 			);
 			buildRules = (
 			);
@@ -401,6 +402,23 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AA11BB22CC33DD44EE55FF66 /* Strip Watch Content for Simulator */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Strip Watch Content for Simulator";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# The iPhone simulator has no paired Apple Watch, so an embedded\n# watchOS app makes installd reject the bundle (\"App installation failed\").\n# Remove the embedded Watch content for simulator builds only; device and\n# App Store builds (iphoneos) keep the watch app intact.\nif [ \"${PLATFORM_NAME}\" = \"iphonesimulator\" ]; then\n  WATCH_DIR=\"${TARGET_BUILD_DIR}/${WRAPPER_NAME}/Watch\"\n  if [ -d \"${WATCH_DIR}\" ]; then\n    echo \"Stripping embedded Watch content for simulator: ${WATCH_DIR}\"\n    rm -rf \"${WATCH_DIR}\"\n  fi\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		105FC5762E9EAD3100EA8BCF /* Sources */ = {
