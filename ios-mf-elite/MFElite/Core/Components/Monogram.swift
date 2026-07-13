@@ -36,7 +36,7 @@ struct Monogram: View {
                     path.addLine(to: CGPoint(x: offset + canvasSize.height, y: 0))
                     context.stroke(
                         path,
-                        with: .color(Color.white.opacity(0.055)),
+                        with: .color(Color(hex: "#E8B84B").opacity(0.10)),
                         lineWidth: 1
                     )
                 }
@@ -53,7 +53,7 @@ struct Monogram: View {
                         Spacer()
                         Text("#\(kit)")
                             .style(.micro)
-                            .foregroundStyle(Color.white.opacity(0.78))
+                            .foregroundStyle(DS.Colors.Gold.textLight)
                     }
                     Spacer()
                 }
@@ -64,8 +64,10 @@ struct Monogram: View {
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(DS.Colors.Line.strong, lineWidth: 1)
+                .stroke(DS.Colors.Gold.line, lineWidth: 1)
         )
+        .shadow(color: .black.opacity(0.50), radius: 12, y: 10)
+        .shadow(color: DS.Colors.Gold.faint, radius: 11)
     }
 }
 
