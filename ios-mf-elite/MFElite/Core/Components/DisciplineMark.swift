@@ -13,6 +13,7 @@ struct DisciplineMark: View {
     var size: CGFloat = 26
     var color: Color = DS.Colors.Gold.base
     var strokeWidth: CGFloat = 2.0
+    var metallic: Bool = true
 
     var body: some View {
         Canvas { context, canvasSize in
@@ -51,13 +52,34 @@ struct DisciplineMark: View {
                 path = Path()
             }
 
-            context.stroke(
-                path,
-                with: .color(color),
-                style: StrokeStyle(lineWidth: strokeWidth, lineJoin: .round)
-            )
+            if metallic {
+                let shading = GraphicsContext.Shading.linearGradient(
+                    Gradient(colors: [
+                        Color(hex: "#FFF7D6"), Color(hex: "#F8DE95"), Color(hex: "#E8B84B"),
+                        Color(hex: "#B07E1E"), Color(hex: "#795310")
+                    ]),
+                    startPoint: CGPoint(x: canvasSize.width / 2, y: 0),
+                    endPoint: CGPoint(x: canvasSize.width / 2, y: canvasSize.height)
+                )
+                context.stroke(
+                    path, with: shading,
+                    style: StrokeStyle(lineWidth: strokeWidth, lineJoin: .round)
+                )
+                var highlight = context
+                highlight.translateBy(x: 0, y: -strokeWidth * 0.4)
+                highlight.stroke(
+                    path, with: .color(Color.white.opacity(0.5)),
+                    style: StrokeStyle(lineWidth: max(0.7, strokeWidth * 0.32), lineJoin: .round)
+                )
+            } else {
+                context.stroke(
+                    path, with: .color(color),
+                    style: StrokeStyle(lineWidth: strokeWidth, lineJoin: .round)
+                )
+            }
         }
         .frame(width: size, height: size)
+        .shadow(color: .black.opacity(0.45), radius: 2, y: 1.5)
     }
 
     private func polygon(center: CGPoint, radius: CGFloat, sides: Int, rotation: Double) -> Path {
@@ -90,4 +112,3 @@ struct DisciplineMark: View {
         }
     }
 }
-
