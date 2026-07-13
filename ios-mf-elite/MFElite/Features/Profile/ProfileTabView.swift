@@ -236,7 +236,7 @@ struct ProfileTabView: View {
             HStack(spacing: DS.Spacing.s16) {
                 Image(systemName: "star.fill")
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .metallicSymbol(.gold)
                     .frame(width: 36, height: 36)
                     .background(DS.Colors.Bg.raised)
                     .clipShape(Circle())
