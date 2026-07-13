@@ -11,7 +11,7 @@ import SwiftUI
 struct DisciplineMark: View {
     let kind: String
     var size: CGFloat = 26
-    var color: Color = .white
+    var color: Color = DS.Colors.Gold.base
     var strokeWidth: CGFloat = 2.0
 
     var body: some View {
@@ -90,3 +90,4 @@ struct DisciplineMark: View {
         }
     }
 }
+
