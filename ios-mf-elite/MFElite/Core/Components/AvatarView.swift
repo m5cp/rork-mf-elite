@@ -56,13 +56,15 @@ struct AvatarView: View {
         }
     }
 
-    private var strokeColor: Color { DS.Colors.Line.strong }
+    private var strokeColor: Color { DS.Colors.Gold.base.opacity(0.90) }
 
     var body: some View {
         content
             .frame(width: size, height: size)
             .clipShape(clip)
             .overlay(clip.stroke(strokeColor, lineWidth: 1))
+            .shadow(color: .black.opacity(0.55), radius: 5, y: 4)
+            .shadow(color: DS.Colors.Gold.base.opacity(0.22), radius: 7)
     }
 
     @ViewBuilder
