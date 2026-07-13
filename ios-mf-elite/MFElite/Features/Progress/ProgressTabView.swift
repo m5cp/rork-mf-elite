@@ -130,7 +130,7 @@ struct ProgressTabView: View {
                         .animation(DS.Motion.standardSpring, value: progress)
                     Image(systemName: "figure.walk")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .metallicSymbol(.gold)
                 }
                 .frame(width: 56, height: 56)
 
@@ -512,7 +512,7 @@ struct ProgressTabView: View {
                 HStack(spacing: DS.Spacing.s16) {
                     Image(systemName: "stopwatch")
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .metallicSymbol(.gold)
                         .frame(width: 44, height: 44)
                         .background(DS.Colors.Bg.raised)
                         .clipShape(Circle())
@@ -636,7 +636,7 @@ struct ProgressTabView: View {
                     HStack(spacing: DS.Spacing.s16) {
                         Image(systemName: "chart.line.uptrend.xyaxis")
                             .font(.system(size: 20, weight: .semibold))
-                            .foregroundStyle(DS.Colors.Ink.primary)
+                            .metallicSymbol(.gold)
                             .frame(width: 44, height: 44)
                             .background(DS.Colors.Bg.raised)
                             .clipShape(Circle())
