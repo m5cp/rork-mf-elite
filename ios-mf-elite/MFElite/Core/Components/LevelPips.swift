@@ -16,9 +16,10 @@ struct LevelPips: View {
         HStack(spacing: DS.Spacing.s4) {
             ForEach(0..<max(0, total), id: \.self) { index in
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(color(for: index))
+                    .fill(fill(for: index))
                     .frame(height: 3)
                     .frame(maxWidth: .infinity)
+                    .shadow(color: index <= done ? DS.Colors.Gold.base.opacity(0.35) : .clear, radius: 4)
             }
         }
         .accessibilityElement(children: .ignore)
@@ -26,13 +27,13 @@ struct LevelPips: View {
         .accessibilityValue("\(max(0, done)) of \(max(0, total)) complete")
     }
 
-    private func color(for index: Int) -> Color {
+    private func fill(for index: Int) -> AnyShapeStyle {
         if index <= done {
-            return .white
+            return AnyShapeStyle(DS.Colors.Gold.progressGradient)
         } else if index == current {
-            return Color.white.opacity(0.45)
+            return AnyShapeStyle(DS.Colors.Gold.base.opacity(0.42))
         } else {
-            return DS.Colors.Line.subtle
+            return AnyShapeStyle(DS.Colors.Line.subtle)
         }
     }
 }
