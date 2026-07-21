@@ -56,6 +56,7 @@ struct SettingsView: View {
     @State private var showMailUnavailable = false
     @State private var pendingSupportSubject = ""
     @State private var showMembership = false
+    @State private var showMFStore = false
 
     /// Destructive-action red, matching the rest of the app's error styling.
     private static let dangerColor = Color(hex: "#FF5A5A")
@@ -66,11 +67,11 @@ struct SettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 headerView
+                subscriptionSection
                 accountSection
                 accentColorSection
                 syncSection
                 teamSection
-                subscriptionSection
                 familySafetySection
                 trainingSection
                 sensorsSection
@@ -136,6 +137,7 @@ struct SettingsView: View {
             Text("Purchases and family settings will no longer require a passcode.")
         }
         .sheet(isPresented: $showMembership) { MembershipView() }
+        .sheet(isPresented: $showMFStore) { NavigationStack { MFStoreView() } }
         .sheet(item: $mailRequest) { request in
             MailComposeView(request: request).ignoresSafeArea()
         }
@@ -343,7 +345,7 @@ struct SettingsView: View {
     }
 
     private var subscriptionSection: some View {
-        section("Subscription") {
+        section("Membership", topPadding: DS.Spacing.s24) {
             if subscription.isElite {
                 currentPlanRow
                 if upgradeConfirmed {
@@ -367,6 +369,10 @@ struct SettingsView: View {
                 actionRow(label: "Go Elite") {
                     protected("Unlock to subscribe") { subscription.presentPaywall() }
                 }
+            }
+            Hairline()
+            actionRow(label: "MF Store — XP, streak shields & boosters") {
+                showMFStore = true
             }
             Hairline()
             actionRow(label: "Redeem a code") {
