@@ -97,15 +97,17 @@ final class ProgressDashboardViewModel {
     private let disciplines: [Discipline]
     private let sessions: [SessionLogEntry]
     private let progress: [DrillProgress]
+    private let workouts: [WorkoutRecord]
     private let calendar: Calendar
 
     /// disciplineID → mark, resolved once.
     private let markByDiscipline: [String: String]
 
-    init(disciplines: [Discipline], sessions: [SessionLogEntry], progress: [DrillProgress]) {
+    init(disciplines: [Discipline], sessions: [SessionLogEntry], progress: [DrillProgress], workouts: [WorkoutRecord] = []) {
         self.disciplines = disciplines.sorted { $0.sortIndex < $1.sortIndex }
         self.sessions = sessions
         self.progress = progress
+        self.workouts = workouts
 
         var cal = Calendar.current
         cal.firstWeekday = 2 // Monday
@@ -146,7 +148,16 @@ final class ProgressDashboardViewModel {
 
     var sessionsThisWeek: Int { thisWeekSessions.count }
 
-    var xpThisWeek: Int { thisWeekSessions.reduce(0) { $0 + $1.xpEarned } }
+    /// Watch workouts started within the current week.
+    private var thisWeekWorkouts: [WorkoutRecord] {
+        guard let end = calendar.date(byAdding: .day, value: 7, to: currentMonday) else { return [] }
+        return workouts.filter { $0.startedAt >= currentMonday && $0.startedAt < end }
+    }
+
+    var xpThisWeek: Int {
+        thisWeekSessions.reduce(0) { $0 + $1.xpEarned }
+            + thisWeekWorkouts.reduce(0) { $0 + $1.xpEarned }
+    }
 
     /// Distinct drills that reached mastery and were last logged this week.
     var masteredThisWeek: Int {
@@ -410,7 +421,7 @@ final class ProgressDashboardViewModel {
 
     /// Today's three training rings (Train / Drills / Mind).
     var todayRings: DailyRings {
-        DailyRings.make(from: sessions, on: Date(), calendar: calendar)
+        DailyRings.make(from: sessions, workouts: workouts, on: Date(), calendar: calendar)
     }
 
     /// The current week as a Mon–Sun strip of ring clusters.
@@ -424,7 +435,7 @@ final class ProgressDashboardViewModel {
                 id: offset,
                 date: day,
                 initial: initials[offset],
-                rings: DailyRings.make(from: sessions, on: day, calendar: calendar),
+                rings: DailyRings.make(from: sessions, workouts: workouts, on: day, calendar: calendar),
                 isToday: calendar.isDate(day, inSameDayAs: today),
                 isFuture: day > today
             )

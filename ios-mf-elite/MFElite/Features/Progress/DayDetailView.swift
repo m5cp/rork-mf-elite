@@ -32,7 +32,7 @@ struct DayDetailView: View {
     }
 
     private var rings: DailyRings {
-        DailyRings.make(from: sessions, on: date, calendar: calendar)
+        DailyRings.make(from: sessions, workouts: workouts, on: date, calendar: calendar)
     }
 
     /// Watch workouts logged on this day (newest first).
@@ -47,7 +47,9 @@ struct DayDetailView: View {
         return Int((Double(drillSec + workoutSec) / 60).rounded())
     }
 
-    private var totalXP: Int { dayEntries.reduce(0) { $0 + $1.xpEarned } }
+    private var totalXP: Int {
+        dayEntries.reduce(0) { $0 + $1.xpEarned } + dayWorkouts.reduce(0) { $0 + $1.xpEarned }
+    }
 
     var body: some View {
         ScrollView {

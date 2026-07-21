@@ -26,14 +26,25 @@ struct DailyRings: Equatable {
         self.mindCount = mindCount
     }
 
-    /// Builds the rings from the session entries that fall on `day`.
-    static func make(from sessions: [SessionLogEntry], on day: Date, calendar: Calendar = .current) -> DailyRings {
+    /// Builds the rings from the session entries that fall on `day`. Apple Watch
+    /// workouts on that day fold their minutes into the Train ring only — they
+    /// never count as drills or mind exercises, so drill history isn't
+    /// double-counted.
+    static func make(
+        from sessions: [SessionLogEntry],
+        workouts: [WorkoutRecord] = [],
+        on day: Date,
+        calendar: Calendar = .current
+    ) -> DailyRings {
         let target = calendar.startOfDay(for: day)
         let dayEntries = sessions.filter { calendar.isDate($0.completedAt, inSameDayAs: target) }
         let totalSec = dayEntries.reduce(0) { $0 + $1.durationSec }
-        let minutes = Int((Double(totalSec) / 60).rounded())
+        let drillMinutes = Int((Double(totalSec) / 60).rounded())
+        let workoutMinutes = workouts
+            .filter { calendar.isDate($0.startedAt, inSameDayAs: target) }
+            .reduce(0) { $0 + $1.minutes }
         let mind = dayEntries.filter { $0.disciplineName == "Mental" }.count
-        return DailyRings(trainMinutes: minutes, drillCount: dayEntries.count, mindCount: mind)
+        return DailyRings(trainMinutes: drillMinutes + workoutMinutes, drillCount: dayEntries.count, mindCount: mind)
     }
 
     // MARK: - Progress (0...1)

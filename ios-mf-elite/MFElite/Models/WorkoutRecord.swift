@@ -51,6 +51,13 @@ final class WorkoutRecord {
 
     var mode: WorkoutModeID { WorkoutModeID(rawValue: modeRaw) ?? .outdoorRun }
 
+    /// Whole active minutes, folded into the day's Train ring alongside drills.
+    var minutes: Int { Int((Double(durationSec) / 60).rounded()) }
+
+    /// XP earned for this workout: one drill's worth of XP for every 10 active
+    /// minutes (at least one), so a run or field session builds rank like drills.
+    var xpEarned: Int { max(1, minutes / 10) * ProgressionRules.xpPerDrill }
+
     /// Decoded GPS route points, or empty for indoor workouts.
     var routePoints: [WatchRoutePoint] {
         guard let routeData else { return [] }

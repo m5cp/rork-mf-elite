@@ -193,6 +193,13 @@ final class WatchSyncBridge: NSObject {
             routeImageName: imageName
         )
         context.insert(record)
+
+        // Fold the workout's XP into the player's running total. Safe to do here
+        // because this path is guarded against duplicate ids above.
+        if let player = try? context.fetch(FetchDescriptor<PlayerState>()).first {
+            player.xp += record.xpEarned
+        }
+
         try? context.save()
         refreshAndPush()
     }

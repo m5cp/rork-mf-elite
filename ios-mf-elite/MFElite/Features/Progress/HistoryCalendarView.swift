@@ -15,6 +15,7 @@ struct WeeklyRoute: Hashable {}
 
 struct HistoryCalendarView: View {
     @Query private var sessions: [SessionLogEntry]
+    @Query(sort: \WorkoutRecord.startedAt, order: .reverse) private var workouts: [WorkoutRecord]
 
     @State private var monthOffset = 0
     @State private var selectedDay: IdentifiableDate?
@@ -144,13 +145,22 @@ struct HistoryCalendarView: View {
             return [:]
         }
         let monthEntries = sessions.filter { $0.completedAt >= monthStart && $0.completedAt < nextMonth }
+        let monthWorkouts = workouts.filter { $0.startedAt >= monthStart && $0.startedAt < nextMonth }
+        let workoutMinutesByDay = Dictionary(grouping: monthWorkouts) { calendar.startOfDay(for: $0.startedAt) }
+            .mapValues { $0.reduce(0) { $0 + $1.minutes } }
         let grouped = Dictionary(grouping: monthEntries) { calendar.startOfDay(for: $0.completedAt) }
-        return grouped.mapValues { entries in
+        var rings = grouped.mapValues { entries -> DailyRings in
             let totalSec = entries.reduce(0) { $0 + $1.durationSec }
             let minutes = Int((Double(totalSec) / 60).rounded())
             let mind = entries.filter { $0.disciplineName == "Mental" }.count
-            return DailyRings(trainMinutes: minutes, drillCount: entries.count, mindCount: mind)
+            let extra = workoutMinutesByDay[calendar.startOfDay(for: entries[0].completedAt)] ?? 0
+            return DailyRings(trainMinutes: minutes + extra, drillCount: entries.count, mindCount: mind)
         }
+        // Days with a watch workout but no drills still get a Train ring.
+        for (day, minutes) in workoutMinutesByDay where rings[day] == nil {
+            rings[day] = DailyRings(trainMinutes: minutes, drillCount: 0, mindCount: 0)
+        }
+        return rings
     }
 
     private func dayCell(_ date: Date, rings: DailyRings) -> some View {

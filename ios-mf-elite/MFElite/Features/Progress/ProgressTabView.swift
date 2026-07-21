@@ -36,7 +36,7 @@ struct ProgressTabView: View {
     @State private var appeared = false
 
     private var viewModel: ProgressDashboardViewModel {
-        ProgressDashboardViewModel(disciplines: disciplines, sessions: sessions, progress: progress)
+        ProgressDashboardViewModel(disciplines: disciplines, sessions: sessions, progress: progress, workouts: workouts)
     }
 
     var body: some View {
