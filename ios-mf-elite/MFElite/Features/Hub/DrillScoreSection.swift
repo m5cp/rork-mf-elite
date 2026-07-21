@@ -41,7 +41,9 @@ struct DrillScoreSection: View {
                 } label: {
                     Label("Log score", systemImage: "plus.circle.fill")
                         .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Gold.base)
+                        .foregroundStyle(DS.Colors.Gold.textLight)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(PressableButtonStyle())
             }
@@ -148,7 +150,9 @@ struct DrillScoreEntrySheet: View {
                             Text(option.uppercased())
                                 .style(.micro)
                                 .foregroundStyle(unit == option ? DS.Colors.Gold.inkOnGold : DS.Colors.Ink.secondary)
-                                .padding(.horizontal, 12).padding(.vertical, 7)
+                                .padding(.horizontal, 14).padding(.vertical, 12)
+                                .frame(minHeight: 44)
+                                .contentShape(Capsule())
                                 .background(
                                     unit == option ? AnyShapeStyle(DS.Colors.Gold.base) : AnyShapeStyle(DS.Colors.Bg.raised),
                                     in: Capsule()

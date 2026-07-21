@@ -341,17 +341,32 @@ struct ProgressReportBuilderView: View {
                         .lineLimit(2...12)
                 }
 
-                HStack(spacing: DS.Spacing.s20) {
+                HStack(spacing: DS.Spacing.s8) {
                     Button {
                         move(section.wrappedValue.id, by: -1)
-                    } label: { Image(systemName: "arrow.up") }
+                    } label: {
+                        Image(systemName: "arrow.up")
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Move section up")
                     Button {
                         move(section.wrappedValue.id, by: 1)
-                    } label: { Image(systemName: "arrow.down") }
+                    } label: {
+                        Image(systemName: "arrow.down")
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Move section down")
                     Spacer()
                     Button(role: .destructive) {
                         remove(section.wrappedValue.id)
-                    } label: { Image(systemName: "trash") }
+                    } label: {
+                        Image(systemName: "trash")
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Delete section")
                 }
                 .buttonStyle(.plain)
                 .foregroundStyle(DS.Colors.Ink.tertiary)

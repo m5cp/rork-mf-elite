@@ -491,7 +491,9 @@ struct CoachDrillMediaSection: View {
                 Text("Upload failed").style(.foot).foregroundStyle(Color(hex: "#FF453A"))
                 Button("Retry", action: onRetry)
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Gold.base)
+                    .foregroundStyle(DS.Colors.Gold.textLight)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             default:
                 Text(label).style(.foot).foregroundStyle(DS.Colors.Ink.primary)
                 if hasMedia || state == .done {

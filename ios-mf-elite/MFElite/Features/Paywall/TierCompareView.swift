@@ -51,7 +51,7 @@ struct TierCompareView: View {
                 }
                 upgradeCTA
             }
-            .padding(.bottom, 120)
+            .padding(.bottom, DS.Spacing.s32)
         }
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)

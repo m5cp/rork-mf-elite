@@ -82,9 +82,10 @@ struct RunTrackerView: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .background(.ultraThinMaterial, in: Circle())
             }
+            .accessibilityLabel("Close")
             Spacer()
             unitToggle
         }
@@ -98,7 +99,7 @@ struct RunTrackerView: View {
             Text(useMiles ? "MI" : "KM")
                 .font(.system(size: 13, weight: .heavy, design: .rounded))
                 .foregroundStyle(.white)
-                .frame(width: 44, height: 40)
+                .frame(width: 48, height: 44)
                 .background(.ultraThinMaterial, in: Capsule())
         }
         .disabled(tracker.phase == .running)

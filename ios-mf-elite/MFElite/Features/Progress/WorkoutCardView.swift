@@ -113,7 +113,7 @@ struct WorkoutDetailView: View {
             }
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.top, DS.Spacing.s16)
-            .padding(.bottom, 60)
+            .padding(.bottom, 120)
         }
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)

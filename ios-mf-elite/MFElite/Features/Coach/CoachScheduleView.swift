@@ -78,6 +78,8 @@ struct CoachScheduleView: View {
                 }
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(DS.Colors.Ink.tertiary)
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
             }
         }
     }

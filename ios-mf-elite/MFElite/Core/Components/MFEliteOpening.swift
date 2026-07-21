@@ -25,6 +25,7 @@ private enum T {
 public struct MFEliteOpeningView: View {
  public var onFinished: (() -> Void)? = nil
 
+ @Environment(\.accessibilityReduceMotion) private var reduceMotion
  @State private var ballTrigger = 0
  @State private var crackField: CrackField?
  @State private var ringsShown = 0
@@ -121,9 +122,20 @@ public struct MFEliteOpeningView: View {
  .modifier(ShakeEffect(travel: 2.5, progress: settleShake))
  .contentShape(Rectangle())
  .onTapGesture { onFinished?() }
- .onAppear { run(size: size) }
+ .onAppear { reduceMotion ? runReduced() : run(size: size) }
  }
  .statusBarHidden()
+ }
+
+ // MARK: Reduced-motion path
+ /// A calm cross-fade to the final logo lockup with no shake or haptics,
+ /// honouring the system Reduce Motion setting.
+ private func runReduced() {
+ withAnimation(.easeInOut(duration: 0.4)) {
+ showLogo = true
+ showWordmark = true
+ }
+ after(1.2) { onFinished?() }
  }
 
  // MARK: Orchestration

@@ -239,6 +239,7 @@ struct CoachTeamDetailView: View {
                                 .clipShape(Circle())
                         }
                         .buttonStyle(PressableButtonStyle())
+                        .accessibilityLabel("Edit team")
                     }
 
                     rosterList(team)
@@ -345,7 +346,8 @@ struct CoachTeamDetailView: View {
                             Image(systemName: "minus.circle")
                                 .font(.system(size: 18, weight: .semibold))
                                 .foregroundStyle(DS.Colors.Ink.quaternary)
-                                .frame(width: 32, height: 32)
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(PressableButtonStyle())
                         .accessibilityLabel("Remove \(athlete.displayName)")

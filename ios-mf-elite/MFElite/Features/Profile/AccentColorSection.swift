@@ -51,12 +51,15 @@ struct AccentColorSection: View {
                 }
                 .frame(width: 46, height: 46)
                 Text(accent.displayName.uppercased())
-                    .font(.system(size: 8.5, weight: .semibold))
-                    .tracking(0.6)
+                    .font(.system(size: 10.5, weight: .semibold))
+                    .tracking(0.4)
                     .foregroundStyle(isSelected ? DS.Colors.Ink.primary : DS.Colors.Ink.quaternary)
                     .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
         }
         .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("\(accent.displayName) accent color")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

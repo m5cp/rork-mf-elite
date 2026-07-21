@@ -255,6 +255,8 @@ struct MFStoreView: View {
                     .background(Color.white)
                     .clipShape(Capsule())
                     .opacity(isPurchasing ? 0.5 : 1)
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(PressableButtonStyle())
             .disabled(isPurchasing)
