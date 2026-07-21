@@ -71,8 +71,8 @@ final class TeamEventsFeed {
         lastFetched = Date()
     }
 
-    /// Coach: publish a new event. Returns true on success.
-    func publish(kind: String, title: String, startsAt: Date, endsAt: Date?, location: String, notes: String) async -> Bool {
+    /// Coach: publish a new event to a chosen audience. Returns true on success.
+    func publish(kind: String, title: String, startsAt: Date, endsAt: Date?, location: String, notes: String, audience: BroadcastAudience = BroadcastAudience()) async -> Bool {
         var row: [String: Any] = [
             "kind": kind,
             "title": title,
@@ -83,6 +83,7 @@ final class TeamEventsFeed {
         ]
         if let endsAt { row["ends_at"] = Self.iso.string(from: endsAt) }
         if let userID = SupabaseAuth.shared.userID { row["created_by"] = userID }
+        audience.apply(to: &row)
         let ok = await SupabaseClient.shared.insert(table: "team_events", values: row)
         if ok { await refresh() }
         return ok

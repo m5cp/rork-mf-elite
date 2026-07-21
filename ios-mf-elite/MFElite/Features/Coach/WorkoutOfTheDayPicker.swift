@@ -16,15 +16,18 @@ struct WorkoutOfTheDayPicker: View {
     let coachWorkouts: [CoachPublishedWorkout]
     /// drillID → resolved drill, for drill counts and minutes estimates.
     let drillIndex: [String: ResolvedDrill]
-    /// Publishes the selection: (title, note, drillIDs).
-    let onSelect: (String, String, [String]) -> Void
+    /// Publishes the selection: (title, note, drillIDs, audience).
+    let onSelect: (String, String, [String], BroadcastAudience) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var audience = BroadcastAudience()
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: DS.Spacing.s24) {
+                    AudiencePickerSection(audience: $audience)
+
                     if !coachWorkouts.isEmpty {
                         section(title: "Your Workouts") {
                             ForEach(coachWorkouts) { workout in
@@ -70,8 +73,12 @@ struct WorkoutOfTheDayPicker: View {
     }
 
     private func select(title: String, note: String, drillIDs: [String]) {
+        guard audience.isValid else {
+            UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            return
+        }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
-        onSelect(title, note, drillIDs)
+        onSelect(title, note, drillIDs, audience)
         dismiss()
     }
 

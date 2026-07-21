@@ -377,11 +377,11 @@ final class CoachViewModel {
         workoutsState = .loaded
     }
 
-    /// Publish a new featured workout to the team. Fails soft.
-    func publishWorkout(title: String, note: String, drillIDs: [String]) async {
+    /// Publish a new featured workout to a chosen audience. Fails soft.
+    func publishWorkout(title: String, note: String, drillIDs: [String], audience: BroadcastAudience = BroadcastAudience()) async {
         guard let createdBy = SupabaseAuth.shared.userID else { return }
         let coachName = PlayerProfileStore.shared.displayName
-        let row: [String: Any] = [
+        var row: [String: Any] = [
             "title": title,
             "note": note,
             "drill_ids": drillIDs,
@@ -389,6 +389,7 @@ final class CoachViewModel {
             "active": true,
             "created_by": createdBy
         ]
+        audience.apply(to: &row)
         await SupabaseClient.shared.insert(table: "coach_workouts", values: row)
         await loadPublishedWorkouts()
     }
@@ -438,15 +439,16 @@ final class CoachViewModel {
     /// Publish a new announcement, then return the "<title> — <body>" text the
     /// caller can share to a team chat. Fails soft.
     @discardableResult
-    func sendAnnouncement(title: String, body: String) async -> String {
+    func sendAnnouncement(title: String, body: String, audience: BroadcastAudience = BroadcastAudience()) async -> String {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else { return "" }
-        let row: [String: Any] = [
+        var row: [String: Any] = [
             "title": trimmedTitle,
             "body": trimmedBody,
             "active": true
         ]
+        audience.apply(to: &row)
         await SupabaseClient.shared.insert(table: "announcements", values: row)
         await loadAnnouncements()
         return trimmedBody.isEmpty ? trimmedTitle : "\(trimmedTitle) — \(trimmedBody)"

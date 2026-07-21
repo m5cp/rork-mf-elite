@@ -58,6 +58,7 @@ struct CoachView: View {
                         workoutOfTheDaySection
                         workoutsSection
                         drillEditorSection
+                        teamsSection
                         scheduleSection
                         rosterSection
                         coachGuideSection
@@ -81,6 +82,12 @@ struct CoachView: View {
             }
             .navigationDestination(for: CoachScheduleRoute.self) { _ in
                 CoachScheduleView()
+            }
+            .navigationDestination(for: CoachTeamsRoute.self) { _ in
+                CoachTeamsView()
+            }
+            .navigationDestination(for: CoachTeamDetailRoute.self) { route in
+                CoachTeamDetailView(teamID: route.teamID)
             }
             .navigationDestination(for: CoachGuideRoute.self) { _ in
                 CoachGuideView()
@@ -110,9 +117,9 @@ struct CoachView: View {
             await model.loadApprovals(context: modelContext)
         }
         .sheet(isPresented: $showAnnounce) {
-            AnnouncementComposerView { title, body in
+            AnnouncementComposerView { title, body, audience in
                 Task {
-                    let text = await model.sendAnnouncement(title: title, body: body)
+                    let text = await model.sendAnnouncement(title: title, body: body, audience: audience)
                     if !text.isEmpty {
                         shareText = ShareableText(text: text)
                     }
@@ -122,16 +129,16 @@ struct CoachView: View {
             .presentationBackground(DS.Colors.Bg.base)
         }
         .sheet(isPresented: $showPublish) {
-            WorkoutBuilderView { title, note, drillIDs in
-                Task { await model.publishWorkout(title: title, note: note, drillIDs: drillIDs) }
+            WorkoutBuilderView { title, note, drillIDs, audience in
+                Task { await model.publishWorkout(title: title, note: note, drillIDs: drillIDs, audience: audience) }
             }
         }
         .sheet(isPresented: $showWODPicker) {
             WorkoutOfTheDayPicker(
                 coachWorkouts: model.publishedWorkouts,
                 drillIndex: drillIndex
-            ) { title, note, drillIDs in
-                Task { await model.publishWorkout(title: title, note: note, drillIDs: drillIDs) }
+            ) { title, note, drillIDs, audience in
+                Task { await model.publishWorkout(title: title, note: note, drillIDs: drillIDs, audience: audience) }
             }
         }
         .confirmationDialog(
@@ -394,6 +401,40 @@ struct CoachView: View {
         }
     }
 
+    // MARK: - Teams
+
+    private var teamsSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Teams")
+            NavigationLink(value: CoachTeamsRoute()) {
+                HStack(spacing: DS.Spacing.s12) {
+                    Image(systemName: "person.3.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Teams & rosters")
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("Build teams and choose who gets what")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                .padding(DS.Spacing.s16)
+                .frame(maxWidth: .infinity)
+                .background(DS.Colors.Bg.card)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
+        }
+    }
+
     // MARK: - Team schedule
 
     private var scheduleSection: some View {
@@ -408,7 +449,7 @@ struct CoachView: View {
                         Text("Team Schedule")
                             .style(.title3)
                             .foregroundStyle(DS.Colors.Ink.primary)
-                        Text("Publish practices & games for all players")
+                        Text("Publish practices & games to your teams")
                             .style(.micro)
                             .foregroundStyle(DS.Colors.Ink.tertiary)
                     }

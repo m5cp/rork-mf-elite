@@ -42,15 +42,16 @@ struct WorkoutBuilderView: View {
     /// The workout being edited, or nil when creating a new one.
     let editing: CustomWorkout?
     /// When set, the builder publishes instead of saving a local CustomWorkout:
-    /// it shows a note field, caps drills at 8, and hands (title, note, drillIDs)
-    /// to this closure. Used by Coach Mode to publish a featured workout.
-    let onPublish: ((String, String, [String]) -> Void)?
+    /// it shows a note field, caps drills at 8, and hands (title, note, drillIDs,
+    /// audience) to this closure. Used by Coach Mode to publish a featured workout.
+    let onPublish: ((String, String, [String], BroadcastAudience) -> Void)?
 
     @State private var title: String
     @State private var note: String
     @State private var items: [BuilderItem]
     @State private var showPicker = false
     @State private var indexCache = BuilderIndexCache()
+    @State private var audience = BroadcastAudience()
 
     private let titleLimit = 40
     private let noteLimit = 140
@@ -59,7 +60,7 @@ struct WorkoutBuilderView: View {
 
     private var isPublishing: Bool { onPublish != nil }
 
-    init(editing: CustomWorkout? = nil, onPublish: ((String, String, [String]) -> Void)? = nil) {
+    init(editing: CustomWorkout? = nil, onPublish: ((String, String, [String], BroadcastAudience) -> Void)? = nil) {
         self.editing = editing
         self.onPublish = onPublish
         _title = State(initialValue: editing?.title ?? "")
@@ -106,7 +107,7 @@ struct WorkoutBuilderView: View {
 
     private var canSave: Bool {
         guard items.count >= 2, !title.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
-        if isPublishing { return items.count <= coachMaxDrills }
+        if isPublishing { return items.count <= coachMaxDrills && audience.isValid }
         return true
     }
 
@@ -118,6 +119,7 @@ struct WorkoutBuilderView: View {
                 List {
                     nameSection
                     if isPublishing { noteSection }
+                    if isPublishing { audienceSection }
                     suggestionsSection
                     drillsSection
                     Section { Color.clear.frame(height: 80).listRowBackground(Color.clear) }
@@ -189,6 +191,17 @@ struct WorkoutBuilderView: View {
                 .listRowBackground(DS.Colors.Bg.card)
         } header: {
             Text("Note to players (optional)")
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+        }
+    }
+
+    private var audienceSection: some View {
+        Section {
+            AudiencePickerSection(audience: $audience)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+        } header: {
+            Text("Send to")
                 .foregroundStyle(DS.Colors.Ink.tertiary)
         }
     }
@@ -422,7 +435,7 @@ struct WorkoutBuilderView: View {
         let trimmed = title.trimmingCharacters(in: .whitespaces)
 
         if let onPublish {
-            onPublish(trimmed, note.trimmingCharacters(in: .whitespacesAndNewlines), drillIDs)
+            onPublish(trimmed, note.trimmingCharacters(in: .whitespacesAndNewlines), drillIDs, audience)
             UINotificationFeedbackGenerator().notificationOccurred(.success)
             dismiss()
             return

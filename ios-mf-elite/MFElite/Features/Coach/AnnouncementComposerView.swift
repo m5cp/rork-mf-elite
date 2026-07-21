@@ -10,14 +10,15 @@
 import SwiftUI
 
 struct AnnouncementComposerView: View {
-    let onSend: (String, String) -> Void
+    let onSend: (String, String, BroadcastAudience) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var title = ""
     @State private var message = ""
+    @State private var audience = BroadcastAudience()
 
     private var canSend: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && audience.isValid
     }
 
     var body: some View {
@@ -50,13 +51,15 @@ struct AnnouncementComposerView: View {
                         .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
                     }
 
-                    Text("Players see this on their Today screen, and you can post the same text to your team chat in one tap.")
+                    AudiencePickerSection(audience: $audience)
+
+                    Text("The athletes you send this to see it on their Today screen, and you can post the same text to your team chat in one tap.")
                         .style(.foot)
                         .foregroundStyle(DS.Colors.Ink.quaternary)
 
                     PrimaryButton(label: "Send & share") {
                         guard canSend else { return }
-                        onSend(title, message)
+                        onSend(title, message, audience)
                         dismiss()
                     }
                     .opacity(canSend ? 1 : 0.5)

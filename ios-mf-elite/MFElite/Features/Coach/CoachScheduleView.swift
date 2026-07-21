@@ -21,7 +21,7 @@ struct CoachScheduleView: View {
                 Text("Practices & games")
                     .style(.title2)
                     .foregroundStyle(DS.Colors.Ink.primary)
-                Text("Events you publish here appear on every player's Today and My Games screens. Players can add them to their own calendars.")
+                Text("Events you publish appear on the Today and My Games screens of the athletes you send them to. Players can add them to their own calendars.")
                     .style(.foot)
                     .foregroundStyle(DS.Colors.Ink.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -95,6 +95,7 @@ struct TeamEventComposer: View {
     @State private var notes = ""
     @State private var isPublishing = false
     @State private var failed = false
+    @State private var audience = BroadcastAudience()
 
     private let kinds = ["practice", "game", "session", "other"]
 
@@ -109,6 +110,13 @@ struct TeamEventComposer: View {
                 Stepper("Duration: \(durationMinutes) min", value: $durationMinutes, in: 30...240, step: 15)
                 TextField("Location (optional)", text: $location)
                 TextField("Notes (optional)", text: $notes, axis: .vertical)
+
+                Section {
+                    AudiencePickerSection(audience: $audience)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                }
+
                 if failed {
                     Text("Publish failed — check your connection and try again.")
                         .foregroundStyle(.red)
@@ -128,13 +136,14 @@ struct TeamEventComposer: View {
                             let ends = startsAt.addingTimeInterval(Double(durationMinutes) * 60)
                             let ok = await TeamEventsFeed.shared.publish(
                                 kind: kind, title: title, startsAt: startsAt,
-                                endsAt: ends, location: location, notes: notes
+                                endsAt: ends, location: location, notes: notes,
+                                audience: audience
                             )
                             isPublishing = false
                             if ok { dismiss() } else { failed = true }
                         }
                     }
-                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || isPublishing)
+                    .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty || isPublishing || !audience.isValid)
                 }
             }
         }
