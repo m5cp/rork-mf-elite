@@ -66,6 +66,8 @@ struct AvatarPickerSheet: View {
                                 .style(.title3)
                                 .foregroundStyle(Color(hex: "#FF453A"))
                                 .frame(maxWidth: .infinity)
+                                .frame(height: 48)
+                                .background(DS.Colors.Bg.raised, in: RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous))
                                 .padding(.vertical, DS.Spacing.s16)
                         }
                     }
@@ -95,6 +97,7 @@ struct AvatarPickerSheet: View {
                     dismiss()
                 } else {
                     isLoading = false
+                    UINotificationFeedbackGenerator().notificationOccurred(.error)
                 }
             }
         }
@@ -130,11 +133,24 @@ struct AvatarPickerSheet: View {
                 size: 96,
                 shape: .roundedRect(DS.Radius.md)
             )
-            .frame(maxWidth: .infinity)
+            // Selection ring attaches to the 96pt tile BEFORE the flexible
+            // frame, so it always hugs the avatar exactly.
             .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.md)
-                    .stroke(Color.white, lineWidth: isSelected ? 2 : 0)
+                RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous)
+                    .stroke(DS.Colors.Gold.base, lineWidth: isSelected ? 3 : 0)
             )
+            .overlay(alignment: .bottomTrailing) {
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 22, weight: .bold))
+                        .foregroundStyle(DS.Colors.Gold.inkOnGold, DS.Colors.Gold.base)
+                        .background(Circle().fill(DS.Colors.Bg.base))
+                        .offset(x: 6, y: 6)
+                }
+            }
+            .scaleEffect(isSelected ? 1.04 : 1)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isSelected)
+            .frame(maxWidth: .infinity)
         }
         .buttonStyle(PressableButtonStyle())
     }

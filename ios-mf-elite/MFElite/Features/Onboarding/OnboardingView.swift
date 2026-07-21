@@ -134,6 +134,11 @@ struct OnboardingView: View {
         // Ensure a local PlayerState exists at zero.
         ensurePlayerState()
 
+        // Drop the new player straight into their first 5-minute starter
+        // session on the Today tab (the consumer wiring already exists in
+        // AcademyTodayView; this call was never made before).
+        AppActionRouter.shared.requestStarterSession()
+
         // If the player signed in during onboarding, push their now-complete
         // identity to the cloud profile. Fails soft.
         if SupabaseAuth.shared.isSignedIn {

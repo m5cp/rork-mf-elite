@@ -429,6 +429,7 @@ struct ShareEditorView: View {
                     .font(.system(size: 10, weight: .heavy))
                     .foregroundStyle(.black)
                     .multilineTextAlignment(.center)
+                    .lineLimit(1)
                     .minimumScaleFactor(0.6)
                     .padding(6)
                     .frame(width: 58, height: 58)

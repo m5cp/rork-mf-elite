@@ -96,16 +96,17 @@ struct StickerPaletteItem: Identifiable, Equatable {
     /// The four text stickers followed by six first-party image stickers,
     /// mapped to the existing asset-catalog names (no new images).
     static let all: [StickerPaletteItem] = [
-        StickerPaletteItem(id: "st-pb",     kind: .text("PERSONAL BEST")),
-        StickerPaletteItem(id: "st-fire",   kind: .text("ON FIRE")),
-        StickerPaletteItem(id: "st-nodays", kind: .text("NO DAYS OFF")),
-        StickerPaletteItem(id: "st-clutch", kind: .text("CLUTCH")),
-        StickerPaletteItem(id: "st-100",    kind: .image("medal_badge_100_crown")),
-        StickerPaletteItem(id: "st-flame",  kind: .image("medal_flame_badge_7")),
-        StickerPaletteItem(id: "st-bolt",   kind: .image("medal_lightning_badge_50")),
-        StickerPaletteItem(id: "st-troph",  kind: .image("medal_trophy_badge")),
-        StickerPaletteItem(id: "st-ball",   kind: .image("SoccerBall")),
-        StickerPaletteItem(id: "st-mf",     kind: .image("mf-logo-white")),
+        StickerPaletteItem(id: "st-pb",      kind: .text("PERSONAL BEST")),
+        StickerPaletteItem(id: "st-fire",    kind: .text("ON FIRE")),
+        StickerPaletteItem(id: "st-nodays",  kind: .text("NO DAYS OFF")),
+        StickerPaletteItem(id: "st-clutch",  kind: .text("CLUTCH")),
+        StickerPaletteItem(id: "st-golazo",  kind: .text("GOLAZO")),
+        StickerPaletteItem(id: "st-ball",    kind: .image("SoccerBall")),
+        StickerPaletteItem(id: "st-flame",   kind: .image("medal_flame_badge_7")),
+        StickerPaletteItem(id: "st-soccmed", kind: .image("soccer_medal_badge")),
+        StickerPaletteItem(id: "st-dawn",    kind: .image("medal_football_dawn")),
+        StickerPaletteItem(id: "st-ten",     kind: .image("medal_badge_10_soccer")),
+        StickerPaletteItem(id: "st-mf",      kind: .image("mf-logo-white")),
     ]
 }
 

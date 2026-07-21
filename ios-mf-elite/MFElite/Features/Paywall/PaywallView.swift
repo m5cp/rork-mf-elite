@@ -16,6 +16,7 @@ struct PaywallView: View {
     @State private var selectedPackageID: String?
     @State private var mailRequest: MailRequest?
     @State private var showMailUnavailable = false
+    @State private var showTierCompare = false
 
     private let supportEmail = "mf.elitetraining@gmail.com"
 
@@ -394,6 +395,16 @@ struct PaywallView: View {
             GhostButton(label: "Having trouble? Contact support") {
                 contactSupport()
             }
+
+            Button {
+                showTierCompare = true
+            } label: {
+                Text("Compare plans")
+                    .font(.system(size: 13, weight: .semibold))
+                    .underline()
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+            }
+            .sheet(isPresented: $showTierCompare) { TierCompareView() }
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, DS.Spacing.s20)

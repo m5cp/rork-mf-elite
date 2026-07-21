@@ -84,6 +84,9 @@ struct DrillDetailView: View {
                 statStrip(vm)
                 demoVideoSection
                 historySection
+                DrillScoreSection(drillID: drill.id, drillTitle: drill.title)
+                    .padding(.horizontal, DS.Spacing.s20)
+                    .padding(.top, DS.Spacing.s24)
                 if let setup = drill.setupSummary {
                     setupSection(setup)
                 }

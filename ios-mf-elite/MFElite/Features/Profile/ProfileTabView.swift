@@ -56,6 +56,15 @@ struct ProfileTabView: View {
             .navigationDestination(for: ShareRoute.self) { _ in
                 MomentsGalleryView()
             }
+            .navigationDestination(for: ProgramsRoute.self) { _ in
+                ProgramsView()
+            }
+            .navigationDestination(for: ParentReportRoute.self) { _ in
+                ParentReportView()
+            }
+            .navigationDestination(for: FamilyRoute.self) { _ in
+                FamilyManagementView()
+            }
             .sheet(isPresented: $showAvatarPicker) {
                 AvatarPickerSheet()
             }
@@ -220,6 +229,15 @@ struct ProfileTabView: View {
             Hairline()
             menuRow(icon: "square.and.arrow.up", label: "Share Your Grind",
                     route: ShareRoute())
+            Hairline()
+            menuRow(icon: "calendar.badge.clock", label: "Training Programs",
+                    route: ProgramsRoute())
+            Hairline()
+            menuRow(icon: "doc.text", label: "Parent Report",
+                    route: ParentReportRoute())
+            Hairline()
+            menuRow(icon: "person.2", label: "Family",
+                    route: FamilyRoute())
             Hairline()
             menuRow(icon: "gearshape", label: "Settings",
                     route: SettingsRoute())

@@ -25,6 +25,8 @@ struct ShareStickerContent: View {
             case let .text(label):
                 Text(label.uppercased())
                     .font(ShareFont.display(EditorSticker.textBase * s))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                     .foregroundStyle(.black)
                     .padding(.horizontal, 38 * s)
                     .padding(.top, 16 * s)

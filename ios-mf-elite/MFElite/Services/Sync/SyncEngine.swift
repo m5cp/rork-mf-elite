@@ -412,6 +412,25 @@ final class SyncEngine {
                        coalesce: ["badge_id": badgeID])
     }
 
+    /// Enqueue a drill score result (append-only, like combine results).
+    func enqueueDrillResult(_ result: DrillResult) {
+        let row: [String: Any] = [
+            "id": result.id.uuidString,
+            "drill_id": result.drillID,
+            "value": result.value,
+            "unit": result.unit,
+            "recorded_at": Self.iso.string(from: result.recordedAt)
+        ]
+        enqueueGeneric(table: "drill_results", opType: "upsert", row: row,
+                       coalesce: ["id": result.id.uuidString])
+    }
+
+    /// Enqueue deletion of a drill score (player correcting a mis-entry).
+    func enqueueDrillResultDeletion(id: UUID) {
+        enqueueGeneric(table: "drill_results", opType: "delete",
+                       row: ["id": id.uuidString], coalesce: ["id": id.uuidString])
+    }
+
     // MARK: - Outbox writes
 
     private func enqueueUpsert(table: String, row: [String: Any], coalesceKey: String) {
@@ -822,6 +841,7 @@ final class SyncEngine {
         await mergeGameIQCompletions(userID: userID, context: context)
         await mergeGameEntries(context: context)
         await mergeFavoritesAndBadges()
+        await mergeDrillResults(context: context)
         await RemoteProfileSync.shared.hydrateProfileFromRemote()
         WatchSyncBridge.shared.refreshAndPush()
         try? context.save()
@@ -868,6 +888,28 @@ final class SyncEngine {
             let ids = badges.compactMap { $0["badge_id"] as? String }
             AchievementStore.applyRemote(ids)
         }
+    }
+
+    /// Merge remote drill scores into the local store. Union by id, append-only.
+    private func mergeDrillResults(context: ModelContext) async {
+        guard let userID = SupabaseAuth.shared.userID else { return }
+        guard let rows = await SupabaseClient.shared.get(
+            table: "drill_results",
+            query: [URLQueryItem(name: "user_id", value: "eq.\(userID)")]
+        ) else { return }
+        let existing = Set(((try? context.fetch(FetchDescriptor<DrillResult>())) ?? []).map(\.id))
+        for row in rows {
+            guard let idString = row["id"] as? String,
+                  let id = UUID(uuidString: idString),
+                  !existing.contains(id),
+                  let drillID = row["drill_id"] as? String,
+                  let value = row["value"] as? Double,
+                  let dateString = row["recorded_at"] as? String,
+                  let date = Self.isoDate(from: dateString) else { continue }
+            let unit = row["unit"] as? String ?? ""
+            context.insert(DrillResult(id: id, drillID: drillID, value: value, unit: unit, recordedAt: date))
+        }
+        try? context.save()
     }
 
     /// Parse a full ISO8601 timestamp (with or without fractional seconds).

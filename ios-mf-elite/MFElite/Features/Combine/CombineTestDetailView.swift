@@ -48,7 +48,8 @@ struct CombineTestDetailView: View {
                 runningTest = test
             }
             .padding(.horizontal, DS.Spacing.s20)
-            .padding(.bottom, DS.Spacing.s12)
+            // Clear the floating tab bar so the button is fully visible and tappable.
+            .padding(.bottom, DS.tabBarClearance + DS.Spacing.s12)
             .background(
                 LinearGradient(
                     colors: [DS.Colors.Bg.base.opacity(0), DS.Colors.Bg.base],
