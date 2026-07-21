@@ -39,8 +39,12 @@ enum CoachWorkoutFeed {
         // nil = request failed → keep whatever is cached for offline display.
         guard let rows else { return }
 
+        // Only workouts addressed to this player (team / athlete targeting).
+        let myTeams = await MyTeamsStore.shared.currentTeamIDs()
+        let addressed = rows.filter { MyTeamsStore.isVisibleToMe(row: $0, myTeamIDs: myTeams) }
+
         var fetched: [CoachWorkout] = []
-        for row in rows {
+        for row in addressed {
             guard let idStr = row["id"] as? String, let id = UUID(uuidString: idStr) else { continue }
             fetched.append(CoachWorkout(
                 id: id,

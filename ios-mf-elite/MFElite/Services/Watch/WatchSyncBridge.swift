@@ -198,7 +198,11 @@ final class WatchSyncBridge: NSObject {
         // because this path is guarded against duplicate ids above.
         if let player = try? context.fetch(FetchDescriptor<PlayerState>()).first {
             player.xp += record.xpEarned
+            // Push the XP change AND the workout summary to the cloud — without
+            // these, Watch-earned XP and workouts never left the device.
+            SyncEngine.shared.enqueuePlayerState(player)
         }
+        SyncEngine.shared.enqueueWorkoutRecord(record)
 
         try? context.save()
         refreshAndPush()

@@ -61,7 +61,8 @@ final class SyncEngine {
         "user_badges": "user_id,badge_id",
         "drill_results": "id",
         "share_xp_events": "user_id,day,platform",
-        "xp_transactions": "id"
+        "xp_transactions": "id",
+        "workout_records": "id"
     ]
 
     /// Tables whose owner column is `user_id` rather than `player_id`. The signed-in
@@ -70,7 +71,8 @@ final class SyncEngine {
         "session_logs", "combine_results", "drill_notes",
         "custom_workouts", "gameiq_completions",
         "user_favorites", "game_entries", "user_badges",
-        "drill_results", "share_xp_events", "xp_transactions"
+        "drill_results", "share_xp_events", "xp_transactions",
+        "workout_records"
     ]
 
     /// The owner column for a table: `id` for player_profiles (PK == user UUID),
@@ -451,6 +453,22 @@ final class SyncEngine {
         if let storeTransactionID { row["store_transaction_id"] = storeTransactionID }
         enqueueGeneric(table: "xp_transactions", opType: "upsert", row: row,
                        coalesce: ["id": id.uuidString])
+    }
+
+    /// Enqueue a Watch workout summary (append-only; route data stays local).
+    func enqueueWorkoutRecord(_ record: WorkoutRecord) {
+        let row: [String: Any] = [
+            "id": record.id,
+            "mode": record.modeRaw,
+            "started_at": Self.iso.string(from: record.startedAt),
+            "duration_sec": record.durationSec,
+            "distance_meters": record.distanceMeters,
+            "active_calories": record.activeCalories,
+            "avg_heart_rate": record.avgHeartRate,
+            "max_heart_rate": record.maxHeartRate
+        ]
+        enqueueGeneric(table: "workout_records", opType: "upsert", row: row,
+                       coalesce: ["id": record.id])
     }
 
     // MARK: - Outbox writes
@@ -866,6 +884,7 @@ final class SyncEngine {
         await mergeGameEntries(context: context)
         await mergeFavoritesAndBadges()
         await mergeDrillResults(context: context)
+        await mergeWorkoutRecords(context: context)
         await RemoteProfileSync.shared.hydrateProfileFromRemote()
         WatchSyncBridge.shared.refreshAndPush()
         try? context.save()
@@ -932,6 +951,35 @@ final class SyncEngine {
                   let date = Self.isoDate(from: dateString) else { continue }
             let unit = row["unit"] as? String ?? ""
             context.insert(DrillResult(id: id, drillID: drillID, value: value, unit: unit, recordedAt: date))
+        }
+        try? context.save()
+    }
+
+    /// Merge remote Watch workout summaries. Union by id; route blobs stay local.
+    private func mergeWorkoutRecords(context: ModelContext) async {
+        guard let userID = SupabaseAuth.shared.userID else { return }
+        guard let rows = await SupabaseClient.shared.get(
+            table: "workout_records",
+            query: [URLQueryItem(name: "user_id", value: "eq.\(userID)")]
+        ) else { return }
+        let existing = Set(((try? context.fetch(FetchDescriptor<WorkoutRecord>())) ?? []).map(\.id))
+        for row in rows {
+            guard let id = row["id"] as? String,
+                  !existing.contains(id),
+                  let startString = row["started_at"] as? String,
+                  let started = Self.isoDate(from: startString) else { continue }
+            context.insert(WorkoutRecord(
+                id: id,
+                modeRaw: row["mode"] as? String ?? "",
+                startedAt: started,
+                durationSec: row["duration_sec"] as? Int ?? 0,
+                distanceMeters: row["distance_meters"] as? Double ?? 0,
+                activeCalories: row["active_calories"] as? Double ?? 0,
+                avgHeartRate: row["avg_heart_rate"] as? Int ?? 0,
+                maxHeartRate: row["max_heart_rate"] as? Int ?? 0,
+                routeData: nil,
+                routeImageName: nil
+            ))
         }
         try? context.save()
     }

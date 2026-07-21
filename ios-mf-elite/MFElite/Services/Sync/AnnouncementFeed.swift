@@ -70,8 +70,12 @@ enum AnnouncementFeed {
         // nil = request failed → keep whatever is cached for offline display.
         guard let rows else { return }
 
+        // Only announcements addressed to this player (team / athlete targeting).
+        let myTeams = await MyTeamsStore.shared.currentTeamIDs()
+        let addressed = rows.filter { MyTeamsStore.isVisibleToMe(row: $0, myTeamIDs: myTeams) }
+
         // Newest announcement whose title is not an internal "__"-prefixed one.
-        let visible = rows.first { row in
+        let visible = addressed.first { row in
             let title = (row["title"] as? String) ?? ""
             return !title.hasPrefix("__")
         }

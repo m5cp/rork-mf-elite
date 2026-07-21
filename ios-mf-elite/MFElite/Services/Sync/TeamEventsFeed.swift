@@ -52,7 +52,9 @@ final class TeamEventsFeed {
                 URLQueryItem(name: "starts_at", value: "gte.\(Self.iso.string(from: Date().addingTimeInterval(-3600)))")
             ]
         ) else { return }
-        events = rows.compactMap { row in
+        let myTeams = await MyTeamsStore.shared.currentTeamIDs()
+        let addressed = rows.filter { MyTeamsStore.isVisibleToMe(row: $0, myTeamIDs: myTeams) }
+        events = addressed.compactMap { row in
             guard let id = row["id"] as? String,
                   let title = row["title"] as? String,
                   let startString = row["starts_at"] as? String,
