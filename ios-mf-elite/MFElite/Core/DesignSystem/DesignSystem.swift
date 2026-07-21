@@ -243,6 +243,17 @@ extension DS {
     }
 }
 
+// MARK: - Floating tab bar metrics
+
+extension DS {
+    /// Vertical space occupied by the floating glass tab bar (68pt bar height
+    /// + 26pt bottom offset — mirrors CustomTabBar's metrics). Any PUSHED
+    /// screen that pins content to the bottom edge with .safeAreaInset must add
+    /// this clearance. Sheets and fullScreenCovers do NOT need it (the tab bar
+    /// is not overlaid there).
+    static let tabBarClearance: CGFloat = 94
+}
+
 // MARK: - Elevation ViewModifiers
 
 struct PillLightElevation: ViewModifier {

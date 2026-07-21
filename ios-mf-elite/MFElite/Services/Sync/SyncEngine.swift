@@ -434,7 +434,10 @@ final class SyncEngine {
                 isFlushing = false
                 refreshPendingCount()
             }
-            var descriptor = FetchDescriptor<PendingOp>(sortBy: [SortDescriptor(\.createdAt, order: .forward)])
+            var descriptor = FetchDescriptor<PendingOp>(
+                predicate: #Predicate { !$0.isQuarantined },
+                sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+            )
             descriptor.fetchLimit = 200
             let ops = (try? context.fetch(descriptor)) ?? []
             guard !ops.isEmpty else { return }
@@ -448,27 +451,39 @@ final class SyncEngine {
                 }
                 payload[Self.ownerColumn(for: op.table)] = playerID
 
-                let success: Bool
+                let outcome: SupabaseClient.MutationOutcome
                 if op.opType == "delete" {
                     let match = payload.compactMapValues { "\($0)" }
-                    success = await SupabaseClient.shared.delete(table: op.table, match: match)
+                    outcome = await SupabaseClient.shared.deleteOutcome(table: op.table, match: match)
                 } else {
                     let onConflict = Self.conflictKeys[op.table]
-                    success = await SupabaseClient.shared.upsert(table: op.table, values: payload, onConflict: onConflict)
+                    outcome = await SupabaseClient.shared.upsertOutcome(table: op.table, values: payload, onConflict: onConflict)
                 }
 
-                if success {
+                switch outcome {
+                case .success:
                     context.delete(op)
                     try? context.save()
                     backoffUntil = nil
                     markSynced()
-                } else {
+                case .permanentFailure(let status):
+                    // The server will never accept this op as-is (missing
+                    // column/table, RLS denial). Quarantine it and KEEP
+                    // DRAINING — one poison op must never block the queue.
+                    op.attempts += 1
+                    op.isQuarantined = true
+                    op.lastErrorStatus = status
+                    try? context.save()
+                    print("[SyncEngine] QUARANTINED op for \(op.table) (HTTP \(status)) — queue continues.")
+                    continue
+                case .transientFailure:
                     op.attempts += 1
                     try? context.save()
                     applyBackoff(attempts: op.attempts)
                     break
                 }
             }
+            refreshQuarantineCount()
         }
     }
 
@@ -499,6 +514,27 @@ final class SyncEngine {
         pendingCount = (try? context.fetchCount(FetchDescriptor<PendingOp>())) ?? 0
     }
 
+    /// Count of quarantined (permanently rejected) ops, surfaced in Settings.
+    private(set) var quarantinedCount = 0
+
+    func refreshQuarantineCount() {
+        guard let context else { quarantinedCount = 0; return }
+        let descriptor = FetchDescriptor<PendingOp>(predicate: #Predicate { $0.isQuarantined })
+        quarantinedCount = (try? context.fetchCount(descriptor)) ?? 0
+    }
+
+    /// Re-arm quarantined ops for one more attempt (used by Settings "Retry
+    /// failed sync" after a server-side fix, e.g. a table/column was added).
+    func retryQuarantined() {
+        guard let context else { return }
+        let descriptor = FetchDescriptor<PendingOp>(predicate: #Predicate { $0.isQuarantined })
+        let ops = (try? context.fetch(descriptor)) ?? []
+        for op in ops { op.isQuarantined = false }
+        try? context.save()
+        refreshQuarantineCount()
+        flush()
+    }
+
     // MARK: - Pull (launch reconcile)
 
     /// On launch when signed in, pull remote player_state once; if it looks newer
@@ -508,10 +544,31 @@ final class SyncEngine {
         Task {
             guard let remote = await fetchRemotePlayerState() else { return }
             guard let player = try? context.fetch(FetchDescriptor<PlayerState>()).first else { return }
-            // Remote wins only when it is strictly ahead (more XP) — a simple,
-            // safe "newer" heuristic that never regresses local progress.
-            if remote.xp > player.xp {
-                apply(remote, to: player, context: context)
+            // Field-wise merge — never regresses local progress, but DOES pull
+            // down streak/freezes/last-trained from a device that trained more
+            // recently (the old XP-only gate left those stale forever).
+            var changed = false
+            if remote.xp > player.xp { player.xp = remote.xp; changed = true }
+            if remote.streakPB > player.streakPB { player.streakPB = remote.streakPB; changed = true }
+
+            let remoteTrained = remote.lastTrainedDate.flatMap { Self.date(from: $0) }
+            let localTrained = player.lastTrainedDate
+            let remoteIsMoreRecent: Bool = {
+                switch (remoteTrained, localTrained) {
+                case (nil, _): return false
+                case (_?, nil): return true
+                case let (r?, l?): return r > l
+                }
+            }()
+            if remoteIsMoreRecent {
+                player.lastTrainedDate = remoteTrained
+                player.streak = remote.streak
+                player.freezesRemaining = remote.freezesRemaining
+                changed = true
+            }
+            if changed {
+                try? context.save()
+                WidgetBridge.refresh(context: context)
             }
         }
     }

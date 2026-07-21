@@ -142,13 +142,48 @@ final class SupabaseClient {
         }
     }
 
+    /// Outcome of a mutation, distinguishing errors that will never succeed on
+    /// retry (4xx: bad column, missing table, RLS denial) from transient ones
+    /// (network drop, 5xx). Permanent failures must be quarantined by callers,
+    /// never retried forever.
+    enum MutationOutcome {
+        case success
+        case transientFailure
+        case permanentFailure(status: Int)
+
+        var isSuccess: Bool { if case .success = self { return true }; return false }
+    }
+
     private func mutate(_ request: URLRequest, label: String) async -> Bool {
-        guard let (_, http) = await send(request) else { return false }
-        guard (200..<300).contains(http.statusCode) else {
-            print("[SupabaseClient] \(label) failed: HTTP \(http.statusCode)")
-            return false
+        await mutateOutcome(request, label: label).isSuccess
+    }
+
+    private func mutateOutcome(_ request: URLRequest, label: String) async -> MutationOutcome {
+        guard let (_, http) = await send(request) else { return .transientFailure }
+        if (200..<300).contains(http.statusCode) { return .success }
+        print("[SupabaseClient] \(label) failed: HTTP \(http.statusCode)")
+        // 408 (timeout) and 429 (rate limit) are retryable; other 4xx are not.
+        if (400..<500).contains(http.statusCode), http.statusCode != 408, http.statusCode != 429 {
+            return .permanentFailure(status: http.statusCode)
         }
-        return true
+        return .transientFailure
+    }
+
+    /// Upsert returning a classified outcome (used by the sync outbox).
+    func upsertOutcome(table: String, values: [String: Any], onConflict: String? = nil) async -> MutationOutcome {
+        var query: [URLQueryItem] = []
+        if let onConflict { query.append(URLQueryItem(name: "on_conflict", value: onConflict)) }
+        guard var request = await makeRequest(table: table, method: "POST", query: query) else { return .transientFailure }
+        request.setValue("resolution=merge-duplicates,return=minimal", forHTTPHeaderField: "Prefer")
+        request.httpBody = try? JSONSerialization.data(withJSONObject: values)
+        return await mutateOutcome(request, label: "UPSERT \(table)")
+    }
+
+    /// Delete returning a classified outcome (used by the sync outbox).
+    func deleteOutcome(table: String, match: [String: String]) async -> MutationOutcome {
+        let query = match.map { URLQueryItem(name: $0.key, value: "eq.\($0.value)") }
+        guard let request = await makeRequest(table: table, method: "DELETE", query: query) else { return .transientFailure }
+        return await mutateOutcome(request, label: "DELETE \(table)")
     }
 
     /// Perform a request, transparently refreshing once on a 401.

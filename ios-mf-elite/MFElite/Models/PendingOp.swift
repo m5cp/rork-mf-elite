@@ -23,6 +23,13 @@ final class PendingOp {
     /// JSON-encoded row (upsert) or match filters (delete).
     var payloadJSON: Data
     var attempts: Int
+    /// True when the server rejected this op with a permanent (4xx) error.
+    /// Quarantined ops are skipped by the flush loop so one bad op can never
+    /// block the queue. They are retried only via retryQuarantined().
+    /// Defaulted so existing stores migrate in place (lightweight migration).
+    var isQuarantined: Bool = false
+    /// The HTTP status that caused quarantine, for diagnostics. 0 = none.
+    var lastErrorStatus: Int = 0
 
     init(
         id: UUID = UUID(),
@@ -38,5 +45,7 @@ final class PendingOp {
         self.opType = opType
         self.payloadJSON = payloadJSON
         self.attempts = attempts
+        self.isQuarantined = false
+        self.lastErrorStatus = 0
     }
 }
