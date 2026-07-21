@@ -1,0 +1,12 @@
+{
+  "images": [
+    {
+      "filename": "xp_pack_lightning_badge.png",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
