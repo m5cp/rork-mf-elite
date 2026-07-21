@@ -55,6 +55,7 @@ struct SettingsView: View {
     @State private var mailRequest: MailRequest?
     @State private var showMailUnavailable = false
     @State private var pendingSupportSubject = ""
+    @State private var showMembership = false
 
     /// Destructive-action red, matching the rest of the app's error styling.
     private static let dangerColor = Color(hex: "#FF5A5A")
@@ -134,6 +135,7 @@ struct SettingsView: View {
         } message: {
             Text("Purchases and family settings will no longer require a passcode.")
         }
+        .sheet(isPresented: $showMembership) { MembershipView() }
         .sheet(item: $mailRequest) { request in
             MailComposeView(request: request).ignoresSafeArea()
         }
@@ -357,7 +359,7 @@ struct SettingsView: View {
                 }
                 Hairline()
                 actionRow(label: "Cancel or change subscription") {
-                    protected("Unlock to manage") { subscription.showManageSubscriptions() }
+                    protected("Unlock to manage") { showMembership = true }
                 }
             } else if subscription.isCoach {
                 rowContent(label: "Current plan", value: "Coach access", showChevron: false)

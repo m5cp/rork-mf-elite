@@ -90,10 +90,12 @@ struct MFStoreView: View {
                 xpPackRow(.xp750, subtitle: "\u{2248} 1 week")
             }
 
-            Text("Monthly limit: \(store.monthlyXPRemaining.formatted()) of 2,000 XP remaining")
-                .style(.micro)
-                .foregroundStyle(DS.Colors.Ink.quaternary)
-                .padding(.top, DS.Spacing.s12)
+            StoreLimitMeter(
+                label: "Max XP purchased per month: \(XPStoreService.monthlyXPCap.formatted())",
+                used: store.purchasedThisMonth,
+                cap: XPStoreService.monthlyXPCap
+            )
+            .padding(.top, DS.Spacing.s12)
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32)
@@ -164,6 +166,12 @@ struct MFStoreView: View {
                         buyButton(for: .streakFreeze)
                     }
                 }
+
+                StoreLimitMeter(
+                    label: "\(Date().formatted(.dateTime.month(.wide))) limit: 1 per day of the month",
+                    used: store.shieldsPurchasedThisMonth,
+                    cap: XPStoreService.shieldMonthlyCap
+                )
             }
         }
         .padding(.horizontal, DS.Spacing.s20)
@@ -215,6 +223,12 @@ struct MFStoreView: View {
                         }
                         .padding(.top, DS.Spacing.s4)
                     }
+
+                    StoreLimitMeter(
+                        label: "Monthly limit",
+                        used: store.boostersPurchasedThisMonth,
+                        cap: XPStoreService.boosterMonthlyCap
+                    )
                 }
             }
         }
@@ -335,5 +349,41 @@ struct MFStoreView: View {
         MFStoreView()
             .preferredColorScheme(.dark)
             .modelContainer(for: [PlayerState.self])
+    }
+}
+
+// MARK: - Monthly limit meter
+
+/// A quiet progress meter showing a product family's monthly purchase limit.
+/// Calm by design: no countdowns, no urgency — just the honest number.
+struct StoreLimitMeter: View {
+    let label: String
+    let used: Int
+    let cap: Int
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 9.5, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                Spacer()
+                Text("\(used.formatted()) of \(cap.formatted())")
+                    .font(.system(size: 9.5, weight: .bold))
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(DS.Colors.Bg.raised)
+                    Capsule()
+                        .fill(DS.Colors.Gold.progressGradient)
+                        .frame(width: geo.size.width * min(1, CGFloat(used) / CGFloat(max(1, cap))))
+                }
+            }
+            .frame(height: 5)
+        }
+        .padding(.top, DS.Spacing.s8)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(used) of \(cap) used")
     }
 }

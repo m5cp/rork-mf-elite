@@ -42,8 +42,16 @@ final class XPStoreService {
     static let maxFreezes = 3
     /// Hard ceiling on purchased XP per calendar month (economy guardrail).
     static let monthlyXPCap = 2000
+    /// Booster purchases allowed per calendar month.
+    static let boosterMonthlyCap = 6
+    /// Shield purchases allowed per calendar month = days in that month.
+    static var shieldMonthlyCap: Int {
+        Calendar.current.range(of: .day, in: .month, for: Date())?.count ?? 30
+    }
     private static let boosterKey = "MF_BOOSTER_UNTIL"
     private static let monthlyXPKey = "MF_PURCHASED_XP_MONTH" // "yyyy-MM|total"
+    private static let monthlyShieldKey = "MF_SHIELDS_MONTH" // "yyyy-MM|count"
+    private static let monthlyBoosterKey = "MF_BOOSTER_MONTH" // "yyyy-MM|count"
     private static let processedKey = "MF_PROCESSED_TX" // idempotency guard
 
     private(set) var products: [StoreProduct] = []
@@ -100,6 +108,24 @@ final class XPStoreService {
         return formatter.string(from: Date())
     }
 
+    /// Generic month-scoped counter stored as "yyyy-MM|count".
+    private func monthlyCount(forKey key: String) -> Int {
+        let stored = UserDefaults.standard.string(forKey: key) ?? ""
+        let parts = stored.split(separator: "|")
+        guard parts.count == 2, String(parts[0]) == Self.monthToken() else { return 0 }
+        return Int(parts[1]) ?? 0
+    }
+
+    private func bumpMonthlyCount(forKey key: String) {
+        let total = monthlyCount(forKey: key) + 1
+        UserDefaults.standard.set("\(Self.monthToken())|\(total)", forKey: key)
+    }
+
+    /// Streak shields bought this calendar month (cap: days in the month).
+    var shieldsPurchasedThisMonth: Int { monthlyCount(forKey: Self.monthlyShieldKey) }
+    /// Boosters bought this calendar month (cap: boosterMonthlyCap).
+    var boostersPurchasedThisMonth: Int { monthlyCount(forKey: Self.monthlyBoosterKey) }
+
     /// Purchase and grant through RevenueCat. Returns true on success. XP packs
     /// are refused when they would exceed the monthly purchased-XP cap.
     @discardableResult
@@ -108,6 +134,16 @@ final class XPStoreService {
         if let productID = ProductID(rawValue: product.productIdentifier), productID.xpAmount > 0,
            productID.xpAmount > monthlyXPRemaining {
             lastError = "Monthly XP purchase limit reached (\(Self.monthlyXPCap) XP). Resets next month — keep training to earn more."
+            return false
+        }
+        if ProductID(rawValue: product.productIdentifier) == .streakFreeze,
+           shieldsPurchasedThisMonth >= Self.shieldMonthlyCap {
+            lastError = "Shield limit reached for this month (\(Self.shieldMonthlyCap)). Resets next month."
+            return false
+        }
+        if ProductID(rawValue: product.productIdentifier) == .booster48h,
+           boostersPurchasedThisMonth >= Self.boosterMonthlyCap {
+            lastError = "Booster limit reached for this month (\(Self.boosterMonthlyCap)). Resets next month."
             return false
         }
         do {
@@ -143,11 +179,13 @@ final class XPStoreService {
             recordMonthlyXP(product.xpAmount)
         case .streakFreeze:
             player.freezesRemaining = min(Self.maxFreezes, player.freezesRemaining + 1)
+            bumpMonthlyCount(forKey: Self.monthlyShieldKey)
         case .booster48h:
             let until = max(Date().timeIntervalSince1970,
                             UserDefaults.standard.double(forKey: Self.boosterKey))
                 + 48 * 3600
             UserDefaults.standard.set(until, forKey: Self.boosterKey)
+            bumpMonthlyCount(forKey: Self.monthlyBoosterKey)
         }
         try? context.save()
         SyncEngine.shared.enqueuePlayerState(player)

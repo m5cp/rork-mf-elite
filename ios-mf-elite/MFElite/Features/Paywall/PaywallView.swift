@@ -2,370 +2,383 @@
 //  PaywallView.swift
 //  MFElite
 //
-//  The primary conversion surface — feature comparison + pricing + subscribe.
+//  The primary conversion surface, redesigned: photo-forward hero (real brand
+//  assets), Ballon d'Or-led benefits, honest Free vs Elite comparison, 3-up
+//  plan grid, and a reassuring no-pressure dismissal. Presented from ONE place
+//  (MainTabView fullScreenCover) so every entry point shows this same view.
 //
 
 import SwiftUI
 import RevenueCat
-import MessageUI
 
 struct PaywallView: View {
     @Environment(SubscriptionService.self) private var subscription
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
 
     @State private var selectedPackageID: String?
-    @State private var mailRequest: MailRequest?
-    @State private var showMailUnavailable = false
     @State private var showTierCompare = false
+    @State private var showTerms = false
+    @State private var showPrivacy = false
 
     private let supportEmail = "mf.elitetraining@gmail.com"
 
-    private let features: [(label: String, free: Bool, elite: Bool)] = [
-        ("4 disciplines, Level 1 drills", true, true),
-        ("Train daily & track streaks", true, true),
-        ("All 216 drills, every level", false, true),
-        ("Adaptive daily plan for your position", false, true),
-        ("Full academy curriculum", false, true),
-        ("Earn certifications & rank up", false, true),
-        ("Global leaderboards & achievements", false, true),
-        ("Streak freeze protection", false, true),
-        ("Achievement badges", false, true),
-        ("10 curated training routines", false, true),
-        ("Unlimited custom workouts", false, true),
+    // MARK: - Content
+
+    private let bullets: [(icon: String, title: String, detail: String)] = [
+        ("trophy.fill", "Ballon d'Or eligible",
+         "Only Elite players can reach Captain — the rank that unlocks the invite-only Ballon d'Or."),
+        ("soccerball", "All 216 drills · every level",
+         "The complete curriculum with coach film, photos & certifications."),
+        ("chart.line.uptrend.xyaxis", "Rise through every rank",
+         "Prospect, First Eleven, Captain — with routines & programs built for each.")
     ]
 
-    private let valueProps: [(icon: String, title: String, detail: String)] = [
-        ("figure.soccer", "216 pro-level drills", "Every discipline, every level — train like an academy player."),
-        ("sparkles", "Your adaptive daily plan", "Built around your position, age and weak spots."),
-        ("rosette", "Rank up & get certified", "Earn certifications, climb ranks, top the leaderboards."),
+    /// The honest, code-verified Free vs Elite comparison.
+    /// free: nil = not included ("—"), "1" = limited, "check" = included.
+    private let comparison: [(label: String, free: String?, elite: Bool)] = [
+        ("Daily training, streaks & rings", "check", true),
+        ("Level 1 drills — every category", "check", true),
+        ("MF Combine tests + score history", "check", true),
+        ("Apple Watch workouts & run tracker", "check", true),
+        ("Share cards, player card & colors", "check", true),
+        ("Custom workout builder", "1", true),
+        ("Levels 2–5 · all 216 drills", nil, true),
+        ("Curated routines & programs", nil, true),
+        ("Ranks III–V + certifications", nil, true),
+        ("Ballon d'Or eligibility", nil, true)
     ]
+
+    // MARK: - Packages
 
     private var packages: [Package] {
         subscription.offerings?.current?.availablePackages ?? []
     }
 
     private var selectedPackage: Package? {
-        packages.first { $0.identifier == selectedPackageID } ?? packages.first
+        packages.first { $0.identifier == selectedPackageID }
+            ?? annualPackage
+            ?? packages.first
     }
 
     private var annualPackage: Package? { packages.first { $0.packageType == .annual } }
     private var monthlyPackage: Package? { packages.first { $0.packageType == .monthly } }
+    private var weeklyPackage: Package? { packages.first { $0.packageType == .weekly } }
 
-    /// Percentage saved by the annual plan vs paying monthly for a year, from live prices.
     private var annualSavingsVsMonthlyPercent: Int? {
         guard let annual = annualPackage?.storeProduct.price,
               let monthly = monthlyPackage?.storeProduct.price,
               monthly > 0 else { return nil }
-        let yearlyAtMonthly = monthly * 12
-        guard yearlyAtMonthly > 0 else { return nil }
-        let saved = (yearlyAtMonthly - annual) / yearlyAtMonthly
-        let pct = NSDecimalNumber(decimal: saved * 100).doubleValue
-        guard pct > 0 else { return nil }
-        return Int(pct.rounded())
+        let yearAtMonthly = monthly * 12
+        guard yearAtMonthly > annual else { return nil }
+        let pct = (yearAtMonthly - annual) / yearAtMonthly * 100
+        return Int((pct as NSDecimalNumber).doubleValue.rounded())
     }
 
-    /// A short sub-label for each plan card (per-month equivalent or billing cadence).
-    private func subLabel(for package: Package) -> String? {
-        switch package.packageType {
-        case .annual:
-            let perMonth = package.storeProduct.price / 12
-            if let formatter = package.storeProduct.priceFormatter,
-               let s = formatter.string(from: NSDecimalNumber(decimal: perMonth)) {
-                return "\(s)/mo — billed yearly"
-            }
-            return "billed yearly"
-        case .monthly: return "billed monthly"
-        case .weekly: return "billed weekly"
-        default: return nil
+    private var annualPerMonthString: String? {
+        guard let annual = annualPackage else { return nil }
+        let perMonth = annual.storeProduct.price / 12
+        if let formatter = annual.storeProduct.priceFormatter,
+           let text = formatter.string(from: perMonth as NSDecimalNumber) {
+            return "\(text) / mo"
         }
+        return nil
     }
 
-    /// A "SAVE x%" badge string shown on the annual card.
-    private func savingsBadge(for package: Package) -> String? {
-        guard package.packageType == .annual, let pct = annualSavingsVsMonthlyPercent else { return nil }
-        return "SAVE \(pct)%"
-    }
+    // MARK: - Body
 
     var body: some View {
-        ZStack(alignment: .top) {
-            DS.Colors.Bg.base.ignoresSafeArea()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                hero
+                VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+                    Text("Unlock the full academy")
+                        .style(.title1)
+                        .textCase(.uppercase)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .fixedSize(horizontal: false, vertical: true)
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    header
-                    valuePropsSection
-                    if packages.isEmpty { pricingPreview }
-                    savingsCallout
-                    comparison
-                    pricing
+                    bulletList
+                    comparisonTable
+                    planGrid
                     subscribeCTA
+                    keepLine
                     legalFooter
                 }
-                .padding(.bottom, 48)
+                .padding(.horizontal, DS.Spacing.s20)
+                .padding(.top, DS.Spacing.s16)
+                .padding(.bottom, DS.Spacing.s32)
             }
-            .scrollIndicators(.hidden)
-
-            closeButton
         }
+        .background(DS.Colors.Bg.base)
+        .scrollIndicators(.hidden)
+        .ignoresSafeArea(edges: .top)
+        .overlay(alignment: .topTrailing) { closeButton }
         .onAppear {
-            if selectedPackageID == nil {
-                selectedPackageID = (packages.first { $0.packageType == .annual } ?? packages.first)?.identifier
-            }
+            if selectedPackageID == nil { selectedPackageID = annualPackage?.identifier }
         }
-        .alert("Something went wrong", isPresented: .init(
-            get: { subscription.error != nil },
-            set: { if !$0 { subscription.error = nil } }
-        )) {
-            Button("OK") { subscription.error = nil }
-        } message: {
-            Text(subscription.error ?? "")
-        }
-        .sheet(item: $mailRequest) { request in
-            MailComposeView(request: request).ignoresSafeArea()
-        }
-        .alert("Email not set up", isPresented: $showMailUnavailable) {
-            Button("Copy address") { UIPasteboard.general.string = supportEmail }
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Reach us at \(supportEmail)")
+        .onChange(of: subscription.isElite) { _, isElite in
+            if isElite { dismiss() }
         }
     }
 
-    private func contactSupport() {
-        if MFMailComposeViewController.canSendMail() {
-            mailRequest = MailRequest(
-                recipient: supportEmail,
-                subject: "MF Elite Support — Billing",
-                body: MailRequest.supportBody()
+    // MARK: - Hero (real brand assets; swap to training photo/film when available)
+
+    private var hero: some View {
+        ZStack(alignment: .bottomTrailing) {
+            LinearGradient(
+                colors: [Color(hex: "#161A13"), Color(hex: "#0B0E0A"), .black],
+                startPoint: .top, endPoint: .bottom
             )
-        } else {
-            showMailUnavailable = true
+            RadialGradient(
+                colors: [DS.Colors.Gold.base.opacity(0.28), .clear],
+                center: .init(x: 0.72, y: 0.0), startRadius: 10, endRadius: 320
+            )
+            pitchLines.opacity(0.4)
+
+            Image("SoccerBall")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 220)
+                .offset(x: 44, y: 56)
+                .shadow(color: .black.opacity(0.65), radius: 22, y: 12)
+
+            LinearGradient(
+                colors: [.black.opacity(0.15), .clear, .black.opacity(0.55), .black],
+                startPoint: .top, endPoint: .bottom
+            )
+        }
+        .frame(height: 250)
+        .clipped()
+        .overlay(alignment: .topLeading) {
+            Image("mf-logo-white")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 52)
+                .shadow(color: .black.opacity(0.6), radius: 6, y: 2)
+                .padding(.leading, DS.Spacing.s20)
+                .padding(.top, 58)
         }
     }
 
-    // MARK: - Close
+    private var pitchLines: some View {
+        GeometryReader { geo in
+            let w = geo.size.width, h = geo.size.height
+            Path { p in
+                p.move(to: .init(x: -40, y: h)); p.addLine(to: .init(x: w * 0.42, y: h * 0.18))
+                p.move(to: .init(x: w * 0.2, y: h)); p.addLine(to: .init(x: w * 0.55, y: h * 0.18))
+                p.move(to: .init(x: w * 0.58, y: h)); p.addLine(to: .init(x: w * 0.68, y: h * 0.18))
+                p.move(to: .init(x: w * 0.92, y: h)); p.addLine(to: .init(x: w * 0.82, y: h * 0.18))
+                p.move(to: .init(x: 0, y: h * 0.60)); p.addLine(to: .init(x: w, y: h * 0.53))
+                p.move(to: .init(x: 0, y: h * 0.83)); p.addLine(to: .init(x: w, y: h * 0.78))
+            }
+            .stroke(Color.white.opacity(0.14), lineWidth: 1.5)
+        }
+    }
 
     private var closeButton: some View {
-        HStack {
-            Spacer()
-            IconButton(systemName: "xmark", size: 36) { dismiss() }
+        Button {
+            dismiss()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.85))
+                .frame(width: 44, height: 44)
+                .background(.black.opacity(0.45), in: Circle())
         }
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s12)
+        .accessibilityLabel("Close")
+        .padding(.trailing, DS.Spacing.s12)
+        .padding(.top, 52)
     }
 
-    // MARK: - Header
+    // MARK: - Benefits
 
-    private var header: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(text: "MF Elite")
-            Text("Go Elite.\nTrain like a pro.")
-                .style(.hero)
-                .foregroundStyle(DS.Colors.Ink.primary)
-                .lineSpacing(-6)
-                .padding(.top, DS.Spacing.s8)
-            Text("You have access to Level 1. Go Elite to unlock all 216 drills, every level, certifications, achievement badges, and curated training routines.")
-                .style(.body)
-                .foregroundStyle(DS.Colors.Ink.secondary)
-                .frame(maxWidth: 320, alignment: .leading)
-                .padding(.top, DS.Spacing.s12)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s48 + DS.Spacing.s4)
-    }
-
-    // MARK: - Pricing preview
-
-    private var pricingPreview: some View {
-        HStack(spacing: DS.Spacing.s16) {
-            pricingChip(period: "YEAR", price: "$199.99", note: "Best value", highlight: true)
-            pricingChip(period: "MONTH", price: "$29.99", note: "", highlight: false)
-            pricingChip(period: "WEEK", price: "$12.99", note: "", highlight: false)
-        }
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s20)
-    }
-
-    // MARK: - Value props
-
-    private var valuePropsSection: some View {
-        VStack(spacing: DS.Spacing.s12) {
-            ForEach(Array(valueProps.enumerated()), id: \.offset) { _, prop in
-                HStack(spacing: DS.Spacing.s16) {
-                    Image(systemName: prop.icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                        .frame(width: 44, height: 44)
-                        .background(DS.Colors.Bg.raised)
-                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous))
+    private var bulletList: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            ForEach(bullets, id: \.title) { bullet in
+                HStack(alignment: .top, spacing: DS.Spacing.s12) {
+                    Image(systemName: bullet.icon)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Gold.base)
+                        .frame(width: 30, height: 30)
+                        .background(
+                            DS.Colors.Gold.soft,
+                            in: RoundedRectangle(cornerRadius: 9, style: .continuous)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                .stroke(DS.Colors.Gold.line, lineWidth: 1)
+                        )
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(prop.title)
-                            .style(.title3)
+                        Text(bullet.title)
+                            .font(.system(size: 13.5, weight: .bold))
                             .foregroundStyle(DS.Colors.Ink.primary)
-                        Text(prop.detail)
-                            .style(.foot)
-                            .foregroundStyle(DS.Colors.Ink.secondary)
+                        Text(bullet.detail)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s24 + 4)
     }
 
-    private func pricingChip(period: String, price: String, note: String, highlight: Bool) -> some View {
-        VStack(spacing: DS.Spacing.s4) {
-            Text(period)
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .tracking(1.2)
-                .foregroundStyle(highlight ? DS.Colors.Ground.primary : DS.Colors.Ink.tertiary)
-            Text(price)
-                .font(DS.Typography.num(size: 18))
-                .tracking(-0.5)
-                .foregroundStyle(highlight ? DS.Colors.Ground.primary : DS.Colors.Ink.primary)
-            if !note.isEmpty {
-                Text(note)
-                    .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(highlight ? DS.Colors.Ground.secondary : DS.Colors.Ink.quaternary)
+    // MARK: - Comparison
+
+    private var comparisonTable: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("EVERYTHING IN THE APP")
+                Spacer()
+                Text("FREE").frame(width: 48)
+                Text("ELITE").frame(width: 48).foregroundStyle(DS.Colors.Gold.textLight)
+            }
+            .font(.system(size: 9.5, weight: .heavy))
+            .tracking(1.2)
+            .foregroundStyle(DS.Colors.Ink.quaternary)
+            .padding(.horizontal, DS.Spacing.s16)
+            .padding(.vertical, DS.Spacing.s12)
+            Hairline()
+
+            ForEach(Array(comparison.enumerated()), id: \.offset) { index, row in
+                HStack {
+                    Text(row.label)
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(DS.Colors.Ink.secondary)
+                    Spacer()
+                    freeMarker(row.free).frame(width: 48)
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(DS.Colors.Gold.base)
+                        .frame(width: 48)
+                }
+                .padding(.horizontal, DS.Spacing.s16)
+                .padding(.vertical, 9)
+                if index < comparison.count - 1 { Hairline() }
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, DS.Spacing.s12)
-        .background(highlight ? Color.white : DS.Colors.Bg.card)
-        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        .background(DS.Colors.Bg.raised, in: RoundedRectangle(cornerRadius: DS.Radius.lg, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: DS.Radius.md)
-                .stroke(highlight ? Color.white : DS.Colors.Line.hairline, lineWidth: highlight ? 2 : 1)
+            RoundedRectangle(cornerRadius: DS.Radius.lg, style: .continuous)
+                .stroke(DS.Colors.Line.subtle, lineWidth: 1)
         )
     }
 
-    private var savingsCallout: some View {
-        Text(annualSavingsCallout)
-            .style(.foot)
-            .foregroundStyle(DS.Colors.Ink.tertiary)
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity)
-            .padding(.top, DS.Spacing.s24)
-            .padding(.horizontal, DS.Spacing.s20)
-    }
-
-    /// Savings line computed entirely from live prices; no hardcoded percentages.
-    private var annualSavingsCallout: String {
-        if let pct = annualSavingsVsMonthlyPercent, let perMonth = annualPerMonthString {
-            return "Annual saves \(pct)% vs paying monthly — just \(perMonth)/mo"
-        }
-        if let pct = annualSavingsVsMonthlyPercent {
-            return "Annual saves \(pct)% vs paying monthly"
-        }
-        return "Annual is our best value — one payment for a full year"
-    }
-
-    /// The annual plan's per-month equivalent, formatted from live pricing.
-    private var annualPerMonthString: String? {
-        guard let annual = annualPackage?.storeProduct else { return nil }
-        let perMonth = annual.price / 12
-        return annual.priceFormatter?.string(from: NSDecimalNumber(decimal: perMonth))
-    }
-
-    // MARK: - Feature comparison
-
-    private var comparison: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Spacer()
-                Text("Free")
-                    .style(.micro)
-                    .foregroundStyle(DS.Colors.Ink.secondary)
-                    .frame(width: 52)
-                Text("Elite")
-                    .style(.micro)
-                    .foregroundStyle(DS.Colors.Ground.primary)
-                    .frame(width: 52, height: 22)
-                    .background(Color.white)
-                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.xs))
-            }
-            .padding(.bottom, DS.Spacing.s8)
-
-            ForEach(Array(features.enumerated()), id: \.offset) { _, feature in
-                VStack(spacing: 0) {
-                    Hairline()
-                    HStack {
-                        Text(feature.label)
-                            .style(.callout)
-                            .foregroundStyle(DS.Colors.Ink.primary)
-                        Spacer()
-                        marker(feature.free).frame(width: 52)
-                        marker(feature.elite).frame(width: 52)
-                    }
-                    .padding(.vertical, DS.Spacing.s12 + 2)
-                }
-            }
-        }
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s24 + 4)
-    }
-
-    private func marker(_ included: Bool) -> some View {
-        Image(systemName: included ? "checkmark" : "xmark")
-            .font(.system(size: 14, weight: .heavy))
-            .foregroundStyle(included ? DS.Colors.Ink.primary : Color.white.opacity(0.25))
-    }
-
-    // MARK: - Pricing
-
     @ViewBuilder
-    private var pricing: some View {
-        if packages.isEmpty {
-            VStack(spacing: DS.Spacing.s12) {
-                ProgressView()
-                    .tint(DS.Colors.Ink.tertiary)
-                Text("Loading plans…")
-                    .style(.foot)
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.top, DS.Spacing.s32)
-        } else {
-            VStack(spacing: DS.Spacing.s12) {
-                ForEach(packages, id: \.identifier) { package in
-                    PricingCard(
-                        package: package,
-                        isSelected: selectedPackage?.identifier == package.identifier,
-                        isBestValue: package.packageType == .annual,
-                        subLabel: subLabel(for: package),
-                        savingsBadge: savingsBadge(for: package)
-                    ) {
-                        withAnimation(DS.Motion.standardSpring) {
-                            selectedPackageID = package.identifier
-                        }
-                    }
-                }
-            }
-            .padding(.horizontal, DS.Spacing.s20)
-            .padding(.top, DS.Spacing.s24 + 4)
+    private func freeMarker(_ value: String?) -> some View {
+        switch value {
+        case "check":
+            Image(systemName: "checkmark")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(DS.Colors.Gold.base)
+        case .some(let text):
+            Text(text)
+                .font(.system(size: 10.5, weight: .bold))
+                .foregroundStyle(DS.Colors.Ink.secondary)
+        case nil:
+            Text("—")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(DS.Colors.Ink.quaternary)
         }
     }
 
-    // MARK: - Subscribe
+    // MARK: - Plans (3-up grid, annual centered + preselected; NO checkmark badge)
+
+    private var planGrid: some View {
+        Group {
+            if packages.isEmpty {
+                HStack(spacing: DS.Spacing.s12) {
+                    ProgressView().tint(DS.Colors.Gold.base)
+                    Text("Loading plans…")
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, DS.Spacing.s24)
+            } else {
+                HStack(spacing: 8) {
+                    if let weekly = weeklyPackage { planCell(weekly, periodLabel: "WEEKLY", subLabel: perPeriodLabel(weekly)) }
+                    if let annual = annualPackage {
+                        planCell(annual, periodLabel: "12 MONTHS", subLabel: annualPerMonthString ?? perPeriodLabel(annual), emphasized: true)
+                    }
+                    if let monthly = monthlyPackage { planCell(monthly, periodLabel: "MONTHLY", subLabel: perPeriodLabel(monthly)) }
+                }
+                .padding(.top, DS.Spacing.s8)
+            }
+        }
+    }
+
+    private func perPeriodLabel(_ package: Package) -> String {
+        "per \(periodWord(for: package))"
+    }
+
+    private func planCell(_ package: Package, periodLabel: String, subLabel: String, emphasized: Bool = false) -> some View {
+        let isSelected = selectedPackage?.identifier == package.identifier
+        return Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            selectedPackageID = package.identifier
+        } label: {
+            VStack(spacing: 3) {
+                Text(periodLabel)
+                    .font(.system(size: 9, weight: .heavy))
+                    .tracking(1.3)
+                    .foregroundStyle(isSelected ? DS.Colors.Gold.textLight : DS.Colors.Ink.quaternary)
+                Text(package.storeProduct.localizedPriceString)
+                    .font(DS.Typography.num(size: 20))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Text(subLabel)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(isSelected ? DS.Colors.Gold.textLight : DS.Colors.Ink.tertiary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity, minHeight: 74)
+            .padding(.vertical, DS.Spacing.s12)
+            .background(
+                isSelected ? AnyShapeStyle(DS.Colors.Gold.soft) : AnyShapeStyle(DS.Colors.Bg.raised),
+                in: RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous)
+                    .stroke(isSelected ? DS.Colors.Gold.base : DS.Colors.Line.subtle,
+                            lineWidth: isSelected ? 1.5 : 1)
+            )
+            .overlay(alignment: .top) {
+                if emphasized, let pct = annualSavingsVsMonthlyPercent {
+                    Text("BEST VALUE · SAVE \(pct)%")
+                        .font(.system(size: 8, weight: .heavy))
+                        .tracking(0.8)
+                        .foregroundStyle(DS.Colors.Gold.inkOnGold)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(DS.Colors.Gold.base, in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .offset(y: -9)
+                        .lineLimit(1)
+                        .fixedSize()
+                }
+            }
+            .scaleEffect(emphasized ? 1.03 : 1)
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("\(periodLabel) plan, \(package.storeProduct.localizedPriceString)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+    }
+
+    // MARK: - CTA + dismissal reassurance
 
     private var subscribeCTA: some View {
-        VStack(spacing: 0) {
-            FloatingButton(
-                label: subscription.isPurchasing ? "Processing…" : "Go Elite",
-                hint: trialHint
-            ) {
-                guard let package = selectedPackage else { return }
-                Task { await subscription.purchase(package: package) }
-            }
-            .disabled(subscription.isPurchasing || selectedPackage == nil)
-            .opacity(subscription.isPurchasing ? 0.7 : 1)
+        FloatingButton(
+            label: subscription.isPurchasing ? "Processing…" : "Start Elite",
+            hint: trialHint
+        ) {
+            guard let package = selectedPackage else { return }
+            Task { await subscription.purchase(package: package) }
         }
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s24 + 4)
+        .disabled(subscription.isPurchasing || selectedPackage == nil)
+        .opacity(subscription.isPurchasing ? 0.7 : 1)
+        .padding(.top, DS.Spacing.s8)
     }
 
     private var trialHint: String? {
@@ -374,16 +387,21 @@ struct PaywallView: View {
         return "\(intro.subscriptionPeriod.value)-DAY FREE TRIAL"
     }
 
+    private var keepLine: some View {
+        (Text("Not ready? Train for free within Level 1 — ")
+            + Text("everything you earn stays yours, always.").bold())
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(DS.Colors.Ink.tertiary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     // MARK: - Legal
 
     private var legalFooter: some View {
         VStack(spacing: DS.Spacing.s12) {
-            Text(autoRenewalTerms)
-                .style(.microSm)
-                .foregroundStyle(DS.Colors.Ink.quaternary)
-                .multilineTextAlignment(.center)
-
-            HStack(spacing: DS.Spacing.s24) {
+            HStack(spacing: DS.Spacing.s20) {
                 GhostButton(label: "Restore Purchases") {
                     Task { await subscription.restorePurchases() }
                 }
@@ -392,8 +410,12 @@ struct PaywallView: View {
                 }
             }
 
-            GhostButton(label: "Having trouble? Contact support") {
-                contactSupport()
+            HStack(spacing: DS.Spacing.s20) {
+                GhostButton(label: "Terms") { showTerms = true }
+                GhostButton(label: "Privacy") { showPrivacy = true }
+                GhostButton(label: "Support") {
+                    if let url = URL(string: "mailto:\(supportEmail)") { openURL(url) }
+                }
             }
 
             Button {
@@ -404,17 +426,24 @@ struct PaywallView: View {
                     .underline()
                     .foregroundStyle(DS.Colors.Ink.secondary)
             }
-            .sheet(isPresented: $showTierCompare) { TierCompareView() }
+            .frame(minHeight: 44)
+
+            Text(autoRenewalTerms)
+                .style(.microSm)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity)
-        .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s16)
+        .padding(.top, DS.Spacing.s8)
+        .sheet(isPresented: $showTierCompare) { TierCompareView() }
+        .sheet(isPresented: $showTerms) { NavigationStack { TermsOfUseView() } }
+        .sheet(isPresented: $showPrivacy) { NavigationStack { PrivacyPolicyView() } }
     }
 
     /// Auto-renewal terms built from the selected package's live RevenueCat pricing.
     private var autoRenewalTerms: String {
         guard let package = selectedPackage else {
-            return "Plans: $199.99/year (best value), $29.99/month, or $12.99/week. Payment is charged to your Apple ID at confirmation of purchase. Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Manage or cancel anytime in your App Store account settings."
+            return "Payment is charged to your Apple ID at confirmation of purchase. Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Manage or cancel anytime in your App Store account settings."
         }
         let price = package.storeProduct.localizedPriceString
         let period = periodWord(for: package)
@@ -431,90 +460,5 @@ struct PaywallView: View {
         case .sixMonth: return "6 months"
         default: return "period"
         }
-    }
-}
-
-// MARK: - PricingCard
-
-private struct PricingCard: View {
-    let package: Package
-    let isSelected: Bool
-    let isBestValue: Bool
-    let subLabel: String?
-    let savingsBadge: String?
-    let action: () -> Void
-
-    private var product: StoreProduct { package.storeProduct }
-
-    private var periodLabel: String {
-        switch package.packageType {
-        case .weekly: return "Weekly"
-        case .monthly: return "Monthly"
-        case .annual: return "Annual"
-        case .twoMonth: return "2 Months"
-        case .threeMonth: return "3 Months"
-        case .sixMonth: return "6 Months"
-        case .lifetime: return "Lifetime"
-        default: return product.localizedTitle
-        }
-    }
-
-    private var perPeriod: String {
-        switch package.packageType {
-        case .weekly: return "per week"
-        case .monthly: return "per month"
-        case .annual: return "per year"
-        default: return "one-time"
-        }
-    }
-
-    var body: some View {
-        Button(action: action) {
-            HStack(alignment: .center, spacing: DS.Spacing.s12) {
-                VStack(alignment: .leading, spacing: DS.Spacing.s4) {
-                    HStack(spacing: DS.Spacing.s8) {
-                        Text(periodLabel)
-                            .style(.title3)
-                            .foregroundStyle(isSelected ? DS.Colors.Ground.primary : DS.Colors.Ink.primary)
-                        if let savingsBadge {
-                            Text(savingsBadge)
-                                .style(.microSm)
-                                .foregroundStyle(isSelected ? Color.white : DS.Colors.Ground.primary)
-                                .padding(.vertical, 3)
-                                .padding(.horizontal, 7)
-                                .background(isSelected ? DS.Colors.Ground.primary : Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
-                        } else if isBestValue {
-                            Text("Best Value")
-                                .style(.microSm)
-                                .foregroundStyle(isSelected ? Color.white : DS.Colors.Ground.primary)
-                                .padding(.vertical, 3)
-                                .padding(.horizontal, 7)
-                                .background(isSelected ? DS.Colors.Ground.primary : Color.white)
-                                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
-                        }
-                    }
-                    Text(subLabel ?? perPeriod)
-                        .style(.foot)
-                        .foregroundStyle(isSelected ? DS.Colors.Ground.secondary : DS.Colors.Ink.tertiary)
-                }
-
-                Spacer(minLength: DS.Spacing.s8)
-
-                Text(product.localizedPriceString)
-                    .font(DS.Typography.num(size: 24))
-                    .tracking(-1)
-                    .foregroundStyle(isSelected ? DS.Colors.Ground.primary : DS.Colors.Ink.primary)
-            }
-            .padding(DS.Spacing.s16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(isSelected ? Color.white : DS.Colors.Bg.card)
-            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
-            .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.lg)
-                    .stroke(isSelected ? Color.white : DS.Colors.Line.hairline, lineWidth: isSelected ? 2 : 1)
-            )
-        }
-        .buttonStyle(PressableButtonStyle())
     }
 }
