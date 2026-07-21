@@ -2,12 +2,17 @@
 //  XPStoreService.swift
 //  MFElite
 //
-//  StoreKit 2 consumables: XP packs (dual-ledger — purchased XP counts toward
-//  rank only), streak freezes (capped at 3), and the 2x weekend booster
+//  RevenueCat-backed consumables: XP packs (dual-ledger — purchased XP counts
+//  toward rank only), streak freezes (capped at 3), and the 2x weekend booster
 //  (multiplies EARNED XP for 48h — it rewards more training, never replaces it).
+//
+//  Payments and reporting flow through RevenueCat (same pipeline as the elite
+//  subscription), so every sale lands in one dashboard. Reward-granting stays
+//  in-app, because these are one-time consumables RevenueCat cannot auto-unlock.
 //
 
 import Foundation
+import RevenueCat
 import StoreKit
 import SwiftData
 
@@ -39,8 +44,9 @@ final class XPStoreService {
     static let monthlyXPCap = 2000
     private static let boosterKey = "MF_BOOSTER_UNTIL"
     private static let monthlyXPKey = "MF_PURCHASED_XP_MONTH" // "yyyy-MM|total"
+    private static let processedKey = "MF_PROCESSED_TX" // idempotency guard
 
-    private(set) var products: [Product] = []
+    private(set) var products: [StoreProduct] = []
     private(set) var lastError: String?
     private var context: ModelContext?
 
@@ -51,11 +57,11 @@ final class XPStoreService {
     }
 
     func loadProducts() async {
-        do {
-            products = try await Product.products(for: ProductID.allCases.map(\.rawValue))
-                .sorted { $0.price < $1.price }
-        } catch {
+        let fetched = await Purchases.shared.products(ProductID.allCases.map(\.rawValue))
+        if fetched.isEmpty {
             lastError = "Store unavailable right now."
+        } else {
+            products = fetched.sorted { $0.price < $1.price }
         }
     }
 
@@ -94,40 +100,39 @@ final class XPStoreService {
         return formatter.string(from: Date())
     }
 
-    /// Purchase and grant. Returns true on success. XP packs are refused when
-    /// they would exceed the monthly purchased-XP cap.
+    /// Purchase and grant through RevenueCat. Returns true on success. XP packs
+    /// are refused when they would exceed the monthly purchased-XP cap.
     @discardableResult
-    func purchase(_ product: Product) async -> Bool {
+    func purchase(_ product: StoreProduct) async -> Bool {
         lastError = nil
-        if let productID = ProductID(rawValue: product.id), productID.xpAmount > 0,
+        if let productID = ProductID(rawValue: product.productIdentifier), productID.xpAmount > 0,
            productID.xpAmount > monthlyXPRemaining {
             lastError = "Monthly XP purchase limit reached (\(Self.monthlyXPCap) XP). Resets next month — keep training to earn more."
             return false
         }
         do {
-            let result = try await product.purchase()
-            switch result {
-            case .success(let verification):
-                guard case .verified(let transaction) = verification else {
-                    lastError = "Purchase could not be verified."
-                    return false
-                }
-                grant(productID: transaction.productID, storeTransactionID: String(transaction.id))
-                await transaction.finish()
-                return true
-            case .userCancelled, .pending:
-                return false
-            @unknown default:
-                return false
-            }
+            let result = try await Purchases.shared.purchase(product: product)
+            if result.userCancelled { return false }
+            grant(productID: product.productIdentifier,
+                  storeTransactionID: result.transaction?.transactionIdentifier)
+            return true
         } catch {
             lastError = "Purchase failed. You were not charged."
             return false
         }
     }
 
-    /// Grant entitlement for a verified transaction.
+    /// Grant entitlement for a verified purchase. Idempotent per store
+    /// transaction so the purchase flow and the recovery listener can never
+    /// double-grant the same consumable.
     private func grant(productID: String, storeTransactionID: String?) {
+        if let txID = storeTransactionID {
+            var processed = Set(UserDefaults.standard.stringArray(forKey: Self.processedKey) ?? [])
+            if processed.contains(txID) { return }
+            processed.insert(txID)
+            UserDefaults.standard.set(Array(processed), forKey: Self.processedKey)
+        }
+
         guard let context,
               let player = try? context.fetch(FetchDescriptor<PlayerState>()).first,
               let product = ProductID(rawValue: productID) else { return }
@@ -152,8 +157,9 @@ final class XPStoreService {
         )
     }
 
-    /// Handle transactions that complete outside the purchase flow
-    /// (interrupted purchases, Ask to Buy approvals).
+    /// Best-effort recovery for transactions that complete outside the purchase
+    /// flow (interrupted purchases, Ask to Buy approvals). RevenueCat reports and
+    /// finishes them; the idempotency guard in `grant` prevents double-grants.
     private func listenForTransactions() async {
         for await update in Transaction.updates {
             guard case .verified(let transaction) = update else { continue }

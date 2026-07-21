@@ -10,7 +10,7 @@
 
 import SwiftUI
 import SwiftData
-import StoreKit
+import RevenueCat
 
 /// Navigation route to the MF Store.
 struct MFStoreRoute: Hashable {}
@@ -22,7 +22,7 @@ struct MFStoreView: View {
     @State private var gate = ParentGate.shared
 
     @State private var gateMode: ParentGateMode?
-    @State private var pendingPurchase: Product?
+    @State private var pendingPurchase: StoreProduct?
     @State private var confirmation: String?
     @State private var isPurchasing = false
 
@@ -243,11 +243,11 @@ struct MFStoreView: View {
 
     @ViewBuilder
     private func buyButton(for id: XPStoreService.ProductID) -> some View {
-        if let product = store.products.first(where: { $0.id == id.rawValue }) {
+        if let product = store.products.first(where: { $0.productIdentifier == id.rawValue }) {
             Button {
                 attemptPurchase(product)
             } label: {
-                Text(product.displayPrice)
+                Text(product.localizedPriceString)
                     .style(.foot)
                     .foregroundStyle(DS.Colors.Ground.primary)
                     .padding(.vertical, DS.Spacing.s12)
@@ -292,7 +292,7 @@ struct MFStoreView: View {
 
     // MARK: - Purchase flow
 
-    private func attemptPurchase(_ product: Product) {
+    private func attemptPurchase(_ product: StoreProduct) {
         guard profile.isLikelyUnder13 else {
             Task { await runPurchase(product) }
             return
@@ -312,7 +312,7 @@ struct MFStoreView: View {
         }
     }
 
-    private func runPurchase(_ product: Product) async {
+    private func runPurchase(_ product: StoreProduct) async {
         isPurchasing = true
         let success = await store.purchase(product)
         isPurchasing = false
