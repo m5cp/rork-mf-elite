@@ -89,6 +89,7 @@ struct AvatarPickerSheet: View {
                 if let data = try? await newItem.loadTransferable(type: Data.self),
                    let image = UIImage(data: data) {
                     profile.setPhotoAvatar(image)
+                    if SupabaseAuth.shared.isSignedIn { SupabaseAuth.shared.pushFullProfile() }
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
                     isLoading = false
                     dismiss()
@@ -119,6 +120,7 @@ struct AvatarPickerSheet: View {
         return Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             profile.setBuiltinAvatar(id)
+            if SupabaseAuth.shared.isSignedIn { SupabaseAuth.shared.pushFullProfile() }
         } label: {
             AvatarView(
                 selection: .builtin(id),

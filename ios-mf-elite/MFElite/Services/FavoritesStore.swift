@@ -39,7 +39,13 @@ final class FavoritesStore {
     func isFavoriteDrill(_ id: String) -> Bool { drillIDs.contains(id) }
 
     func toggleDrill(_ id: String) {
-        if drillIDs.contains(id) { drillIDs.remove(id) } else { drillIDs.insert(id) }
+        if drillIDs.contains(id) {
+            drillIDs.remove(id)
+            SyncEngine.shared.enqueueFavoriteDeletion(kind: "drill", itemID: id)
+        } else {
+            drillIDs.insert(id)
+            SyncEngine.shared.enqueueFavorite(kind: "drill", itemID: id)
+        }
         defaults.set(Array(drillIDs), forKey: Keys.drills)
     }
 
@@ -48,7 +54,13 @@ final class FavoritesStore {
     func isFavoriteRoutine(_ id: String) -> Bool { routineIDs.contains(id) }
 
     func toggleRoutine(_ id: String) {
-        if routineIDs.contains(id) { routineIDs.remove(id) } else { routineIDs.insert(id) }
+        if routineIDs.contains(id) {
+            routineIDs.remove(id)
+            SyncEngine.shared.enqueueFavoriteDeletion(kind: "routine", itemID: id)
+        } else {
+            routineIDs.insert(id)
+            SyncEngine.shared.enqueueFavorite(kind: "routine", itemID: id)
+        }
         defaults.set(Array(routineIDs), forKey: Keys.routines)
     }
 
@@ -58,7 +70,13 @@ final class FavoritesStore {
 
     func toggleWorkout(_ id: UUID) {
         let key = id.uuidString
-        if workoutIDs.contains(key) { workoutIDs.remove(key) } else { workoutIDs.insert(key) }
+        if workoutIDs.contains(key) {
+            workoutIDs.remove(key)
+            SyncEngine.shared.enqueueFavoriteDeletion(kind: "workout", itemID: key)
+        } else {
+            workoutIDs.insert(key)
+            SyncEngine.shared.enqueueFavorite(kind: "workout", itemID: key)
+        }
         defaults.set(Array(workoutIDs), forKey: Keys.workouts)
     }
 
@@ -67,6 +85,27 @@ final class FavoritesStore {
         guard workoutIDs.contains(id.uuidString) else { return }
         workoutIDs.remove(id.uuidString)
         defaults.set(Array(workoutIDs), forKey: Keys.workouts)
+        SyncEngine.shared.enqueueFavoriteDeletion(kind: "workout", itemID: id.uuidString)
+    }
+
+    /// Apply a favorite pulled from the cloud during restore (no re-enqueue).
+    func applyRemote(kind: String, itemID: String) {
+        switch kind {
+        case "drill":
+            guard !drillIDs.contains(itemID) else { return }
+            drillIDs.insert(itemID)
+            defaults.set(Array(drillIDs), forKey: Keys.drills)
+        case "routine":
+            guard !routineIDs.contains(itemID) else { return }
+            routineIDs.insert(itemID)
+            defaults.set(Array(routineIDs), forKey: Keys.routines)
+        case "workout":
+            guard !workoutIDs.contains(itemID) else { return }
+            workoutIDs.insert(itemID)
+            defaults.set(Array(workoutIDs), forKey: Keys.workouts)
+        default:
+            break
+        }
     }
 
     // MARK: - Aggregate

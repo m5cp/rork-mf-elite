@@ -172,6 +172,7 @@ enum AchievementStore {
         UserDefaults.standard.set(Array(ids), forKey: key)
         if !alreadyEarned {
             GameCenterService.shared.reportAchievement(badge.gameCenterID)
+            Task { @MainActor in SyncEngine.shared.enqueueBadge(badgeID: badge.rawValue) }
         }
     }
 
@@ -186,6 +187,18 @@ enum AchievementStore {
         if !newlyEarned.isEmpty {
             GameCenterService.shared.report(newlyEarned.map { ($0.gameCenterID, 100.0) })
         }
+        for badge in newlyEarned {
+            Task { @MainActor in SyncEngine.shared.enqueueBadge(badgeID: badge.rawValue) }
+        }
+    }
+
+    /// Apply badge IDs pulled from the cloud during restore. No Game Center
+    /// re-report and no re-enqueue — these were already earned on another device.
+    static func applyRemote(_ ids: [String]) {
+        guard !ids.isEmpty else { return }
+        var merged = earnedIDs
+        for id in ids { merged.insert(id) }
+        UserDefaults.standard.set(Array(merged), forKey: key)
     }
 
     static var earnedCount: Int {

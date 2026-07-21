@@ -159,6 +159,7 @@ struct EditProfileSheet: View {
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         // Push the updated identity (incl. gender) up when signed in.
         Task { await SupabaseAuth.shared.syncPlayerProfile() }
+        if SupabaseAuth.shared.isSignedIn { SupabaseAuth.shared.pushFullProfile() }
         dismiss()
     }
 }

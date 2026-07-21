@@ -476,6 +476,12 @@ final class SupabaseAuth {
         await SupabaseClient.shared.upsert(table: "player_profiles", values: row, onConflict: "id")
     }
 
+    /// Full identity push including avatar — the durable superset of
+    /// syncPlayerProfile. Prefer this from UI edit paths.
+    func pushFullProfile() {
+        Task { await RemoteProfileSync.shared.pushProfileNow() }
+    }
+
     // MARK: - Helpers
 
     private static func formattedName(_ components: PersonNameComponents?) -> String? {

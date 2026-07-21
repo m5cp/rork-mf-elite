@@ -144,6 +144,7 @@ struct MyGamesView: View {
         let entry = GameEntry(date: date, opponent: opponent.trimmingCharacters(in: .whitespacesAndNewlines))
         modelContext.insert(entry)
         try? modelContext.save()
+        SyncEngine.shared.enqueueGameEntry(entry)
         NotificationService.shared.scheduleGamePrepReminder(
             gameID: entry.id, gameDate: entry.date, opponent: entry.opponent
         )
@@ -152,6 +153,7 @@ struct MyGamesView: View {
 
     private func delete(_ game: GameEntry) {
         NotificationService.shared.cancelGamePrepReminder(gameID: game.id)
+        SyncEngine.shared.enqueueGameEntryDeletion(id: game.id)
         modelContext.delete(game)
         try? modelContext.save()
     }

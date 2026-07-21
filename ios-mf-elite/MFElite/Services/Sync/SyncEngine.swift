@@ -55,14 +55,21 @@ final class SyncEngine {
         "drill_notes": "user_id,drill_id",
         "custom_workouts": "id",
         "gameiq_completions": "user_id,lesson_id",
-        "player_profiles": "id"
+        "player_profiles": "id",
+        "user_favorites": "user_id,kind,item_id",
+        "game_entries": "id",
+        "user_badges": "user_id,badge_id",
+        "drill_results": "id",
+        "share_xp_events": "user_id,day,platform"
     ]
 
     /// Tables whose owner column is `user_id` rather than `player_id`. The signed-in
     /// UUID is injected into the right column at flush time.
     private static let userIDTables: Set<String> = [
         "session_logs", "combine_results", "drill_notes",
-        "custom_workouts", "gameiq_completions"
+        "custom_workouts", "gameiq_completions",
+        "user_favorites", "game_entries", "user_badges",
+        "drill_results", "share_xp_events"
     ]
 
     /// The owner column for a table: `id` for player_profiles (PK == user UUID),
@@ -288,6 +295,8 @@ final class SyncEngine {
         if let v = entry.feltRating { row["felt_rating"] = v }
         if let v = entry.reflection { row["reflection"] = v }
         if let v = entry.journalResponse { row["journal_response"] = v }
+        row["steps"] = entry.steps
+        row["movement_intensity"] = entry.movementIntensity
         enqueueGeneric(table: "session_logs", opType: "upsert", row: row,
                        coalesce: ["id": entry.id.uuidString])
     }
@@ -359,6 +368,48 @@ final class SyncEngine {
         ]
         enqueueGeneric(table: "gameiq_completions", opType: "upsert", row: row,
                        coalesce: ["lesson_id": lessonID])
+    }
+
+    /// Enqueue a favorite add, keyed (user_id, kind, item_id).
+    func enqueueFavorite(kind: String, itemID: String) {
+        let row: [String: Any] = ["kind": kind, "item_id": itemID]
+        enqueueGeneric(table: "user_favorites", opType: "upsert", row: row,
+                       coalesce: ["kind": kind, "item_id": itemID])
+    }
+
+    /// Enqueue a favorite removal.
+    func enqueueFavoriteDeletion(kind: String, itemID: String) {
+        enqueueGeneric(table: "user_favorites", opType: "delete",
+                       row: ["kind": kind, "item_id": itemID],
+                       coalesce: ["kind": kind, "item_id": itemID])
+    }
+
+    /// Enqueue a player-entered game (My Games) upsert.
+    func enqueueGameEntry(_ entry: GameEntry) {
+        let row: [String: Any] = [
+            "id": entry.id.uuidString,
+            "game_date": Self.iso.string(from: entry.date),
+            "opponent": entry.opponent,
+            "created_at": Self.iso.string(from: entry.createdAt)
+        ]
+        enqueueGeneric(table: "game_entries", opType: "upsert", row: row,
+                       coalesce: ["id": entry.id.uuidString])
+    }
+
+    /// Enqueue deletion of a player-entered game.
+    func enqueueGameEntryDeletion(id: UUID) {
+        enqueueGeneric(table: "game_entries", opType: "delete",
+                       row: ["id": id.uuidString], coalesce: ["id": id.uuidString])
+    }
+
+    /// Enqueue an earned achievement badge (append-only; never deleted).
+    func enqueueBadge(badgeID: String, earnedAt: Date = Date()) {
+        let row: [String: Any] = [
+            "badge_id": badgeID,
+            "earned_at": Self.iso.string(from: earnedAt)
+        ]
+        enqueueGeneric(table: "user_badges", opType: "upsert", row: row,
+                       coalesce: ["badge_id": badgeID])
     }
 
     // MARK: - Outbox writes
@@ -769,8 +820,62 @@ final class SyncEngine {
         await mergeDrillNotes(userID: userID, context: context)
         await mergeCustomWorkouts(userID: userID, context: context)
         await mergeGameIQCompletions(userID: userID, context: context)
+        await mergeGameEntries(context: context)
+        await mergeFavoritesAndBadges()
+        await RemoteProfileSync.shared.hydrateProfileFromRemote()
+        WatchSyncBridge.shared.refreshAndPush()
         try? context.save()
         WidgetBridge.refresh(context: context)
+    }
+
+    /// Merge remote game entries (My Games) into the local store. Union by id.
+    private func mergeGameEntries(context: ModelContext) async {
+        guard let userID = SupabaseAuth.shared.userID else { return }
+        guard let rows = await SupabaseClient.shared.get(
+            table: "game_entries",
+            query: [URLQueryItem(name: "user_id", value: "eq.\(userID)")]
+        ) else { return }
+        let existing = Set(((try? context.fetch(FetchDescriptor<GameEntry>())) ?? []).map(\.id))
+        for row in rows {
+            guard let idString = row["id"] as? String,
+                  let id = UUID(uuidString: idString),
+                  !existing.contains(id),
+                  let dateString = row["game_date"] as? String,
+                  let date = Self.isoDate(from: dateString) else { continue }
+            let opponent = row["opponent"] as? String ?? ""
+            context.insert(GameEntry(id: id, date: date, opponent: opponent))
+        }
+        try? context.save()
+    }
+
+    /// Merge remote favorites and earned badges into their local stores.
+    private func mergeFavoritesAndBadges() async {
+        guard let userID = SupabaseAuth.shared.userID else { return }
+        if let favs = await SupabaseClient.shared.get(
+            table: "user_favorites",
+            query: [URLQueryItem(name: "user_id", value: "eq.\(userID)")]
+        ) {
+            for row in favs {
+                guard let kind = row["kind"] as? String,
+                      let itemID = row["item_id"] as? String else { continue }
+                FavoritesStore.shared.applyRemote(kind: kind, itemID: itemID)
+            }
+        }
+        if let badges = await SupabaseClient.shared.get(
+            table: "user_badges",
+            query: [URLQueryItem(name: "user_id", value: "eq.\(userID)")]
+        ) {
+            let ids = badges.compactMap { $0["badge_id"] as? String }
+            AchievementStore.applyRemote(ids)
+        }
+    }
+
+    /// Parse a full ISO8601 timestamp (with or without fractional seconds).
+    static func isoDate(from string: String) -> Date? {
+        if let d = iso.date(from: string) { return d }
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return fractional.date(from: string)
     }
 
     /// Union by id — append-only, no conflicts possible.
