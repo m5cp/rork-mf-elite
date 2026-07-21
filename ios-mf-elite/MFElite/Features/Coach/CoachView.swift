@@ -53,6 +53,7 @@ struct CoachView: View {
                         retryState
                     default:
                         overviewSection
+                        needsAttentionSection
                         approvalsSection
                         announcementsSection
                         workoutOfTheDaySection
@@ -158,6 +159,61 @@ struct CoachView: View {
         .sheet(isPresented: $showInvite) {
             CoachInvitePlayerView(model: model)
         }
+    }
+
+    // MARK: - Needs attention
+
+    /// Players inactive 7+ days (or never active). Tapping a row opens the same
+    /// player detail the roster uses.
+    private var needsAttentionSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Needs Attention")
+            if model.needsAttention.isEmpty {
+                Text("Everyone has trained this week.")
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .padding(DS.Spacing.s16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(DS.Colors.Bg.card)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                    .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+            } else {
+                VStack(spacing: DS.Spacing.s8) {
+                    ForEach(model.needsAttention) { player in
+                        NavigationLink(value: player) {
+                            needsAttentionRow(player)
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                    }
+                }
+            }
+        }
+    }
+
+    private func needsAttentionRow(_ player: RosterPlayer) -> some View {
+        HStack(spacing: DS.Spacing.s12) {
+            Monogram(size: 40, initials: CoachFormat.initials(player.displayName), kit: nil)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(player.displayName)
+                    .style(.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .lineLimit(1)
+                Text(player.lastActive == nil ? "Never trained" : "No training in 7+ days")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+            Spacer(minLength: DS.Spacing.s8)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+        }
+        .padding(DS.Spacing.s12)
+        .background(DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.md)
+                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+        )
     }
 
     // MARK: - Ballon d'Or approvals

@@ -41,6 +41,7 @@ struct AcademyTodayView: View {
  @State private var appeared = false
  @State private var pendingPlanAdvance: PendingPlanAdvance?
  @State private var showChangePlanConfirm = false
+ @State private var coachFocusText: String = ""
 
  /// drillID → resolved context, rebuilt only when the curriculum graph changes.
  private var drillIndex: [String: DrillContext] {
@@ -103,6 +104,7 @@ struct AcademyTodayView: View {
  goalsCard(vm).entrance(3, appeared: appeared)
  nextGameChip.entrance(4, appeared: appeared)
  announcementBanner.entrance(5, appeared: appeared)
+ coachFocusCard.entrance(5, appeared: appeared)
  resumeCard.entrance(6, appeared: appeared)
  if profile.shouldPromptProfileCompletion {
  completeProfileBanner.entrance(7, appeared: appeared)
@@ -158,6 +160,7 @@ struct AcademyTodayView: View {
  await AnnouncementFeed.refresh(context: modelContext)
  await CurriculumOverlay.applyAndMaybeRefresh(context: modelContext)
  maybePresentAnnouncementPopup()
+ await refreshCoachFocus()
  }
  .alert(
  announcementPopup?.title ?? "Team announcement",
@@ -545,6 +548,46 @@ struct AcademyTodayView: View {
  }
  .padding(.horizontal, DS.Spacing.s20)
  .padding(.top, DS.Spacing.s16)
+ }
+ }
+
+ // MARK: - Coach's focus
+
+ /// The coach-set focus for this player, shown once a coach fills it in.
+ @ViewBuilder
+ private var coachFocusCard: some View {
+ if !coachFocusText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+ Card(padding: DS.Spacing.s16) {
+ VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+ HStack(spacing: DS.Spacing.s8) {
+ Image(systemName: "target")
+ .font(.system(size: 13, weight: .bold))
+ .foregroundStyle(DS.Colors.Gold.base)
+ Eyebrow(text: "Coach's Focus")
+ }
+ Text(coachFocusText)
+ .style(.callout)
+ .foregroundStyle(DS.Colors.Ink.primary)
+ .fixedSize(horizontal: false, vertical: true)
+ }
+ }
+ .padding(.horizontal, DS.Spacing.s20)
+ .padding(.top, DS.Spacing.s16)
+ }
+ }
+
+ /// Fetch this player's own coach_focus once per launch (lightweight GET).
+ private func refreshCoachFocus() async {
+ guard let uid = auth.userID else { return }
+ if let rows = await SupabaseClient.shared.get(
+ table: "player_profiles",
+ query: [
+ URLQueryItem(name: "id", value: "eq.\(uid)"),
+ URLQueryItem(name: "select", value: "coach_focus"),
+ URLQueryItem(name: "limit", value: "1")
+ ]
+ ), let focus = rows.first?["coach_focus"] as? String {
+ coachFocusText = focus
  }
  }
 

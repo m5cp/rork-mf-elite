@@ -9,6 +9,7 @@
 
 import SwiftUI
 import SwiftData
+import Charts
 
 struct CoachPlayerDetailView: View {
     let player: RosterPlayer
@@ -17,6 +18,20 @@ struct CoachPlayerDetailView: View {
     @State private var sync = SyncEngine.shared
     @State private var shareImage: ShareableImage?
     @State private var isExporting = false
+    @State private var focusDraft: String = ""
+    @State private var focusSaved = false
+    @State private var noteDraft: String = ""
+    @State private var noteSaved = false
+    @State private var showReportBuilder = false
+
+    private var currentMonthKey: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM"
+        return formatter.string(from: Date())
+    }
+
+    private var notes: [CoachNote] { model.notesCache[player.id] ?? [] }
+    private var currentMonthNote: CoachNote? { notes.first { $0.month == currentMonthKey } }
 
     private var state: CoachLoadState { model.detailState[player.id] ?? .idle }
     private var detail: CoachPlayerDetail? { model.detailCache[player.id] }
@@ -35,6 +50,11 @@ struct CoachPlayerDetailView: View {
                     shareProgressButton(detail)
                     masterySection(detail)
                     trainingTimeSection(detail)
+                    trendSection(detail)
+                    if !detail.combineProgress.isEmpty { combineProgressSection(detail) }
+                    focusSection(detail)
+                    notesSection()
+                    reportSection(detail)
                     if !detail.combineLatest.isEmpty { combineSection(detail) }
                     gameIQSection(detail)
                     historySection(detail)
@@ -66,11 +86,230 @@ struct CoachPlayerDetailView: View {
                 }
             }
         }
-        .refreshable { await model.loadDetail(for: player, context: modelContext, force: true) }
-        .task { await model.loadDetail(for: player, context: modelContext) }
+        .refreshable {
+            await model.loadDetail(for: player, context: modelContext, force: true)
+            await model.loadNotes(for: player.id)
+            syncDrafts()
+        }
+        .task {
+            await model.loadDetail(for: player, context: modelContext)
+            await model.loadNotes(for: player.id)
+            syncDrafts()
+        }
+        .onChange(of: focusDraft) { _, _ in focusSaved = false }
+        .onChange(of: noteDraft) { _, _ in noteSaved = false }
         .sheet(item: $shareImage) { item in
             ShareSheet(items: [item.image])
                 .presentationDetents([.medium, .large])
+        }
+        .fullScreenCover(isPresented: $showReportBuilder) {
+            if let detail = model.detailCache[player.id] {
+                ProgressReportBuilderView(player: player, detail: detail)
+            }
+        }
+    }
+
+    /// Sync editable drafts from freshly-loaded data (focus + this month's note).
+    private func syncDrafts() {
+        focusDraft = model.detailCache[player.id]?.coachFocus ?? ""
+        noteDraft = currentMonthNote?.body ?? ""
+    }
+
+    // MARK: - Trend (last 8 weeks)
+
+    private func trendSection(_ detail: CoachPlayerDetail) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Last 8 Weeks")
+            Card(padding: DS.Spacing.s16) {
+                if detail.weeklyMinutes.allSatisfy({ $0.minutes == 0 }) {
+                    emptyLine("No training logged in the last 8 weeks.")
+                } else {
+                    Chart(detail.weeklyMinutes) { point in
+                        BarMark(
+                            x: .value("Week", point.weekStart, unit: .weekOfYear),
+                            y: .value("Minutes", point.minutes)
+                        )
+                        .foregroundStyle(DS.Colors.Gold.base)
+                        .cornerRadius(3)
+                    }
+                    .frame(height: 160)
+                    .chartYAxis {
+                        AxisMarks { _ in
+                            AxisGridLine().foregroundStyle(DS.Colors.Line.hairline)
+                            AxisValueLabel()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Combine progress (baseline → latest · best)
+
+    private func combineProgressSection(_ detail: CoachPlayerDetail) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Combine Progress")
+            Card(padding: DS.Spacing.s16) {
+                VStack(spacing: 0) {
+                    ForEach(Array(detail.combineProgress.enumerated()), id: \.element.testID) { index, item in
+                        if index > 0 { Hairline() }
+                        combineProgressRow(item)
+                    }
+                }
+            }
+        }
+    }
+
+    private func combineProgressRow(_ item: CombineProgress) -> some View {
+        let unchanged = item.latest == item.baseline
+        let improved = item.lowerIsBetter ? (item.latest < item.baseline) : (item.latest > item.baseline)
+        return HStack(alignment: .firstTextBaseline) {
+            Text(item.label)
+                .style(.title3)
+                .foregroundStyle(DS.Colors.Ink.primary)
+            Spacer()
+            VStack(alignment: .trailing, spacing: 2) {
+                HStack(spacing: DS.Spacing.s4) {
+                    if !unchanged {
+                        Image(systemName: improved ? "arrow.up.right" : "arrow.down.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(improved ? Color(hex: "#30D158") : Color(hex: "#FF453A"))
+                    }
+                    Text("\(CoachFormat.combineValue(item.baseline, unit: item.unit)) → \(CoachFormat.combineValue(item.latest, unit: item.unit))")
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.secondary)
+                }
+                Text("Best \(CoachFormat.combineValue(item.best, unit: item.unit))")
+                    .style(.cap)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+        }
+        .padding(.vertical, DS.Spacing.s12)
+    }
+
+    // MARK: - Training focus
+
+    private func focusSection(_ detail: CoachPlayerDetail) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Training Focus")
+            Card(padding: DS.Spacing.s16) {
+                VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                    TextField("What this player is working on…", text: $focusDraft, axis: .vertical)
+                        .style(.body)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .lineLimit(2...5)
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        Task {
+                            await model.saveCoachFocus(focusDraft, for: player.id)
+                            focusSaved = true
+                        }
+                    } label: {
+                        Text(focusSaved ? "Saved" : "Save focus")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ground.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                            .background(Color.white)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                }
+            }
+        }
+    }
+
+    // MARK: - Coach notes
+
+    private func notesSection() -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Coach Notes")
+            Card(padding: DS.Spacing.s16) {
+                VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                    Text(CoachFormat.monthLabel(currentMonthKey))
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                    TextField("Add a note for this month…", text: $noteDraft, axis: .vertical)
+                        .style(.body)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .lineLimit(3...8)
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        Task {
+                            await model.saveNote(month: currentMonthKey, text: noteDraft, for: player.id)
+                            noteSaved = true
+                        }
+                    } label: {
+                        Text(noteSaved ? "Saved" : "Save note")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ground.primary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
+                            .background(Color.white)
+                            .clipShape(Capsule())
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                }
+            }
+
+            let prior = notes.filter { $0.month != currentMonthKey }
+            if !prior.isEmpty {
+                VStack(spacing: DS.Spacing.s8) {
+                    ForEach(prior) { note in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(CoachFormat.monthLabel(note.month))
+                                .style(.cap)
+                                .foregroundStyle(DS.Colors.Ink.quaternary)
+                            Text(note.body)
+                                .style(.foot)
+                                .foregroundStyle(DS.Colors.Ink.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(DS.Spacing.s12)
+                        .background(DS.Colors.Bg.card)
+                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                        .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Progress report
+
+    private func reportSection(_ detail: CoachPlayerDetail) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Progress Report")
+            Button {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                showReportBuilder = true
+            } label: {
+                HStack(spacing: DS.Spacing.s12) {
+                    Image(systemName: "doc.text.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Create / edit report")
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("An editable report card you can send to parents as a PDF")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                .padding(DS.Spacing.s16)
+                .frame(maxWidth: .infinity)
+                .background(DS.Colors.Bg.card)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
         }
     }
 
@@ -504,5 +743,15 @@ enum CoachFormat {
         let isWhole = value.rounded() == value
         let number = isWhole ? String(Int(value)) : String(format: "%.1f", value)
         return unit.isEmpty ? number : "\(number) \(unit)"
+    }
+
+    /// Turn a "yyyy-MM" key into a readable "July 2026" label.
+    static func monthLabel(_ key: String) -> String {
+        let parser = DateFormatter()
+        parser.dateFormat = "yyyy-MM"
+        guard let date = parser.date(from: key) else { return key }
+        let out = DateFormatter()
+        out.dateFormat = "MMMM yyyy"
+        return out.string(from: date)
     }
 }

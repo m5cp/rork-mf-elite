@@ -191,6 +191,35 @@ struct DrillEditFields: Equatable {
     }
 }
 
+/// One (weekStart, minutes) point in a player's 8-week training trend.
+/// A named struct (not a tuple) so `CoachPlayerDetail` keeps Equatable synthesis
+/// and the value plots cleanly in Swift Charts.
+struct WeeklyMinutesPoint: Identifiable, Equatable {
+    var id: Date { weekStart }
+    let weekStart: Date
+    let minutes: Int
+}
+
+/// Baseline / latest / best for one combine test, for the coach's progress table.
+struct CombineProgress: Identifiable, Equatable {
+    var id: String { testID }
+    let testID: String
+    let label: String
+    let baseline: Double
+    let latest: Double
+    let best: Double
+    let unit: String
+    let lowerIsBetter: Bool
+}
+
+/// One monthly coach note for a player (coach_notes table).
+struct CoachNote: Identifiable, Equatable {
+    let id: String
+    let month: String   // "yyyy-MM"
+    var body: String
+    var updatedAt: Date
+}
+
 /// Full per-player detail assembled for the coach.
 struct CoachPlayerDetail: Equatable {
     var xp: Int
@@ -206,6 +235,12 @@ struct CoachPlayerDetail: Equatable {
     var combineLatest: [CombineLatest]
     var gameIQCompleted: Int
     var history: [SessionHistoryItem]
+    /// Most-recent 8 weeks of training minutes (Monday weeks, oldest → newest).
+    var weeklyMinutes: [WeeklyMinutesPoint]
+    /// Baseline → latest · best per combine test.
+    var combineProgress: [CombineProgress]
+    /// The coach-authored focus for this player (player_profiles.coach_focus).
+    var coachFocus: String
 }
 
 @Observable
@@ -221,6 +256,9 @@ final class CoachViewModel {
     /// Per-player detail cache + load state, keyed by player id.
     var detailState: [String: CoachLoadState] = [:]
     var detailCache: [String: CoachPlayerDetail] = [:]
+
+    /// Per-player monthly coach notes cache, keyed by player id.
+    var notesCache: [String: [CoachNote]] = [:]
 
     /// Coach-published featured workouts (newest first).
     var publishedWorkouts: [CoachPublishedWorkout] = []
@@ -243,6 +281,16 @@ final class CoachViewModel {
                 || ($0.email?.lowercased().contains(query) ?? false)
         }
         return base.sorted { ($0.lastActive ?? .distantPast) > ($1.lastActive ?? .distantPast) }
+    }
+
+    /// Players who need coach attention: inactive 7+ days, or never active.
+    /// Uses each roster row's `lastActive` (the same source that powers the
+    /// "Active this week" overview stat).
+    var needsAttention: [RosterPlayer] {
+        roster.filter { player in
+            guard let last = player.lastActive else { return true }
+            return Date().timeIntervalSince(last) > 7 * 86400
+        }
     }
 
     // MARK: - Overview + roster
@@ -711,12 +759,21 @@ final class CoachViewModel {
                 URLQueryItem(name: "select", value: "lesson_id")
             ]
         )
+        async let profileRowsAsync = SupabaseClient.shared.get(
+            table: "player_profiles",
+            query: [
+                URLQueryItem(name: "id", value: "eq.\(pid)"),
+                URLQueryItem(name: "select", value: "coach_focus"),
+                URLQueryItem(name: "limit", value: "1")
+            ]
+        )
 
         let stateRows = await stateRowsAsync
         let progressRows = await progressRowsAsync
         let logRows = await logRowsAsync
         let combineRows = await combineRowsAsync
         let iqRows = await iqRowsAsync
+        let profileRows = await profileRowsAsync
 
         // Any total failure (all nil) with no cache → failed.
         if stateRows == nil && progressRows == nil && logRows == nil
@@ -789,6 +846,58 @@ final class CoachViewModel {
         }
         let combineLatest = latestByTest.values.sorted { $0.name < $1.name }
 
+        // Baseline → latest · best per combine test (all recorded attempts).
+        var valuesByTest: [String: [(value: Double, date: Date)]] = [:]
+        for row in (combineRows ?? []) {
+            guard let testID = row["test_id"] as? String else { continue }
+            let value = (row["value"] as? Double) ?? Double((row["value"] as? String) ?? "") ?? 0
+            let date = Self.parseDate(row["recorded_at"]) ?? now
+            valuesByTest[testID, default: []].append((value, date))
+        }
+        var combineProgress: [CombineProgress] = []
+        for (testID, entries) in valuesByTest {
+            let sorted = entries.sorted { $0.date < $1.date }   // oldest → newest
+            guard let baseline = sorted.first?.value, let latest = sorted.last?.value else { continue }
+            let meta = testMeta[testID]
+            let lower = meta?.lowerIsBetter ?? false
+            let allValues = sorted.map(\.value)
+            let best = lower ? (allValues.min() ?? latest) : (allValues.max() ?? latest)
+            combineProgress.append(CombineProgress(
+                testID: testID,
+                label: meta?.name ?? testID,
+                baseline: baseline,
+                latest: latest,
+                best: best,
+                unit: meta?.unit ?? "",
+                lowerIsBetter: lower
+            ))
+        }
+        combineProgress.sort { $0.label < $1.label }
+
+        // 8-week minutes series (Monday weeks, oldest → newest of the last 8).
+        var weekCal = Calendar.current
+        weekCal.firstWeekday = 2
+        let startOfThisWeek = weekCal.dateInterval(of: .weekOfYear, for: now)?.start ?? now
+        var weekStarts: [Date] = []
+        var weekBuckets: [Date: Int] = [:]
+        for offset in stride(from: 7, through: 0, by: -1) {
+            if let ws = weekCal.date(byAdding: .weekOfYear, value: -offset, to: startOfThisWeek) {
+                weekStarts.append(ws)
+                weekBuckets[ws] = 0
+            }
+        }
+        let earliestWeek = weekStarts.first ?? startOfThisWeek
+        for item in history where item.date >= earliestWeek {
+            if let ws = weekCal.dateInterval(of: .weekOfYear, for: item.date)?.start {
+                weekBuckets[ws, default: 0] += item.durationSec
+            }
+        }
+        let weeklyMinutes = weekStarts.map {
+            WeeklyMinutesPoint(weekStart: $0, minutes: (weekBuckets[$0] ?? 0) / 60)
+        }
+
+        let coachFocus = (profileRows?.first?["coach_focus"] as? String) ?? ""
+
         let detail = CoachPlayerDetail(
             xp: xp,
             streak: streak,
@@ -802,10 +911,77 @@ final class CoachViewModel {
             sessionCount: (logRows ?? []).count,
             combineLatest: combineLatest,
             gameIQCompleted: (iqRows ?? []).count,
-            history: history
+            history: history,
+            weeklyMinutes: weeklyMinutes,
+            combineProgress: combineProgress,
+            coachFocus: coachFocus
         )
         detailCache[pid] = detail
         detailState[pid] = .loaded
+    }
+
+    // MARK: - Coach focus + notes
+
+    /// Save the coach-authored training focus for a player. PATCHes
+    /// player_profiles.coach_focus and updates the cached detail locally.
+    func saveCoachFocus(_ text: String, for playerID: String) async {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let ok = await SupabaseClient.shared.update(
+            table: "player_profiles",
+            values: ["coach_focus": trimmed],
+            match: [URLQueryItem(name: "id", value: "eq.\(playerID)")]
+        )
+        guard ok else { return }
+        if var detail = detailCache[playerID] {
+            detail.coachFocus = trimmed
+            detailCache[playerID] = detail
+        }
+    }
+
+    /// Load all monthly coach notes for a player (newest month first).
+    func loadNotes(for playerID: String) async {
+        guard let rows = await SupabaseClient.shared.get(
+            table: "coach_notes",
+            query: [
+                URLQueryItem(name: "player_user_id", value: "eq.\(playerID)"),
+                URLQueryItem(name: "order", value: "month.desc")
+            ]
+        ) else { return }
+        notesCache[playerID] = rows.compactMap { row in
+            guard let id = row["id"] as? String,
+                  let month = row["month"] as? String else { return nil }
+            return CoachNote(
+                id: id,
+                month: month,
+                body: (row["body"] as? String) ?? "",
+                updatedAt: Self.parseDate(row["updated_at"]) ?? Date()
+            )
+        }
+    }
+
+    /// Upsert a month's coach note (one row per month per player). Updates an
+    /// existing row when present, otherwise inserts, then reloads the cache.
+    func saveNote(month: String, text: String, for playerID: String) async {
+        guard let coachID = SupabaseAuth.shared.userID else { return }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let existing = notesCache[playerID]?.first(where: { $0.month == month }) {
+            await SupabaseClient.shared.update(
+                table: "coach_notes",
+                values: ["body": trimmed, "updated_at": SyncEngine.iso.string(from: Date())],
+                match: [URLQueryItem(name: "id", value: "eq.\(existing.id)")]
+            )
+        } else {
+            await SupabaseClient.shared.insert(
+                table: "coach_notes",
+                values: [
+                    "player_user_id": playerID,
+                    "coach_user_id": coachID,
+                    "month": month,
+                    "body": trimmed
+                ]
+            )
+        }
+        await loadNotes(for: playerID)
     }
 
     // MARK: - Local mapping helpers
