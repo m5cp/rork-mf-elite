@@ -65,6 +65,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 headerView
                 accountSection
+                accentColorSection
                 syncSection
                 teamSection
                 subscriptionSection
@@ -188,6 +189,16 @@ struct SettingsView: View {
             Hairline()
             valueRow(label: "Academy", value: "MF Elite", action: nil)
         }
+    }
+
+    // MARK: - Appearance
+
+    private var accentColorSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            AccentColorSection()
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s32)
     }
 
     // MARK: - Account Sync

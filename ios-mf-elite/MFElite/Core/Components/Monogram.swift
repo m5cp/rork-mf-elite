@@ -36,7 +36,7 @@ struct Monogram: View {
                     path.addLine(to: CGPoint(x: offset + canvasSize.height, y: 0))
                     context.stroke(
                         path,
-                        with: .color(Color(hex: "#E8B84B").opacity(0.10)),
+                        with: .color(DS.Colors.Gold.base.opacity(0.10)),
                         lineWidth: 1
                     )
                 }

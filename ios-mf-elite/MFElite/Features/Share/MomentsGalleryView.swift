@@ -155,7 +155,7 @@ struct MomentsGalleryView: View {
             Text(locked ? unlockHint(kind) : "CREATE CARD ›")
                 .font(.system(size: 10.5, weight: .semibold))
                 .tracking(0.8)
-                .foregroundStyle(locked ? DS.Colors.Ink.tertiary : Color(hex: "E8B84B"))
+                .foregroundStyle(locked ? DS.Colors.Ink.tertiary : DS.Colors.Gold.base)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
         }

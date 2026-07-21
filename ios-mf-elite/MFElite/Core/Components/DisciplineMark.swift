@@ -54,10 +54,7 @@ struct DisciplineMark: View {
 
             if metallic {
                 let shading = GraphicsContext.Shading.linearGradient(
-                    Gradient(colors: [
-                        Color(hex: "#FFF7D6"), Color(hex: "#F8DE95"), Color(hex: "#E8B84B"),
-                        Color(hex: "#B07E1E"), Color(hex: "#795310")
-                    ]),
+                    Gradient(colors: AppAccent.current.rampColors),
                     startPoint: CGPoint(x: canvasSize.width / 2, y: 0),
                     endPoint: CGPoint(x: canvasSize.width / 2, y: canvasSize.height)
                 )

@@ -49,6 +49,7 @@ final class PlayerProfileStore {
         static let sessionCount = "MF_SESSION_COUNT"
         static let avatarKind = "MF_AVATAR_KIND"
         static let avatarBuiltin = "MF_AVATAR_BUILTIN"
+        static let accent = AppAccent.storageKey
     }
 
     private static let photoFileName = "player_avatar.jpg"
@@ -110,6 +111,13 @@ final class PlayerProfileStore {
         didSet { defaults.set(sessionCount, forKey: Keys.sessionCount) }
     }
 
+    /// The selected app accent color id ("gold", "silver", "royal", "crimson",
+    /// "pitch"). Observed by the root view so an accent change re-renders the
+    /// whole UI live.
+    var accentID: String {
+        didSet { defaults.set(accentID, forKey: Keys.accent) }
+    }
+
     /// The currently selected avatar. Persisted across launches.
     private(set) var avatar: AvatarSelection = .none
     /// Loaded custom photo, when `avatar == .photo`. Bumped on change so views refresh.
@@ -130,6 +138,7 @@ final class PlayerProfileStore {
         onboardingSkipped = defaults.bool(forKey: Keys.skipped)
         profilePromptDismissed = defaults.bool(forKey: Keys.promptDismissed)
         sessionCount = defaults.integer(forKey: Keys.sessionCount)
+        accentID = defaults.string(forKey: Keys.accent) ?? AppAccent.gold.rawValue
         loadAvatar()
     }
 
