@@ -149,6 +149,9 @@ struct AcademyTodayView: View {
  .navigationDestination(for: MyGamesRoute.self) { _ in
  MyGamesView()
  }
+ .navigationDestination(for: AnnouncementsFeedRoute.self) { _ in
+ AnnouncementsFeedView()
+ }
  }
  .fullScreenCover(item: $activeSession, onDismiss: advancePlanIfNeeded) { queue in
  SessionPlayerView(queue: queue)
@@ -514,6 +517,13 @@ struct AcademyTodayView: View {
  }
  }
  Spacer(minLength: DS.Spacing.s8)
+ NavigationLink(value: AnnouncementsFeedRoute()) {
+ Text("See all")
+ .font(.system(size: 12, weight: .bold))
+ .foregroundStyle(DS.Colors.Ground.primary.opacity(0.7))
+ }
+ .buttonStyle(PressableButtonStyle())
+ .accessibilityLabel("See all announcements")
  Button {
  UIImpactFeedbackGenerator(style: .light).impactOccurred()
  withAnimation(DS.Motion.standardSpring) {

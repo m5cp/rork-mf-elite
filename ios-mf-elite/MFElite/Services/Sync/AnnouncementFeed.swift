@@ -70,31 +70,41 @@ enum AnnouncementFeed {
         // nil = request failed → keep whatever is cached for offline display.
         guard let rows else { return }
 
-        // Only announcements addressed to this player (team / athlete targeting).
+        // Only announcements addressed to this player (team / athlete targeting),
+        // excluding internal "__"-prefixed titles.
         let myTeams = await MyTeamsStore.shared.currentTeamIDs()
-        let addressed = rows.filter { MyTeamsStore.isVisibleToMe(row: $0, myTeamIDs: myTeams) }
-
-        // Newest announcement whose title is not an internal "__"-prefixed one.
-        let visible = addressed.first { row in
+        let addressed = rows.filter { row in
             let title = (row["title"] as? String) ?? ""
             return !title.hasPrefix("__")
+                && MyTeamsStore.isVisibleToMe(row: row, myTeamIDs: myTeams)
         }
 
         let existing = (try? context.fetch(FetchDescriptor<Announcement>())) ?? []
         for cached in existing { context.delete(cached) }
 
-        if let row = visible,
-           let idStr = row["id"] as? String, let id = UUID(uuidString: idStr) {
+        // Cache every addressed announcement so the feed can filter them; the
+        // Today banner still uses the newest (rows arrive newest-first).
+        for row in addressed {
+            guard let idStr = row["id"] as? String, let id = UUID(uuidString: idStr) else { continue }
             let title = (row["title"] as? String) ?? ""
             let body = (row["body"] as? String) ?? ""
             context.insert(Announcement(
                 id: id,
                 title: title,
                 body: body,
-                createdAt: parseDate(row["created_at"]) ?? Date()
+                createdAt: parseDate(row["created_at"]) ?? Date(),
+                audience: (row["audience"] as? String) ?? "everyone"
             ))
-            // Fire a one-time local notification for a newly-seen announcement.
-            NotificationService.shared.notifyAnnouncement(id: idStr, title: title, body: body)
+        }
+
+        // Fire a one-time local notification for the newest addressed announcement.
+        if let newest = addressed.first,
+           let idStr = newest["id"] as? String {
+            NotificationService.shared.notifyAnnouncement(
+                id: idStr,
+                title: (newest["title"] as? String) ?? "",
+                body: (newest["body"] as? String) ?? ""
+            )
         }
         try? context.save()
     }

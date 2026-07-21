@@ -18,11 +18,19 @@ final class Announcement {
     var title: String
     var body: String
     var createdAt: Date
+    /// Raw broadcast audience for this post ("everyone", "teams", "athletes").
+    /// Used by the player-side feed's All / Team / General filter.
+    var audience: String = "everyone"
 
-    init(id: UUID, title: String, body: String, createdAt: Date) {
+    init(id: UUID, title: String, body: String, createdAt: Date, audience: String = "everyone") {
         self.id = id
         self.title = title
         self.body = body
         self.createdAt = createdAt
+        self.audience = audience
     }
+
+    /// True when this post was targeted at a specific team or set of athletes
+    /// (as opposed to a general "everyone" broadcast).
+    var isTeamTargeted: Bool { audience == "teams" || audience == "athletes" }
 }
