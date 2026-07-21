@@ -52,12 +52,18 @@ enum ShareMomentBuilder {
     /// Weekly-recap card from a computed `WeekRecap`.
     static func weeklyRecap(_ recap: WeekRecap) -> ShareMoment {
         // Always real: shows this week's actual numbers (zeros are honest, not faked).
-        let grid = [
+        var grid = [
             ShareStat(key: "SESSIONS", value: recap.sessions),
             ShareStat(key: "MINUTES", value: recap.minutes),
             ShareStat(key: "DRILLS", value: recap.drills),
             ShareStat(key: "STREAK", value: recap.streak),
         ]
+        if let steps = WeeklyHealthStats.shared.weekSteps {
+            grid.append(ShareStat(key: "STEPS", value: steps))
+        }
+        if let miles = WeeklyHealthStats.shared.weekMiles {
+            grid.append(ShareStat(key: "MILES", value: Int(miles.rounded())))
+        }
         return ShareMoment(
             kind: .weeklyRecap,
             data: .weeklyRecap(xp: recap.xp, grid: grid),
@@ -105,7 +111,7 @@ enum ShareMomentBuilder {
 
     /// Whole-combine scorecard from every test with at least one result. Returns
     /// a sample card when the player has no combine data yet.
-    static func combineScorecard(tests: [CombineTest], results: [CombineResult]) -> ShareMoment {
+    static func combineScorecard(tests: [CombineTest], results: [CombineResult], including: Set<String>? = nil) -> ShareMoment {
         let benchmarks = CombineBenchmarks.shared
         let profile = PlayerProfileStore.shared
         let age = profile.age
@@ -114,6 +120,7 @@ enum ShareMomentBuilder {
         var rows: [ShareScoreRow] = []
         var pcts: [Int] = []
         for test in tests {
+            if let including, !including.contains(test.id) { continue }
             guard let best = CombineStats.personalBest(test, results: results) else { continue }
             var pct = 50
             if let band, let tier = benchmarks.tier(testID: test.id, value: best, bandID: band.id, female: false) {
@@ -290,20 +297,9 @@ enum ShareMomentBuilder {
         combineResults: [CombineResult],
         combineTests: [CombineTest]
     ) -> Bool {
-        switch kind {
-        case .playerCard, .weeklyRecap, .invite, .repBadge:
-            return true
-        case .streak:
-            return (players.first?.streak ?? 0) > 0
-        case .badge:
-            return bestEarnedBadge() != nil
-        case .combineResult:
-            return !combineResults.isEmpty
-        case .combineScorecard:
-            return CombineStats.lastFullCombineDay(tests: combineTests, results: combineResults) != nil
-        case .levelMastered:
-            return progress.contains { $0.isMastered }
-        }
+        // Every card is always viewable. Cards without underlying data render
+        // their sample/empty state — that is intentional product behavior.
+        return true
     }
 
     // MARK: - Helpers

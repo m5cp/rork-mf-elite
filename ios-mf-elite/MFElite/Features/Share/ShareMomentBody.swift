@@ -456,19 +456,8 @@ private struct InviteBody: View {
         .font(ShareFont.display(160))
         .multilineTextAlignment(.center)
 
-        if show.name {
-            Text("FRIEND CODE \(code)")
-                .font(ShareFont.text(40, weight: .bold))
-                .tracking(6)
-                .foregroundStyle(theme.ink)
-                .padding(.horizontal, 44)
-                .padding(.vertical, 22)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 18)
-                        .stroke(style: StrokeStyle(lineWidth: 3, dash: [14, 10]))
-                        .foregroundStyle(theme.accent)
-                )
-        }
+        // Friend-code chip removed by design — the QR footer is the invite path.
+        let _ = code
 
         Text(copy)
             .font(ShareFont.text(34, weight: .medium))

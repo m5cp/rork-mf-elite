@@ -431,6 +431,13 @@ final class SyncEngine {
                        row: ["id": id.uuidString], coalesce: ["id": id.uuidString])
     }
 
+    /// Log a share-XP award for audit/anti-farm (keyed user/day/platform).
+    func enqueueShareXP(day: String, platform: String, cardKind: String) {
+        let row: [String: Any] = ["day": day, "platform": platform, "card_kind": cardKind, "xp": 5]
+        enqueueGeneric(table: "share_xp_events", opType: "upsert", row: row,
+                       coalesce: ["day": day, "platform": platform])
+    }
+
     // MARK: - Outbox writes
 
     private func enqueueUpsert(table: String, row: [String: Any], coalesceKey: String) {

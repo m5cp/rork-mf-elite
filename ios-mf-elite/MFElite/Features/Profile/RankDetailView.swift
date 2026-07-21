@@ -69,6 +69,15 @@ struct RankDetailView: View {
                     .foregroundStyle(DS.Colors.Ink.tertiary)
             }
             .padding(.top, DS.Spacing.s8)
+
+            Label("Earn +5 XP for each platform you share your Player Card or Rep The Badge card to — up to 4 platforms a day.", systemImage: "square.and.arrow.up")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(DS.Colors.Ink.secondary)
+                .padding(DS.Spacing.s12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(DS.Colors.Bg.raised, in: RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous))
+                .padding(.horizontal, DS.Spacing.s20)
+                .padding(.top, DS.Spacing.s16)
         }
         .frame(maxWidth: .infinity)
         .padding(.horizontal, DS.Spacing.s20)

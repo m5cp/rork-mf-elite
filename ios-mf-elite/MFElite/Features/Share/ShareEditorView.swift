@@ -41,6 +41,13 @@ struct ShareEditorView: View {
 
                 VStack(spacing: 0) {
                     formatRow
+                    if ShareXPService.isEligible(model.moment.kind) {
+                        Label("+5 XP per platform — first share on each app daily", systemImage: "bolt.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Gold.textLight)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.vertical, 6)
+                    }
                     previewArea
                     toolSection
                 }
@@ -59,8 +66,15 @@ struct ShareEditorView: View {
             .preferredColorScheme(.dark)
             .sheet(isPresented: $model.showCaptionSheet) { captionSheet }
             .sheet(item: $exported) { item in
-                ShareSheet(items: [item.image, ShareCardItemSource()])
-                    .presentationDetents([.medium, .large])
+                ShareSheet(items: [item.image, ShareCardItemSource()]) { activity, completed in
+                    let awarded = ShareXPService.shared.recordShare(
+                        cardKind: model.moment.kind, activityRawValue: activity, completed: completed
+                    )
+                    if awarded > 0 {
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    }
+                }
+                .presentationDetents([.medium, .large])
             }
             .confirmationDialog(
                 "Share your card",

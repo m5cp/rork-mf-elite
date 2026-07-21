@@ -174,4 +174,52 @@ final class HealthKitService {
             store.execute(query)
         }
     }
+
+    /// This week's total steps (Monday-start, to now). 0 when unavailable/denied.
+    func fetchWeekSteps() async -> Int {
+        guard isAvailable, let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else { return 0 }
+        let predicate = HKQuery.predicateForSamples(withStart: Self.startOfWeek(), end: Date(), options: .strictStartDate)
+        return await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(
+                quantityType: stepType,
+                quantitySamplePredicate: predicate,
+                options: .cumulativeSum
+            ) { _, statistics, _ in
+                let count = statistics?.sumQuantity()?.doubleValue(for: .count()) ?? 0
+                continuation.resume(returning: Int(count.rounded()))
+            }
+            store.execute(query)
+        }
+    }
+
+    /// This week's walking+running distance in miles (Monday-start, to now).
+    /// Returns 0 when unavailable/denied. Requires distance read access.
+    func fetchWeekMiles() async -> Double {
+        guard isAvailable,
+              let distanceType = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning) else { return 0 }
+        // Request read access alongside steps; safe to call repeatedly.
+        try? await store.requestAuthorization(toShare: [], read: [distanceType])
+        let predicate = HKQuery.predicateForSamples(withStart: Self.startOfWeek(), end: Date(), options: .strictStartDate)
+        return await withCheckedContinuation { continuation in
+            let query = HKStatisticsQuery(
+                quantityType: distanceType,
+                quantitySamplePredicate: predicate,
+                options: .cumulativeSum
+            ) { _, statistics, _ in
+                let meters = statistics?.sumQuantity()?.doubleValue(for: .meter()) ?? 0
+                continuation.resume(returning: meters / 1609.344)
+            }
+            store.execute(query)
+        }
+    }
+
+    /// Monday 00:00 of the current week (matches WeekRecap's week definition).
+    private static func startOfWeek() -> Date {
+        var cal = Calendar.current
+        cal.firstWeekday = 2
+        let today = cal.startOfDay(for: Date())
+        let weekday = cal.component(.weekday, from: today)
+        let daysSinceMonday = (weekday - cal.firstWeekday + 7) % 7
+        return cal.date(byAdding: .day, value: -daysSinceMonday, to: today) ?? today
+    }
 }

@@ -25,6 +25,7 @@ struct MomentsGalleryView: View {
     @Query private var sessions: [SessionLogEntry]
 
     @State private var preview: ShareMoment?
+    @State private var pickerKind: ShareMomentKind?
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -45,6 +46,13 @@ struct MomentsGalleryView: View {
         .fullScreenCover(item: $preview) { moment in
             ShareEditorView(moment: moment)
         }
+        .sheet(item: $pickerKind) { kind in
+            CombineCardPickerSheet(kind: kind) { built in
+                preview = built
+            }
+            .presentationDetents([.medium, .large])
+        }
+        .task { await WeeklyHealthStats.shared.refresh() }
         .onAppear {
             if let initialKind, preview == nil {
                 preview = moment(for: initialKind)
@@ -56,7 +64,17 @@ struct MomentsGalleryView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-            (Text("SHARE YOUR ") + Text("GRIND").foregroundColor(Color(hex: "E8B84B")))
+            HStack(spacing: DS.Spacing.s8) {
+                Rectangle()
+                    .fill(DS.Colors.Gold.base)
+                    .frame(width: 22, height: 2)
+                Text("MF ELITE · MOMENTS")
+                    .style(.micro)
+                    .tracking(2.4)
+                    .foregroundStyle(DS.Colors.Gold.textLight)
+            }
+
+            Text("SHARE YOUR GRIND")
                 .font(ShareFont.display(38))
                 .foregroundStyle(DS.Colors.Ink.primary)
 
@@ -64,6 +82,14 @@ struct MomentsGalleryView: View {
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Label("+5 XP per platform when you share your Player Card or Rep The Badge — first share on each app, every day.", systemImage: "bolt.fill")
+                .font(.system(size: 11.5, weight: .semibold))
+                .foregroundStyle(DS.Colors.Gold.textLight)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(DS.Colors.Gold.faint, in: RoundedRectangle(cornerRadius: DS.Radius.sm, style: .continuous))
+                .padding(.top, DS.Spacing.s4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, DS.Spacing.s20)
@@ -88,7 +114,11 @@ struct MomentsGalleryView: View {
                 let unlocked = isEarned(kind)
                 Button {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    preview = moment(for: kind)
+                    if kind == .combineResult || kind == .combineScorecard {
+                        pickerKind = kind
+                    } else {
+                        preview = moment(for: kind)
+                    }
                 } label: {
                     tile(kind, locked: !unlocked)
                 }
