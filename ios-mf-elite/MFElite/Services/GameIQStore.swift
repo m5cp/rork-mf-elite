@@ -34,10 +34,13 @@ enum GameIQStore {
 
         lesson.completedAt = Date()
 
-        // One-time XP.
+        // One-time XP. The 2x weekend booster (when active) doubles this EARNED
+        // reward at the single award point so player state, the session log, and
+        // Game Center all stay consistent.
+        let awardedXP = xpReward * XPStoreService.shared.earnMultiplier
         let player = try? context.fetch(FetchDescriptor<PlayerState>()).first
         if let player {
-            player.xp += xpReward
+            player.xp += awardedXP
             if !Calendar.current.isDateInToday(player.lastTrainedDate ?? .distantPast) {
                 player.streak += 1
             }
@@ -58,7 +61,7 @@ enum GameIQStore {
                 setsCompleted: 1,
                 source: SessionSource.single.rawValue,
                 sourceName: "Game IQ",
-                xpEarned: xpReward
+                xpEarned: awardedXP
             )
             context.insert(entry)
             SyncEngine.shared.enqueueSessionLog(entry)
@@ -82,7 +85,7 @@ enum GameIQStore {
         // evening, and refresh the pending parent weekly summary.
         PostSessionNotifications.refresh(streak: player?.streak ?? 0, context: context)
 
-        return Outcome(xpAwarded: xpReward, wasFirstCompletion: true)
+        return Outcome(xpAwarded: awardedXP, wasFirstCompletion: true)
     }
 
     /// Resolves the Tactical discipline, the lesson's related category, and its

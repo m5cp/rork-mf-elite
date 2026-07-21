@@ -12,20 +12,23 @@ import Observation
 final class AcademyHubViewModel {
     let disciplines: [Discipline]
     let xp: Int
+    /// Earned + purchased XP, used only for rank/level DISPLAY (never leaderboards).
+    let rankXP: Int
     let streak: Int
 
     /// Drill IDs the player has mastered.
     private let masteredDrillIDs: Set<String>
 
-    init(disciplines: [Discipline], xp: Int, streak: Int, masteredDrillIDs: Set<String>) {
+    init(disciplines: [Discipline], xp: Int, rankXP: Int, streak: Int, masteredDrillIDs: Set<String>) {
         self.disciplines = disciplines.sorted { $0.sortIndex < $1.sortIndex }
         self.xp = xp
+        self.rankXP = rankXP
         self.streak = streak
         self.masteredDrillIDs = masteredDrillIDs
     }
 
     var currentRank: AcademyRank {
-        AcademyRank.unlockedRank(for: xp, hasFullAccess: SubscriptionService.shared.hasFullAccess)
+        AcademyRank.unlockedRank(for: rankXP, hasFullAccess: SubscriptionService.shared.hasFullAccess)
     }
 
     var totalCategories: Int {

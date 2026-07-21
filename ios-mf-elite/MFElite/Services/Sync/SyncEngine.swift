@@ -60,7 +60,8 @@ final class SyncEngine {
         "game_entries": "id",
         "user_badges": "user_id,badge_id",
         "drill_results": "id",
-        "share_xp_events": "user_id,day,platform"
+        "share_xp_events": "user_id,day,platform",
+        "xp_transactions": "id"
     ]
 
     /// Tables whose owner column is `user_id` rather than `player_id`. The signed-in
@@ -69,7 +70,7 @@ final class SyncEngine {
         "session_logs", "combine_results", "drill_notes",
         "custom_workouts", "gameiq_completions",
         "user_favorites", "game_entries", "user_badges",
-        "drill_results", "share_xp_events"
+        "drill_results", "share_xp_events", "xp_transactions"
     ]
 
     /// The owner column for a table: `id` for player_profiles (PK == user UUID),
@@ -176,6 +177,7 @@ final class SyncEngine {
             player.streak = 0
             player.freezesRemaining = 0
             player.streakPB = 0
+            player.purchasedXP = 0
             player.lastTrainedDate = nil
         }
         // Clear Game IQ lesson completions (seeded content stays, progress clears).
@@ -226,7 +228,8 @@ final class SyncEngine {
             "xp": player.xp,
             "streak": player.streak,
             "freezes_remaining": player.freezesRemaining,
-            "streak_pb": player.streakPB
+            "streak_pb": player.streakPB,
+            "purchased_xp": player.purchasedXP
         ]
         if let date = player.lastTrainedDate {
             row["last_trained_date"] = Self.dateString(date)
@@ -438,6 +441,18 @@ final class SyncEngine {
                        coalesce: ["day": day, "platform": platform])
     }
 
+    /// Log a store purchase for audit (append-only).
+    func enqueueXPTransaction(id: UUID, productID: String, xpAmount: Int, storeTransactionID: String?) {
+        var row: [String: Any] = [
+            "id": id.uuidString,
+            "product_id": productID,
+            "xp_amount": xpAmount
+        ]
+        if let storeTransactionID { row["store_transaction_id"] = storeTransactionID }
+        enqueueGeneric(table: "xp_transactions", opType: "upsert", row: row,
+                       coalesce: ["id": id.uuidString])
+    }
+
     // MARK: - Outbox writes
 
     private func enqueueUpsert(table: String, row: [String: Any], coalesceKey: String) {
@@ -627,6 +642,7 @@ final class SyncEngine {
             var changed = false
             if remote.xp > player.xp { player.xp = remote.xp; changed = true }
             if remote.streakPB > player.streakPB { player.streakPB = remote.streakPB; changed = true }
+            if remote.purchasedXP > player.purchasedXP { player.purchasedXP = remote.purchasedXP; changed = true }
 
             let remoteTrained = remote.lastTrainedDate.flatMap { Self.date(from: $0) }
             let localTrained = player.lastTrainedDate
@@ -669,6 +685,7 @@ final class SyncEngine {
         player.streak = remote.streak
         player.freezesRemaining = remote.freezesRemaining
         player.streakPB = max(remote.streakPB, remote.streak)
+        player.purchasedXP = max(player.purchasedXP, remote.purchasedXP)
         if let dateString = remote.lastTrainedDate {
             player.lastTrainedDate = Self.date(from: dateString)
         }
@@ -1077,6 +1094,7 @@ nonisolated struct RemotePlayerState {
     let freezesRemaining: Int
     let lastTrainedDate: String?
     let streakPB: Int
+    let purchasedXP: Int
 
     init?(row: [String: Any]) {
         self.xp = (row["xp"] as? Int) ?? Int((row["xp"] as? String) ?? "") ?? 0
@@ -1084,5 +1102,6 @@ nonisolated struct RemotePlayerState {
         self.freezesRemaining = (row["freezes_remaining"] as? Int) ?? 0
         self.lastTrainedDate = row["last_trained_date"] as? String
         self.streakPB = (row["streak_pb"] as? Int) ?? 0
+        self.purchasedXP = (row["purchased_xp"] as? Int) ?? 0
     }
 }

@@ -12,6 +12,9 @@ import Observation
 final class AcademyProgressionViewModel {
     let disciplines: [Discipline]
     let xp: Int
+    /// Earned + purchased XP, used only for rank/level DISPLAY. Ballon d'Or
+    /// eligibility and the earned-rank check keep reading earned `xp`.
+    let rankXP: Int
     let streak: Int
 
     /// Drill IDs the player has mastered.
@@ -22,12 +25,14 @@ final class AcademyProgressionViewModel {
     init(
         disciplines: [Discipline],
         xp: Int,
+        rankXP: Int,
         streak: Int,
         masteredDrillIDs: Set<String>,
         loggedDrillIDs: Set<String>
     ) {
         self.disciplines = disciplines.sorted { $0.sortIndex < $1.sortIndex }
         self.xp = xp
+        self.rankXP = rankXP
         self.streak = streak
         self.masteredDrillIDs = masteredDrillIDs
         self.loggedDrillIDs = loggedDrillIDs
@@ -36,24 +41,24 @@ final class AcademyProgressionViewModel {
     private var hasFullAccess: Bool { SubscriptionService.shared.hasFullAccess }
 
     var currentRank: AcademyRank {
-        AcademyRank.unlockedRank(for: xp, hasFullAccess: hasFullAccess)
+        AcademyRank.unlockedRank(for: rankXP, hasFullAccess: hasFullAccess)
     }
 
     var nextRank: AcademyRank? {
-        AcademyRank.nextRank(for: xp, hasFullAccess: hasFullAccess)
+        AcademyRank.nextRank(for: rankXP, hasFullAccess: hasFullAccess)
     }
 
     var xpToNext: Int? {
-        AcademyRank.xpToNext(for: xp, hasFullAccess: hasFullAccess)
+        AcademyRank.xpToNext(for: rankXP, hasFullAccess: hasFullAccess)
     }
 
     /// True when the player has banked enough XP for a higher rank that is
     /// locked behind an Elite subscription.
     var hasLockedEarnedRank: Bool {
-        AcademyRank.hasLockedEarnedRank(for: xp, hasFullAccess: hasFullAccess)
+        AcademyRank.hasLockedEarnedRank(for: rankXP, hasFullAccess: hasFullAccess)
     }
 
-    /// The full XP-earned rank, ignoring the subscription cap.
+    /// The full XP-earned rank, ignoring the subscription cap. Earned XP only.
     var earnedRank: AcademyRank {
         AcademyRank.rank(for: xp)
     }
@@ -64,7 +69,7 @@ final class AcademyProgressionViewModel {
         let floorXP = currentRank.rawValue
         let span = next.rawValue - floorXP
         guard span > 0 else { return 1 }
-        return min(1, max(0, Double(xp - floorXP) / Double(span)))
+        return min(1, max(0, Double(rankXP - floorXP) / Double(span)))
     }
 
     /// Fraction of drills in a discipline that the player has mastered (0...1).

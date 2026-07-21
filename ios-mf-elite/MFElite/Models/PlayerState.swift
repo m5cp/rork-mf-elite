@@ -17,6 +17,12 @@ final class PlayerState {
     /// Highest streak ever reached (personal best). Maintained whenever the
     /// streak advances; mirrored to `player_state.streak_pb` on the server.
     var streakPB: Int = 0
+    /// XP bought through the store. Counts toward academy rank/levels ONLY.
+    /// Leaderboards, Game Center, and coach views read earned `xp` — never this.
+    var purchasedXP: Int = 0
+
+    /// The XP used for academy rank / level progression displays.
+    var rankXP: Int { xp + purchasedXP }
 
     init(
         playerID: String = UUID().uuidString,

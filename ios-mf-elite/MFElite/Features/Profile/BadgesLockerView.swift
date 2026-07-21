@@ -15,14 +15,15 @@ struct BadgesRoute: Hashable {}
 struct BadgesLockerView: View {
     @Query private var players: [PlayerState]
 
-    private var xp: Int { players.first?.xp ?? 0 }
+    /// Earned + purchased XP — rank badges mirror the player's academy rank.
+    private var rankXP: Int { players.first?.rankXP ?? 0 }
 
-    private var currentRank: AcademyRank { AcademyRank.rank(for: xp) }
-    private var nextRank: AcademyRank? { AcademyRank.nextRank(for: xp) }
+    private var currentRank: AcademyRank { AcademyRank.rank(for: rankXP) }
+    private var nextRank: AcademyRank? { AcademyRank.nextRank(for: rankXP) }
 
     /// All rank badges (earned when xp clears the threshold) plus achievements.
     private var earnedCount: Int {
-        AcademyRank.allCases.filter { xp >= $0.rawValue }.count + AchievementStore.earnedCount
+        AcademyRank.allCases.filter { rankXP >= $0.rawValue }.count + AchievementStore.earnedCount
     }
 
     /// Rank badges + The Eleven + achievement badges.
@@ -99,13 +100,13 @@ struct BadgesLockerView: View {
     // MARK: - State logic
 
     private func state(for rank: AcademyRank) -> BadgeState {
-        if xp >= rank.rawValue { return .earned }
+        if rankXP >= rank.rawValue { return .earned }
         if let next = nextRank, rank == next { return .target }
         return .locked
     }
 
     private func xpToGo(for rank: AcademyRank) -> Int {
-        max(0, rank.rawValue - xp)
+        max(0, rank.rawValue - rankXP)
     }
 }
 

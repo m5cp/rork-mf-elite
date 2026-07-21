@@ -37,7 +37,7 @@ enum WidgetBridge {
         let streak = player?.streak ?? 0
         let trainedToday = Calendar.current.isDateInToday(player?.lastTrainedDate ?? .distantPast)
 
-        let rank = AcademyRank.unlockedRank(for: xp, hasFullAccess: SubscriptionService.shared.hasFullAccess)
+        let rank = AcademyRank.unlockedRank(for: player?.rankXP ?? 0, hasFullAccess: SubscriptionService.shared.hasFullAccess)
 
         // Today's training volume → a simple 3-drill daily goal mirrors the
         // Today screen's default daily target.

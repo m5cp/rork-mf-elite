@@ -27,7 +27,7 @@ enum CelebrationShare {
         let profile = PlayerProfileStore.shared
         let xp = player?.xp ?? 0
         let rank = AcademyRank.unlockedRank(
-            for: xp,
+            for: player?.rankXP ?? 0,
             hasFullAccess: SubscriptionService.shared.hasFullAccess
         )
         let info = CardPlayerInfo(

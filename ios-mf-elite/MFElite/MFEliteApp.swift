@@ -47,6 +47,7 @@ struct MFEliteApp: App {
         GameIQSeed.seedIfNeeded(context: container.mainContext)
         SyncEngine.shared.configure(context: container.mainContext)
         ShareXPService.shared.configure(context: container.mainContext)
+        XPStoreService.shared.configure(context: container.mainContext)
         WatchSyncBridge.shared.configure(context: container.mainContext)
     }
 

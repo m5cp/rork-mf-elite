@@ -26,6 +26,7 @@ struct AcademyProgressionView: View {
         AcademyProgressionViewModel(
             disciplines: disciplines,
             xp: players.first?.xp ?? 0,
+            rankXP: players.first?.rankXP ?? 0,
             streak: players.first?.streak ?? 0,
             masteredDrillIDs: Set(progress.filter { $0.isMastered }.map { $0.drillID }),
             loggedDrillIDs: Set(progress.filter { $0.passesLogged > 0 }.map { $0.drillID })

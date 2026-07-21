@@ -30,6 +30,7 @@ struct AcademyHubView: View {
         AcademyHubViewModel(
             disciplines: disciplines,
             xp: players.first?.xp ?? 0,
+            rankXP: players.first?.rankXP ?? 0,
             streak: players.first?.streak ?? 0,
             masteredDrillIDs: masteredDrillIDs
         )

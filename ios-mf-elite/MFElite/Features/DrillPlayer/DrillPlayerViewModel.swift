@@ -423,11 +423,14 @@ final class DrillPlayerViewModel {
         }
         newPassesLogged = progress.passesLogged
 
-        // Player XP + streak.
+        // Player XP + streak. The 2x weekend booster (when active) doubles the
+        // EARNED drill XP at this single award point so player state, the session
+        // log, and Game Center all stay consistent.
+        let awardedXP = ProgressionRules.xpPerDrill * XPStoreService.shared.earnMultiplier
         let playerDescriptor = FetchDescriptor<PlayerState>()
         let player = try? context.fetch(playerDescriptor).first
         if let player {
-            player.xp += ProgressionRules.xpPerDrill
+            player.xp += awardedXP
 
             if !Calendar.current.isDateInToday(player.lastTrainedDate ?? .distantPast) {
                 player.streak += 1
@@ -499,7 +502,7 @@ final class DrillPlayerViewModel {
             setsCompleted: max(1, setsCompleted),
             source: source,
             sourceName: sourceName,
-            xpEarned: ProgressionRules.xpPerDrill,
+            xpEarned: awardedXP,
             journalResponse: journalResponse,
             setsSkipped: setsSkipped,
             completedFully: !loggedEarly,

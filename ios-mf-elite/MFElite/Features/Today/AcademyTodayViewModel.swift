@@ -67,6 +67,8 @@ enum DifficultyTrend {
 final class AcademyTodayViewModel {
     let disciplines: [Discipline]
     let xp: Int
+    /// Earned + purchased XP, used only for rank/level DISPLAY (never leaderboards).
+    let rankXP: Int
     let streak: Int
 
     private let masteredDrillIDs: Set<String>
@@ -100,6 +102,7 @@ final class AcademyTodayViewModel {
     init(
         disciplines: [Discipline],
         xp: Int,
+        rankXP: Int,
         streak: Int,
         progress: [DrillProgress],
         sessions: [SessionLogEntry] = [],
@@ -111,6 +114,7 @@ final class AcademyTodayViewModel {
         let sorted = disciplines.sorted { $0.sortIndex < $1.sortIndex }
         self.disciplines = sorted
         self.xp = xp
+        self.rankXP = rankXP
         self.streak = streak
 
         self.masteredDrillIDs = Set(progress.filter { $0.isMastered }.map { $0.drillID })
@@ -352,7 +356,7 @@ final class AcademyTodayViewModel {
 
     // MARK: - Rank
 
-    var currentRank: AcademyRank { AcademyRank.unlockedRank(for: xp, hasFullAccess: SubscriptionService.shared.hasFullAccess) }
+    var currentRank: AcademyRank { AcademyRank.unlockedRank(for: rankXP, hasFullAccess: SubscriptionService.shared.hasFullAccess) }
 
     // MARK: - Daily goals
 

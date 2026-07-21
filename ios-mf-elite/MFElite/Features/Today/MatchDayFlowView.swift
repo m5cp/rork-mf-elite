@@ -170,7 +170,7 @@ private struct MatchDayReadyView: View {
 
     private var info: CardPlayerInfo {
         let xp = players.first?.xp ?? 0
-        let rank = AcademyRank.unlockedRank(for: xp, hasFullAccess: SubscriptionService.shared.hasFullAccess)
+        let rank = AcademyRank.unlockedRank(for: players.first?.rankXP ?? 0, hasFullAccess: SubscriptionService.shared.hasFullAccess)
         return CardPlayerInfo(
             name: profile.displayName,
             rankNumeral: rank.numeral,

@@ -36,10 +36,14 @@ enum QuickLog {
             return Result(drillsLogged: 0, xpEarned: 0, newStreak: 0, perfectDayClosed: false)
         }
 
+        // 2x weekend booster (when active) doubles EARNED XP at the single award
+        // point, so logs, player state, and Game Center all see the boosted value.
+        let multiplier = XPStoreService.shared.earnMultiplier
+        let awardedXP = ProgressionRules.xpPerDrill * multiplier
         var xpEarned = 0
         for item in contexts {
-            logProgressAndHistory(for: item, source: source, sourceName: sourceName, context: context)
-            xpEarned += ProgressionRules.xpPerDrill
+            logProgressAndHistory(for: item, source: source, sourceName: sourceName, awardedXP: awardedXP, context: context)
+            xpEarned += awardedXP
         }
 
         // Player XP + a single streak advance for the day.
@@ -136,6 +140,7 @@ enum QuickLog {
         for item: DrillContext,
         source: SessionSource,
         sourceName: String?,
+        awardedXP: Int,
         context: ModelContext
     ) {
         let drill = item.drill
@@ -169,7 +174,7 @@ enum QuickLog {
             setsCompleted: max(1, drill.sets),
             source: source.rawValue,
             sourceName: sourceName,
-            xpEarned: ProgressionRules.xpPerDrill,
+            xpEarned: awardedXP,
             journalResponse: nil
         )
         context.insert(entry)

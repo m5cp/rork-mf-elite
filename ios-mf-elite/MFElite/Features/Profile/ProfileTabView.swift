@@ -13,7 +13,7 @@ struct ProfileTabView: View {
     @Environment(SubscriptionService.self) private var subscription
 
     private var currentRank: AcademyRank {
-        AcademyRank.unlockedRank(for: players.first?.xp ?? 0, hasFullAccess: subscription.hasFullAccess)
+        AcademyRank.unlockedRank(for: players.first?.rankXP ?? 0, hasFullAccess: subscription.hasFullAccess)
     }
 
     private var xp: Int { players.first?.xp ?? 0 }
@@ -43,6 +43,9 @@ struct ProfileTabView: View {
             }
             .navigationDestination(for: RankDetailRoute.self) { _ in
                 RankDetailView()
+            }
+            .navigationDestination(for: MFStoreRoute.self) { _ in
+                MFStoreView()
             }
             .navigationDestination(for: BadgesRoute.self) { _ in
                 BadgesLockerView()
@@ -223,6 +226,9 @@ struct ProfileTabView: View {
             Hairline()
             menuRow(icon: "medal", label: "Rank & XP",
                     route: RankDetailRoute())
+            Hairline()
+            menuRow(icon: "bag", label: "MF Store",
+                    route: MFStoreRoute())
             Hairline()
             menuRow(icon: "shield.lefthalf.filled", label: "Badges",
                     route: BadgesRoute())

@@ -23,7 +23,7 @@ struct RankDetailView: View {
     private var viewModel: RankDetailViewModel {
         RankDetailViewModel(
             disciplines: disciplines,
-            xp: players.first?.xp ?? 0,
+            xp: players.first?.rankXP ?? 0,
             masteredDrillIDs: Set(progress.filter { $0.isMastered }.map { $0.drillID })
         )
     }
@@ -69,6 +69,21 @@ struct RankDetailView: View {
                     .foregroundStyle(DS.Colors.Ink.tertiary)
             }
             .padding(.top, DS.Spacing.s8)
+
+            NavigationLink(value: MFStoreRoute()) {
+                HStack(spacing: DS.Spacing.s4) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 12, weight: .bold))
+                    Text("Get more XP")
+                        .style(.foot)
+                }
+                .foregroundStyle(DS.Colors.Ground.primary)
+                .padding(.vertical, DS.Spacing.s8)
+                .padding(.horizontal, DS.Spacing.s16)
+                .background(Color.white, in: Capsule())
+            }
+            .buttonStyle(PressableButtonStyle())
+            .padding(.top, DS.Spacing.s12)
 
             Label("Earn +5 XP for each platform you share your Player Card or Rep The Badge card to — up to 4 platforms a day.", systemImage: "square.and.arrow.up")
                 .font(.system(size: 12, weight: .medium))
