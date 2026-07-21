@@ -435,7 +435,7 @@ final class SyncEngine {
                 refreshPendingCount()
             }
             var descriptor = FetchDescriptor<PendingOp>(
-                predicate: #Predicate { !$0.isQuarantined },
+                predicate: #Predicate { $0.isQuarantined == false },
                 sortBy: [SortDescriptor(\.createdAt, order: .forward)]
             )
             descriptor.fetchLimit = 200
