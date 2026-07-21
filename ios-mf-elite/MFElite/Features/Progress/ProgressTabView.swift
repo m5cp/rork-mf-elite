@@ -75,6 +75,9 @@ struct ProgressTabView: View {
                 await refreshSteps()
             }
             .navigationDestination(for: WeeklyRoute.self) { _ in HistoryCalendarView() }
+            .navigationDestination(for: DrillRoute.self) { route in
+                DrillDetailView(drill: route.drill, level: route.level, category: route.category, discipline: route.discipline)
+            }
             .navigationDestination(for: AcademyProgressionRoute.self) { _ in AcademyProgressionView() }
             .navigationDestination(for: CombineRoute.self) { _ in CombineView() }
             .navigationDestination(for: FriendsLeaderboardRoute.self) { _ in FriendsLeaderboardView() }
@@ -161,13 +164,29 @@ struct ProgressTabView: View {
         let rings = vm.todayRings
         return Card {
             HStack(spacing: DS.Spacing.s20) {
-                DayRingsView(rings: rings, size: 90, animateOnAppear: true)
+                // Rings → the month ring-calendar (Apple Fitness style).
+                NavigationLink(value: WeeklyRoute()) {
+                    DayRingsView(rings: rings, size: 90, animateOnAppear: true)
+                }
+                .buttonStyle(PressableButtonStyle())
 
                 VStack(alignment: .leading, spacing: DS.Spacing.s12) {
                     Eyebrow(text: "Today")
-                    ringCountRow(tint: Color.white, label: "Train", value: rings.trainMinutes, unit: "/ \(DailyRings.trainGoalMinutes) min")
-                    ringCountRow(tint: Color.white.opacity(0.68), label: "Drills", value: rings.drillCount, unit: "/ \(DailyRings.drillGoal)")
-                    ringCountRow(tint: Color.white.opacity(0.42), label: "Mind", value: rings.mindCount, unit: "/ \(DailyRings.mindGoal)")
+                    ringCountRow(
+                        tint: Color.white, label: "Train",
+                        value: rings.trainMinutes, unit: "/ \(DailyRings.trainGoalMinutes) min",
+                        route: TodayGoalRouter.route(for: .train, disciplines: disciplines, progress: progress)
+                    )
+                    ringCountRow(
+                        tint: Color.white.opacity(0.68), label: "Drills",
+                        value: rings.drillCount, unit: "/ \(DailyRings.drillGoal)",
+                        route: TodayGoalRouter.route(for: .drills, disciplines: disciplines, progress: progress)
+                    )
+                    ringCountRow(
+                        tint: Color.white.opacity(0.42), label: "Mind",
+                        value: rings.mindCount, unit: "/ \(DailyRings.mindGoal)",
+                        route: TodayGoalRouter.route(for: .mind, disciplines: disciplines, progress: progress)
+                    )
                 }
                 Spacer(minLength: 0)
             }
@@ -176,8 +195,9 @@ struct ProgressTabView: View {
         .padding(.top, DS.Spacing.s20)
     }
 
-    private func ringCountRow(tint: Color, label: String, value: Int, unit: String) -> some View {
-        HStack(spacing: DS.Spacing.s8) {
+    @ViewBuilder
+    private func ringCountRow(tint: Color, label: String, value: Int, unit: String, route: DrillRoute?) -> some View {
+        let row = HStack(spacing: DS.Spacing.s8) {
             Circle().fill(tint).frame(width: 8, height: 8)
             Text(label)
                 .style(.foot)
@@ -189,6 +209,19 @@ struct ProgressTabView: View {
             Text(unit)
                 .style(.micro)
                 .foregroundStyle(DS.Colors.Ink.quaternary)
+            if route != nil {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+        }
+        .contentShape(Rectangle())
+
+        if let route {
+            NavigationLink(value: route) { row }
+                .buttonStyle(PressableButtonStyle())
+        } else {
+            row
         }
     }
 
