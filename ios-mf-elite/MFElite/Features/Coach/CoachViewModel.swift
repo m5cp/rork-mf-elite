@@ -115,6 +115,8 @@ struct DrillEditFields: Equatable {
     var space: String
     /// Public URL of an uploaded demo video, or nil when none is attached.
     var videoURL: String?
+    /// Public URL of an uploaded reference image, or nil when none is attached.
+    var imageURL: String?
 
     /// Build from an existing drill (for the edit screen).
     init(drill: Drill) {
@@ -128,6 +130,7 @@ struct DrillEditFields: Equatable {
         equipment = drill.equipment
         space = drill.space ?? ""
         videoURL = drill.videoURL
+        imageURL = drill.imageURL
     }
 
     /// Empty fields for the "add a new drill" screen.
@@ -137,6 +140,7 @@ struct DrillEditFields: Equatable {
         durationSec = 300; sets = 1
         equipment = []; space = ""
         videoURL = nil
+        imageURL = nil
     }
 
     private func clean(_ list: [String]) -> [String] {
@@ -158,6 +162,7 @@ struct DrillEditFields: Equatable {
         let trimmedSpace = space.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedSpace.isEmpty { payload["space"] = trimmedSpace }
         if let videoURL, !videoURL.isEmpty { payload["videoURL"] = videoURL }
+        if let imageURL, !imageURL.isEmpty { payload["imageURL"] = imageURL }
         return payload
     }
 
@@ -181,6 +186,7 @@ struct DrillEditFields: Equatable {
         let sp = space.trimmingCharacters(in: .whitespacesAndNewlines)
         if sp != (original.space ?? "") { payload["space"] = sp }
         if videoURL != original.videoURL { payload["videoURL"] = videoURL as Any }
+        if imageURL != original.imageURL { payload["imageURL"] = imageURL as Any }
         return payload
     }
 }
@@ -481,9 +487,9 @@ final class CoachViewModel {
 
     /// Publish a brand-new coach-authored drill into a category/level. Generates a
     /// stable "COACH-…" id so it never collides with the bundled curriculum.
-    func publishNewDrill(categoryID: String, levelNumber: Int, fields: DrillEditFields) async {
+    func publishNewDrill(drillID: String, categoryID: String, levelNumber: Int, fields: DrillEditFields) async {
         let coachName = PlayerProfileStore.shared.displayName
-        let id = "COACH-" + UUID().uuidString.prefix(8).uppercased()
+        let id = drillID
         let row: [String: Any] = [
             "drill_id": id,
             "kind": "new",

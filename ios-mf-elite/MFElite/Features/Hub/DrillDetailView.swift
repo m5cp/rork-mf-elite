@@ -82,6 +82,7 @@ struct DrillDetailView: View {
                 topBar
                 titleBlock(vm)
                 statStrip(vm)
+                referencePhotoSection
                 demoVideoSection
                 historySection
                 DrillScoreSection(drillID: drill.id, drillTitle: drill.title)
@@ -318,6 +319,31 @@ struct DrillDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s20)
+    }
+
+    // MARK: - Reference photo (coach-uploaded)
+
+    /// A coach-uploaded still reference image, shown only when the drill has one.
+    @ViewBuilder
+    private var referencePhotoSection: some View {
+        if let urlString = drill.imageURL, let url = URL(string: urlString), !urlString.isEmpty {
+            VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                Eyebrow(text: "Reference photo")
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    default:
+                        Rectangle().fill(DS.Colors.Bg.raised)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 210)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg, style: .continuous))
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s24)
+        }
     }
 
     // MARK: - Demo video (coach-uploaded)

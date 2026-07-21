@@ -165,6 +165,7 @@ enum CurriculumOverlay {
         let coachingPoints = (payload["coachingPoints"] as? [String]) ?? []
         let instructions = (payload["instructions"] as? [String]) ?? []
         let videoURL = payload["videoURL"] as? String
+        let imageURL = payload["imageURL"] as? String
         let equipment = (payload["equipment"] as? [String]) ?? []
         let space = payload["space"] as? String
 
@@ -174,6 +175,7 @@ enum CurriculumOverlay {
             focus: focus,
             how: how,
             videoURL: videoURL,
+            imageURL: imageURL,
             durationSec: durationSec,
             sets: sets,
             coachingPoints: coachingPoints,
@@ -200,6 +202,7 @@ enum CurriculumOverlay {
         if let v = payload["equipment"] as? [String] { drill.equipment = v }
         if payload.keys.contains("space") { drill.space = payload["space"] as? String }
         if payload.keys.contains("videoURL") { drill.videoURL = payload["videoURL"] as? String }
+        if payload.keys.contains("imageURL") { drill.imageURL = payload["imageURL"] as? String }
     }
 
     /// Undo a cached edit's content effect when it is reverted/deactivated.

@@ -58,6 +58,7 @@ struct CoachView: View {
                         workoutOfTheDaySection
                         workoutsSection
                         drillEditorSection
+                        scheduleSection
                         rosterSection
                         coachGuideSection
                     }
@@ -77,6 +78,9 @@ struct CoachView: View {
             }
             .navigationDestination(for: CoachDrillEditorRoute.self) { _ in
                 CoachDrillEditorView(model: model)
+            }
+            .navigationDestination(for: CoachScheduleRoute.self) { _ in
+                CoachScheduleView()
             }
             .navigationDestination(for: CoachGuideRoute.self) { _ in
                 CoachGuideView()
@@ -371,6 +375,40 @@ struct CoachView: View {
                             .style(.title3)
                             .foregroundStyle(DS.Colors.Ink.primary)
                         Text("Edit content, add new drills, or hide one")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                .padding(DS.Spacing.s16)
+                .frame(maxWidth: .infinity)
+                .background(DS.Colors.Bg.card)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
+        }
+    }
+
+    // MARK: - Team schedule
+
+    private var scheduleSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Team Schedule")
+            NavigationLink(value: CoachScheduleRoute()) {
+                HStack(spacing: DS.Spacing.s12) {
+                    Image(systemName: "calendar.badge.clock")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Team Schedule")
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("Publish practices & games for all players")
                             .style(.micro)
                             .foregroundStyle(DS.Colors.Ink.tertiary)
                     }

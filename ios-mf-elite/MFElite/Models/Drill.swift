@@ -14,6 +14,8 @@ final class Drill {
     var focus: String
     var how: String
     var videoURL: String?
+    /// Public URL of the coach-uploaded reference image (drill-images bucket).
+    var imageURL: String?
     var durationSec: Int
     var sets: Int
     var coachingPoints: [String]
@@ -84,6 +86,7 @@ final class Drill {
         focus: String,
         how: String,
         videoURL: String? = nil,
+        imageURL: String? = nil,
         durationSec: Int,
         sets: Int,
         coachingPoints: [String],
@@ -100,6 +103,7 @@ final class Drill {
         self.focus = focus
         self.how = how
         self.videoURL = videoURL
+        self.imageURL = imageURL
         self.durationSec = durationSec
         self.sets = sets
         self.coachingPoints = coachingPoints
