@@ -42,6 +42,30 @@ struct RosterPlayer: Identifiable, Equatable, Hashable {
     var lastActive: Date?
     /// True when the player holds the coach-approved Ballon d'Or tier.
     var ballonDorApproved: Bool = false
+
+    /// True when the player has trained 7+ days ago or never — needs attention.
+    var needsAttention: Bool {
+        guard let last = lastActive else { return true }
+        return Date().timeIntervalSince(last) > 7 * 86400
+    }
+}
+
+/// A named (player, minutes-this-week) pair for the team snapshot.
+struct PlayerMinutes: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let minutes: Int
+}
+
+/// A one-glance weekly aggregate across the whole roster.
+struct TeamSnapshot: Equatable {
+    var totalPlayers: Int
+    var activeThisWeek: Int
+    var needsAttentionCount: Int
+    var avgMinutesPerPlayer: Int
+    var teamMinutesThisWeek: Int
+    var mostActive: PlayerMinutes?
+    var leastActive: PlayerMinutes?
 }
 
 /// One pending Ballon d'Or invitation request, with a stats summary for review.
@@ -260,6 +284,9 @@ final class CoachViewModel {
     /// Per-player monthly coach notes cache, keyed by player id.
     var notesCache: [String: [CoachNote]] = [:]
 
+    /// Minutes trained this week per player id (powers the team snapshot).
+    var weeklyMinutesByPlayer: [String: Int] = [:]
+
     /// Coach-published featured workouts (newest first).
     var publishedWorkouts: [CoachPublishedWorkout] = []
     var workoutsState: CoachLoadState = .idle
@@ -287,10 +314,28 @@ final class CoachViewModel {
     /// Uses each roster row's `lastActive` (the same source that powers the
     /// "Active this week" overview stat).
     var needsAttention: [RosterPlayer] {
-        roster.filter { player in
-            guard let last = player.lastActive else { return true }
-            return Date().timeIntervalSince(last) > 7 * 86400
+        roster.filter(\.needsAttention)
+    }
+
+    /// A weekly one-glance aggregate across the whole roster.
+    var teamSnapshot: TeamSnapshot {
+        let total = roster.count
+        let totalMinutes = weeklyMinutesByPlayer.values.reduce(0, +)
+        let avg = total > 0 ? totalMinutes / total : 0
+        let named = roster.map {
+            PlayerMinutes(id: $0.id, name: ShareText.firstName($0.displayName),
+                          minutes: weeklyMinutesByPlayer[$0.id] ?? 0)
         }
+        let sorted = named.sorted { $0.minutes > $1.minutes }
+        return TeamSnapshot(
+            totalPlayers: total,
+            activeThisWeek: overview?.activeThisWeek ?? named.filter { $0.minutes > 0 }.count,
+            needsAttentionCount: needsAttention.count,
+            avgMinutesPerPlayer: avg,
+            teamMinutesThisWeek: overview?.teamMinutesThisWeek ?? (totalMinutes),
+            mostActive: sorted.first(where: { $0.minutes > 0 }),
+            leastActive: total > 0 ? sorted.last : nil
+        )
     }
 
     // MARK: - Overview + roster
@@ -346,6 +391,7 @@ final class CoachViewModel {
         var minutesThisWeek = 0
         var sessionsThisWeek = 0
         var sessionsByUser: [String: Int] = [:]
+        var secondsByUser: [String: Int] = [:]
         for row in logRows {
             guard let uid = row["user_id"] as? String,
                   let date = Self.parseDate(row["completed_at"]) else { continue }
@@ -353,8 +399,10 @@ final class CoachViewModel {
             if date >= weekAgo {
                 activeUsers.insert(uid)
                 sessionsThisWeek += 1
-                minutesThisWeek += (row["duration_sec"] as? Int) ?? 0
+                let secs = (row["duration_sec"] as? Int) ?? 0
+                minutesThisWeek += secs
                 sessionsByUser[uid, default: 0] += 1
+                secondsByUser[uid, default: 0] += secs
             }
         }
 
@@ -373,6 +421,8 @@ final class CoachViewModel {
                 ballonDorApproved: (row["ballon_dor_approved"] as? Bool) ?? false
             )
         }
+
+        weeklyMinutesByPlayer = secondsByUser.mapValues { $0 / 60 }
 
         let nameByID = Dictionary(uniqueKeysWithValues: roster.map { ($0.id, $0.displayName) })
         let topActiveNames = sessionsByUser

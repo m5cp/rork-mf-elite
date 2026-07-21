@@ -376,9 +376,13 @@ final class SupabaseAuth {
         }
 
         // Fallback first: approved coaches + the Apple reviewer guest account
-        // keep Coach access even offline or during review.
+        // keep Coach access even offline or during review. Built-in head coaches
+        // (e.g. Joe) also get the full head-coach role immediately.
         if CoachAllowlist.contains(mail) {
             setCoach(true)
+        }
+        if CoachAllowlist.isHeadCoach(mail) {
+            setCoachRole("head_coach")
         }
 
         // Server truth. nil = transport/HTTP failure → keep the last known state.
@@ -388,13 +392,21 @@ final class SupabaseAuth {
 
         if let role = Self.decodeCoachRole(from: result) {
             setCoach(true)
-            setCoachRole(role)
+            // A live head-coach role always wins; otherwise keep the built-in
+            // head-coach role for allowlisted accounts.
+            setCoachRole(role == "head_coach" || !CoachAllowlist.isHeadCoach(mail) ? role : "head_coach")
             await linkCoachUserID()
         } else {
-            // Successful call, explicit null — this account holds no coach role.
-            setCoachRole(nil)
-            if !CoachAllowlist.contains(mail) {
-                setCoach(false)
+            // Successful call, explicit null — this account holds no coach role
+            // unless it's a built-in head coach kept as a safety net.
+            if CoachAllowlist.isHeadCoach(mail) {
+                setCoach(true)
+                setCoachRole("head_coach")
+            } else {
+                setCoachRole(nil)
+                if !CoachAllowlist.contains(mail) {
+                    setCoach(false)
+                }
             }
         }
     }

@@ -67,6 +67,90 @@ struct WatchQuickLogRequest: Codable {
     var sourceName: String
 }
 
+// MARK: - Watch workouts (Apple Fitness-style)
+
+/// Identifies a watch workout mode. rawValue is stable for sync + storage.
+enum WorkoutModeID: String, Codable, CaseIterable, Identifiable {
+    case outdoorRun, walk, cycle, outdoorWorkout
+    case treadmill, elliptical, interval, strength, functional
+    case soccerSkills
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .outdoorRun: return "Outdoor Run"
+        case .walk: return "Walk"
+        case .cycle: return "Cycle"
+        case .outdoorWorkout: return "Outdoor Workout"
+        case .treadmill: return "Treadmill"
+        case .elliptical: return "Elliptical"
+        case .interval: return "Interval"
+        case .strength: return "Strength Training"
+        case .functional: return "Functional Fitness"
+        case .soccerSkills: return "Soccer Skills Field"
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .outdoorRun: return "figure.run"
+        case .walk: return "figure.walk"
+        case .cycle: return "figure.outdoor.cycle"
+        case .outdoorWorkout: return "figure.mixed.cardio"
+        case .treadmill: return "figure.run"
+        case .elliptical: return "figure.elliptical"
+        case .interval: return "figure.highintensity.intervaltraining"
+        case .strength: return "figure.strengthtraining.traditional"
+        case .functional: return "figure.strengthtraining.functional"
+        case .soccerSkills: return "soccerball"
+        }
+    }
+
+    var accentHex: String {
+        switch self {
+        case .outdoorRun: return "#30D158"
+        case .walk: return "#64D2FF"
+        case .cycle: return "#FFD60A"
+        case .outdoorWorkout: return "#BF5AF2"
+        case .treadmill: return "#FF9F0A"
+        case .elliptical: return "#FF375F"
+        case .interval: return "#FF453A"
+        case .strength: return "#5E5CE6"
+        case .functional: return "#0A84FF"
+        case .soccerSkills: return "#E8B84B"
+        }
+    }
+
+    /// Outdoor modes record a GPS route; indoor modes skip location.
+    var isOutdoor: Bool {
+        switch self {
+        case .outdoorRun, .walk, .cycle, .outdoorWorkout, .soccerSkills: return true
+        case .treadmill, .elliptical, .interval, .strength, .functional: return false
+        }
+    }
+}
+
+/// One GPS point in a recorded workout route.
+struct WatchRoutePoint: Codable, Equatable {
+    var lat: Double
+    var lng: Double
+}
+
+/// A finished watch workout, sent from the watch to the phone and stored.
+struct WatchWorkoutResult: Codable, Equatable, Identifiable {
+    var id: String
+    var modeRaw: String
+    var startedAt: Date
+    var durationSec: Int
+    var distanceMeters: Double
+    var activeCalories: Double
+    var avgHeartRate: Int
+    var maxHeartRate: Int
+    var route: [WatchRoutePoint]
+
+    var mode: WorkoutModeID { WorkoutModeID(rawValue: modeRaw) ?? .outdoorRun }
+}
+
 /// The shared App Group suite name both the phone app, watch app, and watch
 /// complication read/write the latest glance snapshot from.
 enum WatchShared {

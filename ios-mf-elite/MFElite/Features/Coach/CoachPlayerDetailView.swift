@@ -124,6 +124,8 @@ struct CoachPlayerDetailView: View {
                 if detail.weeklyMinutes.allSatisfy({ $0.minutes == 0 }) {
                     emptyLine("No training logged in the last 8 weeks.")
                 } else {
+                    trendSummaryHeader(detail)
+                        .padding(.bottom, DS.Spacing.s12)
                     Chart(detail.weeklyMinutes) { point in
                         BarMark(
                             x: .value("Week", point.weekStart, unit: .weekOfYear),
@@ -141,6 +143,37 @@ struct CoachPlayerDetailView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Header above the 8-week chart: total minutes this window and the change
+    /// from the first tracked week to the most recent week.
+    private func trendSummaryHeader(_ detail: CoachPlayerDetail) -> some View {
+        let points = detail.weeklyMinutes
+        let total = points.reduce(0) { $0 + $1.minutes }
+        let first = points.first?.minutes ?? 0
+        let last = points.last?.minutes ?? 0
+        let delta = last - first
+        let improved = delta >= 0
+        return HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(CoachFormat.minutes(total))
+                    .style(.num(size: 26))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Text("Total this window")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            Spacer()
+            HStack(spacing: DS.Spacing.s4) {
+                Image(systemName: delta == 0 ? "minus" : (improved ? "arrow.up.right" : "arrow.down.right"))
+                    .font(.system(size: 12, weight: .bold))
+                Text("\(improved ? "+" : "")\(delta) min")
+                    .style(.foot)
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+            }
+            .foregroundStyle(delta == 0 ? DS.Colors.Ink.tertiary : (improved ? Color(hex: "#30D158") : Color(hex: "#FF453A")))
         }
     }
 

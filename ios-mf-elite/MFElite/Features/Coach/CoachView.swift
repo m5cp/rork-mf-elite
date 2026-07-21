@@ -53,6 +53,8 @@ struct CoachView: View {
                         retryState
                     default:
                         overviewSection
+                        teamSnapshotSection
+                        aiBriefingSection
                         needsAttentionSection
                         approvalsSection
                         announcementsSection
@@ -86,6 +88,12 @@ struct CoachView: View {
             }
             .navigationDestination(for: CoachTeamsRoute.self) { _ in
                 CoachTeamsView()
+            }
+            .navigationDestination(for: CoachTeamSnapshotRoute.self) { _ in
+                CoachTeamSnapshotView(model: model)
+            }
+            .navigationDestination(for: CoachAIBriefingRoute.self) { _ in
+                CoachAIBriefingView(model: model)
             }
             .navigationDestination(for: CoachTeamDetailRoute.self) { route in
                 CoachTeamDetailView(teamID: route.teamID)
@@ -159,6 +167,80 @@ struct CoachView: View {
         .sheet(isPresented: $showInvite) {
             CoachInvitePlayerView(model: model)
         }
+    }
+
+    // MARK: - AI briefing
+
+    private var aiBriefingSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "AI Briefing")
+            NavigationLink(value: CoachAIBriefingRoute()) {
+                HStack(spacing: DS.Spacing.s12) {
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Private AI insights")
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("On-device briefings for your team & players")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                .padding(DS.Spacing.s16)
+                .frame(maxWidth: .infinity)
+                .background(DS.Colors.Bg.card)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
+        }
+    }
+
+    // MARK: - Team snapshot
+
+    private var teamSnapshotSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Team Snapshot")
+            NavigationLink(value: CoachTeamSnapshotRoute()) {
+                HStack(spacing: DS.Spacing.s12) {
+                    Image(systemName: "chart.bar.doc.horizontal.fill")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Weekly team snapshot")
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text(snapshotSubtitle)
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                .padding(DS.Spacing.s16)
+                .frame(maxWidth: .infinity)
+                .background(DS.Colors.Bg.card)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
+        }
+    }
+
+    private var snapshotSubtitle: String {
+        let snap = model.teamSnapshot
+        let attn = snap.needsAttentionCount
+        return "\(snap.activeThisWeek) active · avg \(CoachFormat.minutes(snap.avgMinutesPerPlayer)) · \(attn) need attention"
     }
 
     // MARK: - Needs attention
@@ -801,6 +883,12 @@ struct CoachRosterRow: View {
             Monogram(size: 44, initials: CoachFormat.initials(player.displayName), kit: nil)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: DS.Spacing.s8) {
+                    if player.needsAttention {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(Color(hex: "#FF453A"))
+                            .accessibilityLabel("Needs attention")
+                    }
                     Text(player.displayName)
                         .style(.title3)
                         .foregroundStyle(DS.Colors.Ink.primary)
@@ -832,11 +920,11 @@ struct CoachRosterRow: View {
             }
         }
         .padding(DS.Spacing.s12)
-        .background(DS.Colors.Bg.card)
+        .background(player.needsAttention ? Color(hex: "#FF453A").opacity(0.08) : DS.Colors.Bg.card)
         .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: DS.Radius.md)
-                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+                .stroke(player.needsAttention ? Color(hex: "#FF453A").opacity(0.35) : DS.Colors.Line.hairline, lineWidth: 1)
         )
     }
 

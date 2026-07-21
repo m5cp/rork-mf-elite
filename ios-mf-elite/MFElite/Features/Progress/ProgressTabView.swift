@@ -24,8 +24,10 @@ struct ProgressTabView: View {
     @Query private var players: [PlayerState]
     @Query private var combineResults: [CombineResult]
     @Query(sort: \CombineTest.sortIndex) private var combineTests: [CombineTest]
+    @Query(sort: \WorkoutRecord.startedAt, order: .reverse) private var workouts: [WorkoutRecord]
 
     @State private var selectedDay: IdentifiableDate?
+    @State private var selectedWorkout: WorkoutRecord?
     @State private var sharePreview: ShareMoment?
     @State private var gameCenter = GameCenterService.shared
     @State private var profile = PlayerProfileStore.shared
@@ -45,6 +47,9 @@ struct ProgressTabView: View {
                     header.entrance(0, appeared: appeared)
                     todayRings(vm).entrance(1, appeared: appeared)
                     stepsCard.entrance(1, appeared: appeared)
+                    if !workouts.isEmpty {
+                        recentWorkoutsSection.entrance(2, appeared: appeared)
+                    }
                     LeaderboardTeaserCard().entrance(2, appeared: appeared)
                     if sessions.isEmpty {
                         emptyState.entrance(2, appeared: appeared)
@@ -87,10 +92,31 @@ struct ProgressTabView: View {
                 DayDetailView(date: wrapped.date)
                     .presentationDetents([.large])
             }
+            .navigationDestination(item: $selectedWorkout) { workout in
+                WorkoutDetailView(record: workout)
+            }
             .fullScreenCover(item: $sharePreview) { moment in
                 ShareEditorView(moment: moment)
             }
         }
+    }
+
+    // MARK: - Recent workouts
+
+    private var recentWorkoutsSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Recent Workouts")
+            ForEach(workouts.prefix(3)) { workout in
+                Button {
+                    selectedWorkout = workout
+                } label: {
+                    WorkoutCardView(record: workout)
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s20)
     }
 
     // MARK: - Weekly recap

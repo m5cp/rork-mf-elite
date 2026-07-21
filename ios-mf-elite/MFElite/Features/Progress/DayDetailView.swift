@@ -14,7 +14,9 @@ struct DayDetailView: View {
 
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var sessions: [SessionLogEntry]
+    @Query(sort: \WorkoutRecord.startedAt, order: .reverse) private var workouts: [WorkoutRecord]
     @Environment(\.dismiss) private var dismiss
+    @State private var selectedWorkout: WorkoutRecord?
 
     private let calendar: Calendar = .current
 
@@ -33,8 +35,16 @@ struct DayDetailView: View {
         DailyRings.make(from: sessions, on: date, calendar: calendar)
     }
 
+    /// Watch workouts logged on this day (newest first).
+    private var dayWorkouts: [WorkoutRecord] {
+        workouts.filter { calendar.isDate($0.startedAt, inSameDayAs: date) }
+    }
+
+    /// Total minutes including both drill sessions and watch workouts.
     private var totalMinutes: Int {
-        Int((Double(dayEntries.reduce(0) { $0 + $1.durationSec }) / 60).rounded())
+        let drillSec = dayEntries.reduce(0) { $0 + $1.durationSec }
+        let workoutSec = dayWorkouts.reduce(0) { $0 + $1.durationSec }
+        return Int((Double(drillSec + workoutSec) / 60).rounded())
     }
 
     private var totalXP: Int { dayEntries.reduce(0) { $0 + $1.xpEarned } }
@@ -46,8 +56,11 @@ struct DayDetailView: View {
                 title
                 ringsBlock
                 totalsRow
+                if !dayWorkouts.isEmpty {
+                    workoutsSection
+                }
                 if dayEntries.isEmpty {
-                    emptyState
+                    if dayWorkouts.isEmpty { emptyState }
                 } else {
                     sessionGroups
                 }
@@ -56,6 +69,28 @@ struct DayDetailView: View {
         }
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)
+        .navigationDestination(item: $selectedWorkout) { workout in
+            WorkoutDetailView(record: workout)
+        }
+    }
+
+    // MARK: - Watch workouts
+
+    private var workoutsSection: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Workouts")
+            ForEach(dayWorkouts) { workout in
+                Button {
+                    selectedWorkout = workout
+                } label: {
+                    WorkoutCardView(record: workout)
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s32)
     }
 
     private var grabber: some View {

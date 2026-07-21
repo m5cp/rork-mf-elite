@@ -625,6 +625,10 @@
 				INFOPLIST_KEY_NSCalendarsWriteUsageDescription = "MF Elite adds your scheduled training days to your calendar so you never miss a session.";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "MF Elite adds your scheduled training days to your calendar so you never miss a session.";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "MF Elite adds your coach's practices and games to your calendar so you never miss a session.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "MF Elite uses your location while you run or train to measure distance, pace, and your route on the field. It's only used while the app is open.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Choose a parent's email from your contacts to send a player's progress report. Your contacts stay on your device.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Connect an optional heart-rate strap to see your live heart rate during a session or run.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Allow tracking to help us understand how the app is used and improve your experience. This is optional and only asked of adult users.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -671,6 +675,10 @@
 				INFOPLIST_KEY_NSCalendarsWriteUsageDescription = "MF Elite adds your scheduled training days to your calendar so you never miss a session.";
 				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "MF Elite adds your scheduled training days to your calendar so you never miss a session.";
 				INFOPLIST_KEY_NSCalendarsWriteOnlyAccessUsageDescription = "MF Elite adds your coach's practices and games to your calendar so you never miss a session.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "MF Elite uses your location while you run or train to measure distance, pace, and your route on the field. It's only used while the app is open.";
+				INFOPLIST_KEY_NSContactsUsageDescription = "Choose a parent's email from your contacts to send a player's progress report. Your contacts stay on your device.";
+				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Connect an optional heart-rate strap to see your live heart rate during a session or run.";
+				INFOPLIST_KEY_NSUserTrackingUsageDescription = "Allow tracking to help us understand how the app is used and improve your experience. This is optional and only asked of adult users.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -829,6 +837,10 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = app.rork.pgx8pb996dmcvbhdfnx8x;
+				INFOPLIST_KEY_WKBackgroundModes = "workout-processing";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MF Elite reads your workout data on your wrist so it can track your training and update your Progress.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MF Elite saves your workouts to Apple Health so they close your activity rings.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "MF Elite uses your location during a workout to record your distance, pace, and route on the field.";
 			};
 			name = Debug;
 		};
@@ -859,6 +871,10 @@
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				INFOPLIST_KEY_WKApplication = YES;
 				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = app.rork.pgx8pb996dmcvbhdfnx8x;
+				INFOPLIST_KEY_WKBackgroundModes = "workout-processing";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "MF Elite reads your workout data on your wrist so it can track your training and update your Progress.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "MF Elite saves your workouts to Apple Health so they close your activity rings.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "MF Elite uses your location during a workout to record your distance, pace, and route on the field.";
 			};
 			name = Release;
 		};

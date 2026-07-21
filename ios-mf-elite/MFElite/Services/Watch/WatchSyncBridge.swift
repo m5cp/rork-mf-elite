@@ -158,6 +158,44 @@ final class WatchSyncBridge: NSObject {
         QuickLog.logDrills(items, source: .workout, sourceName: request.sourceName, context: context)
         refreshAndPush()
     }
+
+    // MARK: - Applying a wrist workout
+
+    /// Store a finished Apple Watch workout: render its GPS route into a map image
+    /// and persist a `WorkoutRecord` for the calendar and Progress tab. Idempotent
+    /// on the workout id so a re-delivered transfer never duplicates.
+    func applyWorkout(_ result: WatchWorkoutResult) async {
+        guard let context else { return }
+        let id = result.id
+        let existing = try? context.fetch(FetchDescriptor<WorkoutRecord>(
+            predicate: #Predicate { $0.id == id }
+        ))
+        guard (existing?.isEmpty ?? true) else { return }
+
+        let routeData = try? JSONEncoder().encode(result.route)
+        var imageName: String? = nil
+        if result.mode.isOutdoor, result.route.count > 1 {
+            imageName = await WorkoutRouteRenderer.renderAndSave(
+                points: result.route, accentHex: result.mode.accentHex, id: id
+            )
+        }
+
+        let record = WorkoutRecord(
+            id: id,
+            modeRaw: result.modeRaw,
+            startedAt: result.startedAt,
+            durationSec: result.durationSec,
+            distanceMeters: result.distanceMeters,
+            activeCalories: result.activeCalories,
+            avgHeartRate: result.avgHeartRate,
+            maxHeartRate: result.maxHeartRate,
+            routeData: routeData,
+            routeImageName: imageName
+        )
+        context.insert(record)
+        try? context.save()
+        refreshAndPush()
+    }
 }
 
 extension WatchSyncBridge: WCSessionDelegate {
@@ -181,10 +219,16 @@ extension WatchSyncBridge: WCSessionDelegate {
         }
     }
 
-    /// A quick-log completed on the watch, delivered in the background.
+    /// A quick-log OR a finished workout completed on the watch, delivered in the
+    /// background.
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any]) {
-        guard let data = userInfo["quickLog"] as? Data,
-              let request = try? JSONDecoder().decode(WatchQuickLogRequest.self, from: data) else { return }
-        Task { @MainActor in self.applyQuickLog(request) }
+        if let data = userInfo["quickLog"] as? Data,
+           let request = try? JSONDecoder().decode(WatchQuickLogRequest.self, from: data) {
+            Task { @MainActor in self.applyQuickLog(request) }
+        }
+        if let data = userInfo["workout"] as? Data,
+           let result = try? JSONDecoder().decode(WatchWorkoutResult.self, from: data) {
+            Task { @MainActor in await self.applyWorkout(result) }
+        }
     }
 }

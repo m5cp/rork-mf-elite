@@ -22,6 +22,13 @@ nonisolated enum CoachAllowlist {
         "appreview@mfelite.app"        // Apple reviewer guest account
     ]
 
+    /// Accounts that always hold the full Head Coach role, even offline or before
+    /// the server check runs. Layered ON TOP of the live `coaches` table.
+    private static let headCoachEmails: Set<String> = [
+        "mf.elitetraining@gmail.com",   // Coach Matteo Finazzi
+        "josephmcgee36@gmail.com"       // Joe McGee (developer / head coach)
+    ]
+
     /// Normalize an email for comparison (trimmed + lowercased).
     private static func normalize(_ email: String) -> String {
         email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -31,5 +38,11 @@ nonisolated enum CoachAllowlist {
     static func contains(_ email: String?) -> Bool {
         guard let email, !email.isEmpty else { return false }
         return emails.contains(normalize(email))
+    }
+
+    /// True when the email is a built-in Head Coach (full head-coach access).
+    static func isHeadCoach(_ email: String?) -> Bool {
+        guard let email, !email.isEmpty else { return false }
+        return headCoachEmails.contains(normalize(email))
     }
 }

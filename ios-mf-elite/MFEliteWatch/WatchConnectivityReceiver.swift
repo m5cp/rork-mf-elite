@@ -60,6 +60,13 @@ final class WatchConnectivityReceiver: NSObject {
         apply(updated)
     }
 
+    /// Send a finished watch workout (stats + GPS route) to the phone, where it's
+    /// stored, rendered into a route map, and added to Progress + the calendar.
+    func sendWorkout(_ result: WatchWorkoutResult) {
+        guard let encoded = try? JSONEncoder().encode(result) else { return }
+        session?.transferUserInfo(["workout": encoded])
+    }
+
     private func apply(_ data: WatchGlanceData) {
         glance = data
         WatchShared.save(data)

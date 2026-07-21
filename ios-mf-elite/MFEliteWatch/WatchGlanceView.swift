@@ -13,6 +13,7 @@ struct WatchGlanceView: View {
     @Environment(WatchConnectivityReceiver.self) private var connectivity
     @State private var runningSession = false
     @State private var justLogged = false
+    @State private var showWorkout = false
 
     private var glance: WatchGlanceData { connectivity.glance }
 
@@ -60,6 +61,16 @@ struct WatchGlanceView: View {
                             .foregroundStyle(.secondary)
                     }
 
+                    Divider()
+
+                    Button {
+                        showWorkout = true
+                    } label: {
+                        Label("Start Workout", systemImage: "figure.run")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .tint(.blue)
+
                     stepsRow
                 }
                 .padding(.horizontal, 4)
@@ -67,6 +78,12 @@ struct WatchGlanceView: View {
             .navigationTitle("MF Elite")
             .fullScreenCover(isPresented: $runningSession) {
                 WatchSessionRunnerView(drills: glance.drills, sourceName: glance.sessionTitle)
+            }
+            .fullScreenCover(isPresented: $showWorkout) {
+                NavigationStack {
+                    WatchWorkoutPickerView()
+                        .environment(connectivity)
+                }
             }
         }
     }

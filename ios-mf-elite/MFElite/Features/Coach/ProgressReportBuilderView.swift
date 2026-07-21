@@ -10,6 +10,7 @@
 
 import SwiftUI
 import UIKit
+import MessageUI
 
 struct ProgressReportBuilderView: View {
     let player: RosterPlayer
@@ -17,6 +18,7 @@ struct ProgressReportBuilderView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var sections: [ReportSection] = []
+    @State private var serverSections: [ReportSection] = []
     @State private var reportID: String?
     @State private var status: String = "draft"
     @State private var period: String = ""
@@ -24,6 +26,12 @@ struct ProgressReportBuilderView: View {
     @State private var isSaving = false
     @State private var shareURL: URL?
     @State private var showShare = false
+    @State private var restoredDraft = false
+    @State private var autosaveTask: Task<Void, Never>?
+    @State private var mailRequest: MailRequest?
+    @State private var showContactPicker = false
+    @State private var pendingParentEmail = ""
+    @State private var copied = false
 
     /// Current month formatted "MMMM yyyy" (e.g. "July 2026").
     private var defaultPeriod: String {
@@ -36,10 +44,12 @@ struct ProgressReportBuilderView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+                    if restoredDraft { restoredBanner }
                     ForEach($sections) { $section in
                         sectionCard($section)
                     }
                     addButtons
+                    parentActions
                 }
                 .padding(.horizontal, DS.Spacing.s20)
                 .padding(.top, DS.Spacing.s16)
@@ -70,14 +80,109 @@ struct ProgressReportBuilderView: View {
                     loaded = true
                 }
             }
+            .onChange(of: sections) { _, _ in
+                if loaded { scheduleAutosave() }
+            }
             .sheet(isPresented: $showShare) {
                 if let shareURL {
                     ShareSheet(items: [shareURL])
                         .presentationDetents([.medium, .large])
                 }
             }
+            .sheet(item: $mailRequest) { request in
+                MailComposeView(request: request)
+                    .ignoresSafeArea()
+            }
+            .sheet(isPresented: $showContactPicker) {
+                ContactEmailPicker { email in
+                    pendingParentEmail = email
+                    Task { await emailToParent() }
+                }
+                .ignoresSafeArea()
+            }
         }
         .preferredColorScheme(.dark)
+    }
+
+    // MARK: - Restore banner
+
+    private var restoredBanner: some View {
+        HStack(spacing: DS.Spacing.s12) {
+            Image(systemName: "arrow.uturn.backward.circle.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(DS.Colors.Gold.base)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Restored unsaved edits")
+                    .style(.foot)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                Text("We recovered changes from your last session.")
+                    .style(.cap)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+            Spacer(minLength: 0)
+            Button("Discard") { discardDraft() }
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(DS.Colors.Ink.secondary)
+        }
+        .padding(DS.Spacing.s12)
+        .background(DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Gold.base.opacity(0.4), lineWidth: 1))
+    }
+
+    // MARK: - Parent actions (email / copy)
+
+    private var parentActions: some View {
+        VStack(spacing: DS.Spacing.s12) {
+            Hairline()
+            if MFMailComposeViewController.canSendMail() {
+                actionRow(icon: "envelope.fill", title: "Email to parent",
+                          subtitle: "Attach the PDF and open Mail") {
+                    Task { await emailToParent() }
+                }
+                actionRow(icon: "person.crop.circle.fill", title: "Choose parent from Contacts",
+                          subtitle: "Pick an email, then attach the PDF") {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showContactPicker = true
+                }
+            }
+            actionRow(icon: copied ? "checkmark.circle.fill" : "doc.on.doc.fill",
+                      title: copied ? "Copied" : "Copy text summary",
+                      subtitle: "Paste into a message or note") {
+                copySummary()
+            }
+        }
+    }
+
+    private func actionRow(icon: String, title: String, subtitle: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: DS.Spacing.s12) {
+                Image(systemName: icon)
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .frame(width: 26)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text(subtitle)
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(DS.Spacing.s16)
+            .frame(maxWidth: .infinity)
+            .background(DS.Colors.Bg.card)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+            .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 
     // MARK: - Load / prefill
@@ -86,10 +191,88 @@ struct ProgressReportBuilderView: View {
         if let existing = await ProgressReportStore.load(playerUserID: player.id, period: period) {
             reportID = existing.id
             status = existing.status
-            sections = existing.sections.isEmpty ? prefilled() : existing.sections
+            serverSections = existing.sections.isEmpty ? prefilled() : existing.sections
         } else {
-            sections = prefilled()
+            serverSections = prefilled()
         }
+        // Restore any locally-cached unsaved edits that differ from the server.
+        if let draft = ReportDraftCache.load(playerID: player.id, period: period),
+           draft.sections != serverSections {
+            sections = draft.sections
+            if reportID == nil { reportID = draft.reportID }
+            restoredDraft = true
+        } else {
+            sections = serverSections
+        }
+    }
+
+    /// Debounced local autosave — persists edits to the device ~1s after typing stops.
+    private func scheduleAutosave() {
+        autosaveTask?.cancel()
+        let snapshot = sections
+        let currentID = reportID
+        autosaveTask = Task {
+            try? await Task.sleep(for: .seconds(1))
+            if Task.isCancelled { return }
+            ReportDraftCache.save(ReportDraft(
+                playerID: player.id, period: period,
+                reportID: currentID, sections: snapshot, savedAt: Date()
+            ))
+        }
+    }
+
+    private func discardDraft() {
+        autosaveTask?.cancel()
+        sections = serverSections
+        ReportDraftCache.clear(playerID: player.id, period: period)
+        restoredDraft = false
+        UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
+    }
+
+    // MARK: - Parent email / copy
+
+    private func emailToParent() async {
+        await save(newStatus: status == "final" ? "final" : "draft")
+        guard let url = generatePDF() else { return }
+        let subject = "\(player.displayName) — Progress Report (\(period))"
+        let body = """
+        Hi,
+
+        Attached is \(ShareText.firstName(player.displayName))'s progress report for \(period).
+
+        — MF Elite Training Academy
+        """
+        mailRequest = MailRequest(
+            recipient: pendingParentEmail, subject: subject, body: body,
+            attachmentURL: url, attachmentFilename: filename
+        )
+    }
+
+    private func copySummary() {
+        UIPasteboard.general.string = textSummary()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        copied = true
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            copied = false
+        }
+    }
+
+    private func textSummary() -> String {
+        var lines: [String] = ["\(player.displayName) — \(period)", ""]
+        for section in sections where section.included {
+            if section.kind == .ratings {
+                lines.append(section.title + ":")
+                for row in section.ratings {
+                    let clamped = max(1, min(4, row.score))
+                    lines.append("  • \(row.label): \(ReportSection.ratingScale[clamped])")
+                }
+            } else if !section.body.isEmpty {
+                lines.append("\(section.title): \(section.body)")
+            }
+            lines.append("")
+        }
+        return lines.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     /// The default template with auto sections filled from live data.
@@ -256,6 +439,10 @@ struct ProgressReportBuilderView: View {
                let existing = await ProgressReportStore.load(playerUserID: player.id, period: period) {
                 reportID = existing.id
             }
+            // The report is now safely on the server — clear the local draft.
+            serverSections = sections
+            ReportDraftCache.clear(playerID: player.id, period: period)
+            restoredDraft = false
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         }
         isSaving = false

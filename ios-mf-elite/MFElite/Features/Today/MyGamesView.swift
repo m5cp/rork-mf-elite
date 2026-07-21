@@ -17,6 +17,7 @@ struct MyGamesView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \GameEntry.date) private var games: [GameEntry]
     @State private var showAddGame = false
+    @State private var showRunTracker = false
     @State private var teamFeed = TeamEventsFeed.shared
 
     /// Upcoming games only — past games auto-hide but stay in the store.
@@ -41,6 +42,9 @@ struct MyGamesView: View {
                     showAddGame = true
                 }
                 .padding(.top, DS.Spacing.s20)
+
+                runTrackerButton
+                    .padding(.top, DS.Spacing.s12)
 
                 if !teamFeed.events.isEmpty {
                     VStack(alignment: .leading, spacing: 0) {
@@ -106,11 +110,47 @@ struct MyGamesView: View {
             }
             .preferredColorScheme(.dark)
         }
+        .fullScreenCover(isPresented: $showRunTracker) {
+            RunTrackerView()
+        }
+    }
+
+    // MARK: - Run tracker
+
+    private var runTrackerButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            showRunTracker = true
+        } label: {
+            HStack(spacing: DS.Spacing.s12) {
+                Image(systemName: "figure.run")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundStyle(DS.Colors.Ground.primary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Track a run")
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ground.primary)
+                    Text("Distance, pace & route on the field")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ground.primary.opacity(0.7))
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "location.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ground.primary.opacity(0.7))
+            }
+            .padding(DS.Spacing.s16)
+            .frame(maxWidth: .infinity)
+            .background(DS.Colors.Gold.base)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 
     // MARK: - Rows
 
     private func teamEventRow(_ event: TeamEvent) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
         HStack(spacing: DS.Spacing.s16) {
             VStack(spacing: 2) {
                 Text(event.startsAt, format: .dateTime.month(.abbreviated))
@@ -161,6 +201,12 @@ struct MyGamesView: View {
         }
         .padding(.vertical, DS.Spacing.s12)
         .contentShape(Rectangle())
+
+        if !event.location.isEmpty {
+            EventLocationMap(location: event.location)
+                .padding(.bottom, DS.Spacing.s12)
+        }
+        }
     }
 
     private func gameRow(_ game: GameEntry) -> some View {

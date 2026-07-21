@@ -34,6 +34,7 @@ struct SettingsView: View {
     @AppStorage("MF_MOTION_REPS") private var motionReps = true
     @AppStorage("MF_SHAKE_ADVANCE") private var shakeAdvance = true
     @AppStorage("MF_MOTION_TRACKING") private var motionTracking = true
+    @AppStorage("MF_COACH_FACEID_LOCK") private var coachFaceIDLock = false
 
     @State private var health = HealthKitService.shared
     @State private var gate = ParentGate.shared
@@ -400,6 +401,15 @@ struct SettingsView: View {
             if gate.hasPIN {
                 Hairline()
                 actionRow(label: "Change passcode") { gateMode = .set }
+            }
+            if subscription.isCoach && BiometricLock.isAvailable {
+                Hairline()
+                toggleRow(label: "Lock Coach Mode with \(BiometricLock.biometryLabel)", isOn: $coachFaceIDLock)
+                Text("When on, opening Coach Mode requires \(BiometricLock.biometryLabel) so rostered players' data stays private on a shared phone.")
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, DS.Spacing.s8)
             }
         }
     }

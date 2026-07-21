@@ -10,12 +10,17 @@
 import SwiftUI
 import MessageUI
 
-/// Describes a pre-filled support email. Drives `.sheet(item:)`.
+/// Describes a pre-filled email. Drives `.sheet(item:)`. Supports an optional
+/// file attachment (e.g. a report PDF) and an optional empty recipient so the
+/// sender can type or pick the address themselves.
 struct MailRequest: Identifiable {
     let id = UUID()
     let recipient: String
     let subject: String
     let body: String
+    var attachmentURL: URL? = nil
+    var attachmentMime: String = "application/pdf"
+    var attachmentFilename: String? = nil
 
     /// Standard diagnostics block appended to every support message.
     static func supportBody() -> String {
@@ -37,9 +42,15 @@ struct MailComposeView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> MFMailComposeViewController {
         let controller = MFMailComposeViewController()
         controller.mailComposeDelegate = context.coordinator
-        controller.setToRecipients([request.recipient])
+        if !request.recipient.isEmpty {
+            controller.setToRecipients([request.recipient])
+        }
         controller.setSubject(request.subject)
         controller.setMessageBody(request.body, isHTML: false)
+        if let url = request.attachmentURL, let data = try? Data(contentsOf: url) {
+            let name = request.attachmentFilename ?? url.lastPathComponent
+            controller.addAttachmentData(data, mimeType: request.attachmentMime, fileName: name)
+        }
         return controller
     }
 

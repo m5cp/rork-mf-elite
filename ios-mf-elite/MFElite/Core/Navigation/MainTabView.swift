@@ -28,6 +28,7 @@ struct MainTabView: View {
         .preferredColorScheme(.dark)
         .mfDynamicTypeClamp()
         .environment(subscription)
+        .task { TrackingConsent.requestIfAdult() }
         .onChange(of: router.pendingTab) { _, tab in
             guard let tab else { return }
             withAnimation(DS.Motion.standardSpring) { selectedTab = tab }
@@ -78,7 +79,7 @@ struct MainTabView: View {
         case .hub:      AcademyHubView()
         case .progress: ProgressTabView()
         case .profile:  ProfileTabView()
-        case .coach:    CoachView()
+        case .coach:    CoachLockGate { CoachView() }
         }
     }
 }
