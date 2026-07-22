@@ -28,7 +28,6 @@ struct MainTabView: View {
         .preferredColorScheme(.dark)
         .mfDynamicTypeClamp()
         .environment(subscription)
-        .task { TrackingConsent.requestIfAdult() }
         .onChange(of: router.pendingTab) { _, tab in
             guard let tab else { return }
             withAnimation(DS.Motion.standardSpring) { selectedTab = tab }
