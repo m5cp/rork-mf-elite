@@ -25,29 +25,34 @@ struct PaywallView: View {
 
     // MARK: - Content
 
-    private let bullets: [(icon: String, title: String, detail: String)] = [
-        ("trophy.fill", "Ballon d'Or eligible",
-         "Only Elite players can reach Captain — the rank that unlocks the invite-only Ballon d'Or."),
-        ("soccerball", "All 216 drills · every level",
-         "The complete curriculum with coach film, photos & certifications."),
-        ("chart.line.uptrend.xyaxis", "Rise through every rank",
-         "Prospect, First Eleven, Captain — with routines & programs built for each.")
-    ]
+    private var bullets: [(icon: String, title: String, detail: String)] {
+        let award = AppConfigStore.shared.awardTitle
+        return [
+            ("trophy.fill", "\(award) eligible",
+             "Only Elite players can reach Captain — the rank that unlocks the invite-only \(award)."),
+            ("soccerball", "All 216 drills · every level",
+             "The complete curriculum with coach film, photos & certifications."),
+            ("chart.line.uptrend.xyaxis", "Rise through every rank",
+             "Prospect, First Eleven, Captain — with routines & programs built for each.")
+        ]
+    }
 
     /// The honest, code-verified Free vs Elite comparison.
     /// free: nil = not included ("—"), "1" = limited, "check" = included.
-    private let comparison: [(label: String, free: String?, elite: Bool)] = [
-        ("Daily training, streaks & rings", "check", true),
-        ("Level 1 drills — every category", "check", true),
-        ("MF Combine tests + score history", "check", true),
-        ("Apple Watch workouts & run tracker", "check", true),
-        ("Share cards, player card & colors", "check", true),
-        ("Custom workout builder", "1", true),
-        ("Levels 2–5 · all 216 drills", nil, true),
-        ("Curated routines & programs", nil, true),
-        ("Ranks III–V + certifications", nil, true),
-        ("Ballon d'Or eligibility", nil, true)
-    ]
+    private var comparison: [(label: String, free: String?, elite: Bool)] {
+        [
+            ("Daily training, streaks & rings", "check", true),
+            ("Level 1 drills — every category", "check", true),
+            ("MF Combine tests + score history", "check", true),
+            ("Apple Watch workouts & run tracker", "check", true),
+            ("Share cards, player card & colors", "check", true),
+            ("Custom workout builder", "1", true),
+            ("Levels 2–5 · all 216 drills", nil, true),
+            ("Curated routines & programs", nil, true),
+            ("Ranks III–V + certifications", nil, true),
+            ("\(AppConfigStore.shared.awardTitle) eligibility", nil, true)
+        ]
+    }
 
     // MARK: - Packages
 

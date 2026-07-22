@@ -217,7 +217,7 @@ private struct ElevenBadgeRow: View {
                 )
 
             VStack(alignment: .leading, spacing: DS.Spacing.s4) {
-                Text("Ballon d'Or")
+                Text(AppConfigStore.shared.awardTitle)
                     .style(.title3)
                     .foregroundStyle(DS.Colors.Ink.primary)
                 Text("Coach MF Approved")

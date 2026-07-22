@@ -53,6 +53,7 @@ struct CoachView: View {
                         retryState
                     default:
                         overviewSection
+                        ControlCenterEntrySection()
                         teamSnapshotSection
                         aiBriefingSection
                         needsAttentionSection
@@ -100,6 +101,9 @@ struct CoachView: View {
             }
             .navigationDestination(for: CoachGuideRoute.self) { _ in
                 CoachGuideView()
+            }
+            .navigationDestination(for: ControlCenterRoute.self) { _ in
+                ControlCenterView()
             }
         }
         .preferredColorScheme(.dark)
@@ -308,7 +312,7 @@ struct CoachView: View {
                     Image(systemName: "trophy.fill")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(BallonDorTheme.gold)
-                    Eyebrow(text: "Ballon d'Or · Approvals")
+                    Eyebrow(text: "\(AppConfigStore.shared.awardTitle) · Approvals")
                 }
                 Text("Players who've reached the final tier and await your invitation.")
                     .style(.micro)
@@ -894,7 +898,7 @@ struct CoachRosterRow: View {
                         .foregroundStyle(DS.Colors.Ink.primary)
                         .lineLimit(1)
                     if player.ballonDorApproved {
-                        Text("BALLON D'OR")
+                        Text(AppConfigStore.shared.awardTitle.uppercased())
                             .font(.system(size: 8, weight: .heavy, design: .monospaced))
                             .tracking(0.5)
                             .foregroundStyle(.black)
@@ -1075,7 +1079,7 @@ struct BallonDorApprovalRow: View {
             RoundedRectangle(cornerRadius: DS.Radius.md)
                 .stroke(BallonDorTheme.gold.opacity(0.35), lineWidth: 1)
         )
-        .alert("Award the Ballon d'Or?", isPresented: $showApproveConfirm) {
+        .alert("Award the \(AppConfigStore.shared.awardTitle)?", isPresented: $showApproveConfirm) {
             Button("Cancel", role: .cancel) {}
             Button("Approve") { onApprove() }
         } message: {

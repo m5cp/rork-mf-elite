@@ -25,6 +25,7 @@ struct MFStoreView: View {
     @State private var pendingPurchase: StoreProduct?
     @State private var confirmation: String?
     @State private var isPurchasing = false
+    @State private var showPurchaseHelp = false
 
     private var freezes: Int { players.first?.freezesRemaining ?? 0 }
 
@@ -239,7 +240,7 @@ struct MFStoreView: View {
     // MARK: - Footer
 
     private var footer: some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
             Text("Purchases never affect leaderboards, drill mastery, or certifications.")
                 .style(.micro)
                 .foregroundStyle(DS.Colors.Ink.tertiary)
@@ -247,10 +248,20 @@ struct MFStoreView: View {
                 .style(.micro)
                 .foregroundStyle(DS.Colors.Ink.quaternary)
                 .fixedSize(horizontal: false, vertical: true)
+            Button {
+                showPurchaseHelp = true
+            } label: {
+                Text("Purchase problem?")
+                    .font(.system(size: 12, weight: .semibold))
+                    .underline()
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+            }
+            .frame(minHeight: 44)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s32)
+        .sheet(isPresented: $showPurchaseHelp) { PurchaseHelpView() }
     }
 
     // MARK: - Buy button

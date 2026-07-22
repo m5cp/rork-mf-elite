@@ -49,6 +49,7 @@ struct MFEliteApp: App {
         ShareXPService.shared.configure(context: container.mainContext)
         XPStoreService.shared.configure(context: container.mainContext)
         WatchSyncBridge.shared.configure(context: container.mainContext)
+        SupportAdjustments.shared.configure(context: container.mainContext)
     }
 
     /// Builds the SwiftData container. If the on-disk store can't be opened
@@ -114,6 +115,8 @@ struct MFEliteApp: App {
                         submitTotalXPToGameCenter()
                         WidgetBridge.refresh(context: container.mainContext)
                         WatchSyncBridge.shared.refreshAndPush()
+                        Task { await AppConfigStore.shared.refresh() }
+                        Task { await SupportAdjustments.shared.applyPending() }
                     }
 
                 if !openingDone {
@@ -133,6 +136,8 @@ struct MFEliteApp: App {
             } else if newPhase == .active {
                 SyncEngine.shared.onForeground()
                 WatchSyncBridge.shared.refreshAndPush()
+                Task { await AppConfigStore.shared.refresh() }
+                Task { await SupportAdjustments.shared.applyPending() }
             }
         }
     }

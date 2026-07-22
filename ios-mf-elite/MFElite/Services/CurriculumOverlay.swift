@@ -107,28 +107,69 @@ enum CurriculumOverlay {
     /// Apply every cached edit onto the local curriculum graph.
     private static func applyCache(context: ModelContext) {
         let cache = (try? context.fetch(FetchDescriptor<CurriculumEditCache>())) ?? []
-        guard !cache.isEmpty else { return }
-        let drills = (try? context.fetch(FetchDescriptor<Drill>())) ?? []
-        var drillByID = Dictionary(drills.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
+        if !cache.isEmpty {
+            let drills = (try? context.fetch(FetchDescriptor<Drill>())) ?? []
+            var drillByID = Dictionary(drills.map { ($0.id, $0) }, uniquingKeysWith: { a, _ in a })
 
-        for cached in cache {
-            switch cached.kind {
-            case "edit":
-                if let drill = drillByID[cached.drillID] {
-                    merge(cached.payload, onto: drill)
-                    drill.coachEditedBy = cached.updatedBy
+            for cached in cache {
+                switch cached.kind {
+                case "edit":
+                    if let drill = drillByID[cached.drillID] {
+                        merge(cached.payload, onto: drill)
+                        drill.coachEditedBy = cached.updatedBy
+                    }
+                case "hide":
+                    drillByID[cached.drillID]?.isCoachHidden = true
+                case "new":
+                    if let drill = applyNew(cached, existing: drillByID[cached.drillID], context: context) {
+                        drillByID[cached.drillID] = drill
+                    }
+                default:
+                    break
                 }
-            case "hide":
-                drillByID[cached.drillID]?.isCoachHidden = true
-            case "new":
-                if let drill = applyNew(cached, existing: drillByID[cached.drillID], context: context) {
-                    drillByID[cached.drillID] = drill
-                }
-            default:
-                break
             }
         }
+        applyNameOverrides(context: context)
         try? context.save()
+    }
+
+    /// Apply head-coach content renames (app_config `content_overrides`) onto
+    /// the local curriculum models, so every screen that reads these models
+    /// picks up the new name automatically. Additive-only, like every other
+    /// overlay here: player progress, history, and identity keys never change.
+    private static func applyNameOverrides(context: ModelContext) {
+        let store = AppConfigStore.shared
+        guard !store.overrides.isEmpty else { return }
+        let disciplines = (try? context.fetch(FetchDescriptor<Discipline>())) ?? []
+        for discipline in disciplines {
+            if let name = store.overrideName(kind: "discipline", id: discipline.id) {
+                discipline.name = name
+            }
+            for category in discipline.categories {
+                if let name = store.overrideName(kind: "category", id: category.id) {
+                    category.name = name
+                }
+                if let certName = store.overrideName(kind: "certification", id: category.id) {
+                    category.certName = certName
+                }
+                for level in category.levels {
+                    if let name = store.overrideName(kind: "level", id: level.id) {
+                        level.name = name
+                    }
+                    for drill in level.drills {
+                        if let name = store.overrideName(kind: "drill", id: drill.id) {
+                            drill.title = name
+                        }
+                    }
+                }
+            }
+        }
+        let combineTests = (try? context.fetch(FetchDescriptor<CombineTest>())) ?? []
+        for test in combineTests {
+            if let name = store.overrideName(kind: "combine_test", id: test.id) {
+                test.name = name
+            }
+        }
     }
 
     /// Insert (or refresh) a coach-authored "new" drill into its category/level.

@@ -432,10 +432,10 @@ private struct BallonDorNode: View {
 
             VStack(alignment: .leading, spacing: DS.Spacing.s4) {
                 HStack(spacing: DS.Spacing.s8) {
-                    Eyebrow(text: "Ballon d'Or")
+                    Eyebrow(text: AppConfigStore.shared.awardTitle)
                     if isApproved { approvedChip } else if state == .pending || state == .eligible { reviewChip }
                 }
-                Text("Ballon d'Or")
+                Text(AppConfigStore.shared.awardTitle)
                     .style(.title3)
                     .foregroundStyle(isApproved ? Self.gold : DS.Colors.Ink.primary)
                 Text(subtitle)

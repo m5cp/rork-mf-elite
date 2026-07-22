@@ -53,7 +53,7 @@ struct BallonDorAwardView: View {
                     Eyebrow(text: "The Pinnacle · Invite Only")
                         .foregroundStyle(Self.gold)
 
-                    Text("Ballon d'Or")
+                    Text(AppConfigStore.shared.awardTitle)
                         .style(.hero)
                         .foregroundStyle(DS.Colors.Ink.primary)
                         .multilineTextAlignment(.center)
@@ -123,6 +123,7 @@ struct BallonDorAwardView: View {
         let card = BallonDorShareCard(
             playerName: profile.displayName,
             coachName: coachName,
+            awardTitle: AppConfigStore.shared.awardTitle,
             date: Date()
         )
         let renderer = ImageRenderer(content: card)
@@ -139,6 +140,7 @@ struct BallonDorAwardView: View {
 private struct BallonDorShareCard: View {
     let playerName: String
     let coachName: String?
+    let awardTitle: String
     let date: Date
 
     private static let gold = Color(red: 0.86, green: 0.71, blue: 0.36)
@@ -163,7 +165,7 @@ private struct BallonDorShareCard: View {
                     .font(.system(size: 10, weight: .semibold, design: .monospaced))
                     .tracking(1.4)
                     .foregroundStyle(Self.gold)
-                Text("Ballon d'Or")
+                Text(awardTitle)
                     .style(.hero)
                     .foregroundStyle(DS.Colors.Ink.primary)
                 Text(playerName)

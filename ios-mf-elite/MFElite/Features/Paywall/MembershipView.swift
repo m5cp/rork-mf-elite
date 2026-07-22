@@ -16,6 +16,7 @@ struct MembershipView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var showStore = false
+    @State private var showPurchaseHelp = false
 
     private var packages: [Package] {
         subscription.offerings?.current?.availablePackages ?? []
@@ -92,6 +93,16 @@ struct MembershipView: View {
                         Task { await subscription.restorePurchases() }
                     }
                     .frame(maxWidth: .infinity)
+
+                    Button {
+                        showPurchaseHelp = true
+                    } label: {
+                        Text("Purchase problem?")
+                            .font(.system(size: 12, weight: .semibold))
+                            .underline()
+                            .foregroundStyle(DS.Colors.Ink.secondary)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .padding(.horizontal, DS.Spacing.s20)
                 .padding(.top, DS.Spacing.s8)
@@ -109,6 +120,7 @@ struct MembershipView: View {
             .sheet(isPresented: $showStore) {
                 NavigationStack { MFStoreView() }
             }
+            .sheet(isPresented: $showPurchaseHelp) { PurchaseHelpView() }
         }
         .preferredColorScheme(.dark)
     }

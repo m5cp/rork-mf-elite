@@ -35,6 +35,19 @@ enum AcademyRank: Int, CaseIterable, Sendable {
         }
     }
 
+    /// The rank's title, or the head coach's rename when one has been
+    /// published. `AppConfigStore` is `@MainActor`-isolated, so this reads its
+    /// UserDefaults cache directly (nonisolated-safe) rather than touching the
+    /// store instance — `AcademyRank` is `Sendable` and used from non-UI
+    /// contexts (widgets, Watch payloads), so it must stay callable anywhere.
+    var displayTitle: String {
+        let cache = (UserDefaults.standard.dictionary(forKey: AppConfigStore.overridesCacheKey) as? [String: String]) ?? [:]
+        return cache["rank|\(rawValue)"] ?? title
+    }
+
+    /// Static convenience matching the spec's requested bridge shape.
+    static func displayTitle(for rank: AcademyRank) -> String { rank.displayTitle }
+
     /// Returns the highest rank whose threshold is satisfied by `xp`.
     static func rank(for xp: Int) -> AcademyRank {
         allCases.last { xp >= $0.rawValue } ?? .trialist

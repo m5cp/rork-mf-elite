@@ -39,7 +39,7 @@ struct CoachGuideView: View {
                     body: "The roster shows every player, their streaks, XP, and progress. Tap a player for their full detail — mastered drills, combine results, and history. Use the weekly digest to share a team summary."
                 ),
                 LegalSection(
-                    heading: "Ballon d'Or Approvals",
+                    heading: "\(AppConfigStore.shared.awardTitle) Approvals",
                     body: "Players who reach the final tier wait for your invitation. Review them in the approvals card — this is the highest honor in the app, so make it feel earned."
                 )
             ]

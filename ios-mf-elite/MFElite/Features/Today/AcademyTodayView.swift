@@ -38,6 +38,7 @@ struct AcademyTodayView: View {
  @State private var resumeStore = ResumeStore.shared
  @State private var syncEngine = SyncEngine.shared
  @State private var auth = SupabaseAuth.shared
+ @State private var supportAdjustments = SupportAdjustments.shared
  @State private var appeared = false
  @State private var pendingPlanAdvance: PendingPlanAdvance?
  @State private var showChangePlanConfirm = false
@@ -104,6 +105,7 @@ struct AcademyTodayView: View {
  todaySessionCard.entrance(2, appeared: appeared)
  goalsCard(vm).entrance(3, appeared: appeared)
  nextGameChip.entrance(4, appeared: appeared)
+ coachSupportNoticeCard.entrance(5, appeared: appeared)
  announcementBanner.entrance(5, appeared: appeared)
  coachFocusCard.entrance(5, appeared: appeared)
  resumeCard.entrance(6, appeared: appeared)
@@ -476,6 +478,50 @@ struct AcademyTodayView: View {
  let queue = TrainingQueue(items: items, source: source, sourceName: saved.sourceName)
  queue.currentIndex = min(saved.index, items.count - 1)
  activeSession = queue
+ }
+
+ // MARK: - Coach support notice
+
+ /// A small dismissible card confirming a head coach's support-ledger grant
+ /// (extra XP, a restored streak, a shield, a booster) landed on this device.
+ @ViewBuilder
+ private var coachSupportNoticeCard: some View {
+ if let notice = supportAdjustments.latestNotice {
+ HStack(alignment: .top, spacing: DS.Spacing.s12) {
+ Image(systemName: "checkmark.seal.fill")
+ .font(.system(size: 14, weight: .bold))
+ .foregroundStyle(DS.Colors.Gold.base)
+ VStack(alignment: .leading, spacing: 2) {
+ Eyebrow(text: "Coach Support")
+ Text(notice)
+ .style(.foot)
+ .foregroundStyle(DS.Colors.Ink.secondary)
+ .fixedSize(horizontal: false, vertical: true)
+ }
+ Spacer(minLength: DS.Spacing.s8)
+ Button {
+ UIImpactFeedbackGenerator(style: .light).impactOccurred()
+ withAnimation(DS.Motion.standardSpring) { supportAdjustments.dismissNotice() }
+ } label: {
+ Image(systemName: "xmark")
+ .font(.system(size: 12, weight: .bold))
+ .foregroundStyle(DS.Colors.Ink.quaternary)
+ .frame(width: 28, height: 28)
+ }
+ .buttonStyle(PressableButtonStyle())
+ .accessibilityLabel("Dismiss")
+ }
+ .padding(DS.Spacing.s16)
+ .frame(maxWidth: .infinity, alignment: .leading)
+ .background(DS.Colors.Bg.card)
+ .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
+ .overlay(
+ RoundedRectangle(cornerRadius: DS.Radius.lg)
+ .stroke(DS.Colors.Gold.line, lineWidth: 1)
+ )
+ .padding(.horizontal, DS.Spacing.s20)
+ .padding(.top, DS.Spacing.s16)
+ }
  }
 
  // MARK: - Coach announcement banner
