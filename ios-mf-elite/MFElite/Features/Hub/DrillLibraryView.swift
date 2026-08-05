@@ -198,6 +198,7 @@ private struct LibraryCategoryView: View {
     let passesByDrill: [String: Int]
     let masteredIDs: Set<String>
 
+    @Environment(SubscriptionService.self) private var subscription
     @State private var filter: CategoryMasteryFilter = .all
 
     private struct Row: Identifiable {
@@ -248,6 +249,10 @@ private struct LibraryCategoryView: View {
                         .padding(.top, DS.Spacing.s48)
                 } else {
                     ForEach(rows) { row in
+                        // Locked rows still open the drill page (it reads as a
+                        // teaser and the page itself gates training), but they
+                        // now look locked here instead of looking free.
+                        let locked = subscription.isLevelNumberLocked(row.level.number)
                         NavigationLink(value: DrillRoute(
                             discipline: discipline,
                             category: category,
@@ -258,6 +263,7 @@ private struct LibraryCategoryView: View {
                                 drill: row.drill,
                                 passes: row.passes,
                                 isMastered: row.isMastered,
+                                isLocked: locked,
                                 isLast: row.id == rows.last?.id
                             )
                         }
@@ -313,6 +319,7 @@ private struct LibraryDrillRow: View {
     let drill: Drill
     let passes: Int
     let isMastered: Bool
+    var isLocked: Bool = false
     let isLast: Bool
 
     var body: some View {
@@ -362,7 +369,9 @@ private struct LibraryDrillRow: View {
 
     @ViewBuilder
     private var trailingIndicator: some View {
-        if isMastered {
+        if isLocked {
+            LockBadge()
+        } else if isMastered {
             Circle()
                 .fill(Color.white)
                 .frame(width: 20, height: 20)

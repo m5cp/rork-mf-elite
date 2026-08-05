@@ -485,6 +485,7 @@ private struct DrillPickerView: View {
     let onAdd: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(SubscriptionService.self) private var subscription
     @Query private var progress: [DrillProgress]
     @State private var searchText = ""
     @State private var addedCount = 0
@@ -636,7 +637,11 @@ private struct DrillPickerView: View {
         for discipline in disciplines where filterDisciplineID == nil || discipline.id == filterDisciplineID {
             for category in discipline.categories.sorted(by: { $0.sortIndex < $1.sortIndex }) {
                 for level in category.levels.sorted(by: { $0.number < $1.number })
-                where filterLevel == nil || level.number == filterLevel {
+                where (filterLevel == nil || level.number == filterLevel)
+                    // Autofill already excludes locked levels; the manual picker
+                    // did not, so a free player could hand-build a workout of
+                    // Level 5 drills and train it on repeat.
+                    && !subscription.isLevelNumberLocked(level.number) {
                     for drill in level.drills.sorted(by: { $0.sortIndex < $1.sortIndex })
                     where drill.isSelectable(trainedIDs: trained) {
                         if query.isEmpty || drill.title.localizedCaseInsensitiveContains(query) {
@@ -808,6 +813,7 @@ private struct PickerCategoryView: View {
     let discipline: Discipline
     let onAdd: (String) -> Void
 
+    @Environment(SubscriptionService.self) private var subscription
     @Query private var progress: [DrillProgress]
 
     private var trainedIDs: Set<String> {
@@ -818,6 +824,9 @@ private struct PickerCategoryView: View {
         let trained = trainedIDs
         return category.levels
             .sorted(by: { $0.sortIndex < $1.sortIndex })
+            // Same paywall filter as the search results — locked levels can't
+            // be added to a custom workout.
+            .filter { !subscription.isLevelNumberLocked($0.number) }
             .flatMap { $0.drills.sorted(by: { $0.sortIndex < $1.sortIndex }) }
             .filter { $0.isSelectable(trainedIDs: trained) }
     }
