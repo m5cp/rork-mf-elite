@@ -77,7 +77,7 @@ struct ParentGateView: View {
         VStack(spacing: DS.Spacing.s8) {
             Image(systemName: "lock.shield")
                 .font(.system(size: 30, weight: .semibold))
-                .foregroundStyle(DS.Colors.Ink.primary)
+                .metallicSymbol(.gold)
             Text(title)
                 .style(.title2)
                 .foregroundStyle(DS.Colors.Ink.primary)

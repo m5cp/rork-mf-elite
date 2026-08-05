@@ -254,9 +254,7 @@ struct CoachDrillEditorView: View {
             showNew = true
         } label: {
             HStack(spacing: DS.Spacing.s12) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
+                SectionIcon(systemName: "plus.circle.fill")
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Add a new drill")
                         .style(.title3)

@@ -361,9 +361,7 @@ struct CoachPlayerDetailView: View {
                 showReportBuilder = true
             } label: {
                 HStack(spacing: DS.Spacing.s12) {
-                    Image(systemName: "doc.text.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                    SectionIcon(systemName: "doc.text.fill")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Create / edit report")
                             .style(.title3)

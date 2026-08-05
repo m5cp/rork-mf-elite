@@ -831,12 +831,7 @@ struct SettingsView: View {
     private func iconRow(icon: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: DS.Spacing.s16) {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                    .frame(width: 36, height: 36)
-                    .background(DS.Colors.Bg.raised)
-                    .clipShape(Circle())
+                SectionIcon(systemName: icon, size: 36)
                 Text(label)
                     .style(.title3)
                     .foregroundStyle(DS.Colors.Ink.primary)

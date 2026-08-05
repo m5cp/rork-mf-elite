@@ -148,24 +148,21 @@ private struct BadgeRow: View {
         switch state {
         case .earned:
             Circle()
-                .fill(Color.white)
+                .fill(BadgeAccent.fill)
                 .frame(width: 56, height: 56)
                 .overlay(
                     Text(rank.numeral)
                         .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(DS.Colors.Ground.primary)
-                )
-                .overlay(
-                    Circle().stroke(DS.Colors.Line.strong, lineWidth: 1)
+                        .foregroundStyle(BadgeAccent.ink)
                 )
         case .target:
             Circle()
-                .stroke(Color.white, lineWidth: 1.5)
+                .stroke(BadgeAccent.stroke, lineWidth: 1.5)
                 .frame(width: 56, height: 56)
                 .overlay(
                     Text(rank.numeral)
                         .font(.system(size: 22, weight: .heavy))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                        .foregroundStyle(BadgeAccent.text)
                 )
         case .locked:
             Circle()
@@ -189,7 +186,7 @@ private struct BadgeRow: View {
                 Text("Earned")
                     .style(.micro)
             }
-            .foregroundStyle(DS.Colors.Ink.primary)
+            .foregroundStyle(BadgeAccent.text)
         case .target:
             Text("In Progress · \(xpToGo.formatted()) XP to go")
                 .style(.micro)
@@ -243,12 +240,12 @@ private struct AchievementRow: View {
     var body: some View {
         HStack(spacing: DS.Spacing.s16) {
             Circle()
-                .fill(isEarned ? Color.white : Color.clear)
+                .fill(isEarned ? BadgeAccent.fill : Color.clear)
                 .frame(width: 48, height: 48)
                 .overlay(
                     Image(systemName: badge.icon)
                         .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(isEarned ? DS.Colors.Ground.primary : DS.Colors.Ink.disabled)
+                        .foregroundStyle(isEarned ? BadgeAccent.ink : DS.Colors.Ink.disabled)
                 )
                 .overlay(
                     Circle().stroke(isEarned ? Color.clear : DS.Colors.Line.subtle, lineWidth: 1)
@@ -268,7 +265,7 @@ private struct AchievementRow: View {
                         Text("Earned")
                             .style(.micro)
                     }
-                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .foregroundStyle(BadgeAccent.text)
                 }
             }
             Spacer(minLength: 0)
@@ -287,5 +284,23 @@ private struct AchievementRow: View {
                 Discipline.self, Category.self, MasteryLevel.self,
                 Drill.self, DrillProgress.self, PlayerState.self
             ])
+    }
+}
+
+/// Accent resolvers for the badge surfaces. A "Badges" screen with no accent on
+/// it was the clearest instance of the owner's complaint — earned badges are
+/// exactly what an accent is for. Honors the monochrome preference.
+private enum BadgeAccent {
+    static var fill: Color {
+        SymbolStyle.current == .accent ? DS.Colors.Gold.base : Color.white
+    }
+    static var ink: Color {
+        SymbolStyle.current == .accent ? DS.Colors.Gold.inkOnGold : DS.Colors.Ground.primary
+    }
+    static var text: Color {
+        SymbolStyle.current == .accent ? DS.Colors.Gold.textLight : DS.Colors.Ink.primary
+    }
+    static var stroke: Color {
+        SymbolStyle.current == .accent ? DS.Colors.Gold.base : Color.white
     }
 }

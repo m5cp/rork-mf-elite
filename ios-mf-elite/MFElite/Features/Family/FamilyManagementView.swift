@@ -73,12 +73,7 @@ struct FamilyManagementView: View {
     private var individualizedNote: some View {
         Card {
             HStack(alignment: .top, spacing: DS.Spacing.s12) {
-                Image(systemName: "person.fill.viewfinder")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                    .frame(width: 36, height: 36)
-                    .background(DS.Colors.Bg.raised)
-                    .clipShape(Circle())
+                SectionIcon(systemName: "person.fill.viewfinder", size: 36)
 
                 VStack(alignment: .leading, spacing: DS.Spacing.s4) {
                     Eyebrow(text: "Individualized Program", color: DS.Colors.Ink.primary)

@@ -158,10 +158,7 @@ struct ProgressReportBuilderView: View {
     private func actionRow(icon: String, title: String, subtitle: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: DS.Spacing.s12) {
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                    .frame(width: 26)
+                SectionIcon(systemName: icon, size: 36)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
                         .style(.title3)

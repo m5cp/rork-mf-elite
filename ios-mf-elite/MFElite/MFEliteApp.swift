@@ -116,9 +116,9 @@ struct MFEliteApp: App {
         WindowGroup {
             ZStack {
                 MainTabView()
-                    // Rebuild the tree when the accent changes so every token
-                    // consumer repaints immediately (live accent switching).
-                    .id(profileStore.accentID)
+                    // Rebuild the tree when the accent OR the symbol style
+                    // changes, so every token consumer repaints immediately.
+                    .id("\(profileStore.accentID)-\(profileStore.symbolStyleID)")
                     .preferredColorScheme(.dark)
                     .fullScreenCover(isPresented: .constant(showOnboarding && openingDone)) {
                         OnboardingView {
