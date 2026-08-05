@@ -12,6 +12,7 @@ struct MainTabView: View {
     @State private var restore = SyncRestore.shared
     @State private var importPayload: WorkoutShare.Payload?
     @State private var dismissedStoreWarning = false
+    @State private var showSearch = false
 
     var body: some View {
         @Bindable var subscription = subscription
@@ -26,6 +27,9 @@ struct MainTabView: View {
                 .frame(maxWidth: AdaptiveLayout.maxContentWidth)
                 .frame(maxWidth: .infinity)
         }
+        // Overlay rather than a ZStack child: expanding the button itself to
+        // fill the screen would make the whole screen tappable.
+        .overlay(alignment: .bottomTrailing) { searchButton }
         .overlay(alignment: .top) {
             if MFEliteApp.isRunningOnFallbackStore && !dismissedStoreWarning {
                 fallbackStoreBanner
@@ -52,6 +56,10 @@ struct MainTabView: View {
         .fullScreenCover(isPresented: $subscription.showPremiumWelcome) {
             PremiumWelcomeView()
         }
+        .fullScreenCover(isPresented: $showSearch) {
+            GlobalSearchView()
+                .environment(subscription)
+        }
         .fullScreenCover(item: restorePresentation) { item in
             RestoreProgressView(remote: item.state)
         }
@@ -62,6 +70,35 @@ struct MainTabView: View {
             guard let payload = WorkoutShare.decode(url) else { return }
             importPayload = payload
         }
+    }
+
+    /// Floating search, sitting just above the tab bar on the trailing side.
+    ///
+    /// Every list in the app was previously its own island — the curriculum
+    /// search only found drills, and there was no way to find a *screen* at
+    /// all. This finds drills, screens, badges and combine tests at once.
+    private var searchButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            showSearch = true
+        } label: {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18, weight: .bold))
+                .foregroundStyle(DS.Colors.Gold.inkOnGold)
+                .frame(width: 52, height: 52)
+                .background(DS.Colors.Gold.base)
+                .clipShape(Circle())
+                .overlay(
+                    Circle().stroke(DS.Colors.Ground.primary.opacity(0.25), lineWidth: 1)
+                )
+                .floatingElevation()
+                .contentShape(Circle())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .padding(.trailing, DS.Spacing.s20)
+        .padding(.bottom, DS.tabBarClearance + DS.Spacing.s12)
+        .accessibilityLabel("Search")
+        .accessibilityHint("Find drills, screens and badges")
     }
 
     /// Shown when the on-disk store could not be opened and this session is

@@ -711,7 +711,7 @@ struct CoachDrillMediaSection: View {
                 ProgressView().tint(DS.Colors.Gold.base)
                 Text("Uploading\u{2026}").style(.foot).foregroundStyle(DS.Colors.Ink.secondary)
             case .failed:
-                Text("Upload failed").style(.foot).foregroundStyle(Color(hex: "#FF453A"))
+                Text("Upload failed").style(.foot).foregroundStyle(DS.Colors.Status.bad)
                 Button("Retry", action: onRetry)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(DS.Colors.Gold.textLight)
@@ -719,16 +719,18 @@ struct CoachDrillMediaSection: View {
                     .contentShape(Rectangle())
             default:
                 Text(label).style(.foot).foregroundStyle(DS.Colors.Ink.primary)
-                if hasMedia || state == .done {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(DS.Colors.Gold.base)
-                }
             }
             Spacer()
+            // Standard confirmation affordance: a checkmark that says "yes,
+            // that one is attached", rather than the label quietly changing.
+            if state != .uploading, state != .failed {
+                ConfirmBadge(isConfirmed: hasMedia || state == .done, label: "Attached")
+            }
             if hasMedia {
                 Button("Remove", action: onRemove)
                     .font(.system(size: 13, weight: .semibold))
                     .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .frame(minHeight: 44)
             }
         }
         .padding(DS.Spacing.s12)
