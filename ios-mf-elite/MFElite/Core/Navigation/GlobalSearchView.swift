@@ -64,11 +64,14 @@ struct GlobalSearchView: View {
     /// Section order — screens first when the query is short, because a player
     /// typing two letters is usually looking for a place, not a specific drill.
     private static let sectionOrder = [
-        "Screens", "Drills", "Routines", "Programs", "Combine", "Badges", "Coach"
+        "Screens", "Drills", "Combine", "Badges", "Coach"
     ]
 
     var body: some View {
-        NavigationStack {
+        // Bound once per pass. `results` walks the whole curriculum, and body
+        // needs it twice — for the empty check and for the list.
+        let hits = results
+        return NavigationStack {
             ZStack {
                 DS.Colors.Bg.base.ignoresSafeArea()
 
@@ -77,10 +80,10 @@ struct GlobalSearchView: View {
 
                     if trimmedQuery.isEmpty {
                         suggestions
-                    } else if results.isEmpty {
+                    } else if hits.isEmpty {
                         emptyState
                     } else {
-                        resultsList
+                        resultsList(hits)
                     }
                 }
             }
@@ -117,7 +120,15 @@ struct GlobalSearchView: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear { searchFocused = true }
+        .task {
+            // A focus set during the cover's presentation transition is
+            // dropped and the keyboard never rises, so wait it out. `.task`
+            // rather than `asyncAfter` so tapping Done or a result inside the
+            // delay cancels it instead of writing to a torn-down view.
+            try? await Task.sleep(nanoseconds: 350_000_000)
+            guard !Task.isCancelled else { return }
+            searchFocused = true
+        }
     }
 
     // MARK: - Search field
@@ -202,11 +213,14 @@ struct GlobalSearchView: View {
         .padding(.top, DS.Spacing.s48)
     }
 
-    private var resultsList: some View {
-        ScrollView {
+    private func resultsList(_ hits: [GlobalSearchResult]) -> some View {
+        // Grouped once. Filtering inside the ForEach re-ran the whole match
+        // pass per section, per keystroke.
+        let grouped = Dictionary(grouping: hits, by: { $0.section })
+        return ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(Self.sectionOrder, id: \.self) { section in
-                    let items = results.filter { $0.section == section }
+                    let items = grouped[section] ?? []
                     if !items.isEmpty {
                         HStack {
                             Eyebrow(text: section)

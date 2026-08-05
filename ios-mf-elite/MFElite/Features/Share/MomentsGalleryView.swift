@@ -248,6 +248,10 @@ struct MomentsGalleryView: View {
             .padding(.bottom, DS.tabBarClearance + DS.Spacing.s12)
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .accessibilityAddTraits(.isStaticText)
+            // This toast sits in the same band as the floating search button.
+            // Attached here rather than on the screen so search only steps
+            // aside for the couple of seconds the hint is actually up.
+            .suppressesFloatingSearch()
         }
     }
 

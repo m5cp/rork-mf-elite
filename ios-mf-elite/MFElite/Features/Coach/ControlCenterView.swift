@@ -437,29 +437,35 @@ struct RenameBrowserView: View {
         }
     }
 
-    private var totalRenameable: Int {
-        sections.reduce(0) { $0 + $1.count }
-    }
-
-    private var matchCount: Int {
-        visibleSections.reduce(0) { $0 + $1.count }
+    /// Both hero-card numbers from a single curriculum walk. Read once in
+    /// `body` and passed down — reading it twice would walk it twice.
+    private var totals: (items: Int, groups: Int) {
+        let all = sections
+        return (all.reduce(0) { $0 + $1.count }, all.count)
     }
 
     // MARK: - Body
 
     var body: some View {
-        ScrollView {
+        // Bound once per body pass. `sections` builds ~342 items by walking the
+        // whole curriculum, and heroCard, matchCount, the empty check and the
+        // ForEach each used to rebuild it from scratch.
+        let shown = visibleSections
+        let matches = shown.reduce(0) { $0 + $1.count }
+        let counts = totals
+        return ScrollView {
             LazyVStack(alignment: .leading, spacing: DS.Spacing.s16) {
-                heroCard
+                heroCard(items: counts.items, groups: counts.groups)
+
                 awardSection
 
                 if isSearching {
-                    Text("\(matchCount) match\(matchCount == 1 ? "" : "es")")
+                    Text("\(matches) match\(matches == 1 ? "" : "es")")
                         .style(.micro)
                         .foregroundStyle(DS.Colors.Ink.quaternary)
                 }
 
-                if visibleSections.isEmpty {
+                if shown.isEmpty {
                     Text("Nothing matches “\(searchText)”.")
                         .style(.body)
                         .foregroundStyle(DS.Colors.Ink.quaternary)
@@ -467,7 +473,7 @@ struct RenameBrowserView: View {
                         .padding(.top, DS.Spacing.s32)
                 }
 
-                ForEach(visibleSections) { section in
+                ForEach(shown) { section in
                     sectionBlock(section)
                 }
             }
@@ -485,7 +491,7 @@ struct RenameBrowserView: View {
 
     /// Explains the screen and carries the counts, so the first thing on screen
     /// is orientation rather than 342 text fields.
-    private var heroCard: some View {
+    private func heroCard(items: Int, groups: Int) -> some View {
         Card {
             VStack(alignment: .leading, spacing: DS.Spacing.s8) {
                 HStack(spacing: DS.Spacing.s12) {
@@ -494,7 +500,7 @@ struct RenameBrowserView: View {
                         Text("Rename anything")
                             .style(.title3)
                             .foregroundStyle(DS.Colors.Ink.primary)
-                        Text("\(totalRenameable) items across \(sections.count) groups")
+                        Text("\(items) items across \(groups) groups")
                             .style(.micro)
                             .foregroundStyle(DS.Colors.Ink.tertiary)
                     }
