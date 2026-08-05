@@ -46,6 +46,13 @@ struct MainTabView: View {
         .fullScreenCover(isPresented: $subscription.showPremiumWelcome) {
             PremiumWelcomeView()
         }
+        // Parent gate for purchase actions raised anywhere in the app. Hosted
+        // here so every entry point into the paywall is covered by one sheet.
+        .sheet(item: $subscription.gateRequest) { request in
+            ParentGateView(mode: .verify(title: request.title, onSuccess: request.action))
+                .preferredColorScheme(.dark)
+                .presentationDetents([.large])
+        }
         .fullScreenCover(item: restorePresentation) { item in
             RestoreProgressView(remote: item.state)
         }

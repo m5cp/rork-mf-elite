@@ -379,7 +379,7 @@ struct PaywallView: View {
             hint: trialHint
         ) {
             guard let package = selectedPackage else { return }
-            Task { await subscription.purchase(package: package) }
+            subscription.requestPurchase(package: package)
         }
         .disabled(subscription.isPurchasing || selectedPackage == nil)
         .opacity(subscription.isPurchasing ? 0.7 : 1)
@@ -408,7 +408,7 @@ struct PaywallView: View {
         VStack(spacing: DS.Spacing.s12) {
             HStack(spacing: DS.Spacing.s20) {
                 GhostButton(label: "Restore Purchases") {
-                    Task { await subscription.restorePurchases() }
+                    subscription.requestRestore()
                 }
                 GhostButton(label: "Redeem Code") {
                     Purchases.shared.presentCodeRedemptionSheet()

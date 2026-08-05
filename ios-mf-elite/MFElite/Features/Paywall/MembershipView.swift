@@ -90,7 +90,7 @@ struct MembershipView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     GhostButton(label: "Restore Purchases") {
-                        Task { await subscription.restorePurchases() }
+                        subscription.requestRestore()
                     }
                     .frame(maxWidth: .infinity)
 
@@ -157,7 +157,7 @@ struct MembershipView: View {
 
     private func switchRow(_ package: Package) -> some View {
         Button {
-            Task { await subscription.purchase(package: package) }
+            subscription.requestPurchase(package: package)
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {

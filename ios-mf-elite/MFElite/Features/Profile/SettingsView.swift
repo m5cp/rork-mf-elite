@@ -408,7 +408,18 @@ struct SettingsView: View {
                 .padding(.bottom, DS.Spacing.s8)
             if gate.hasPIN {
                 Hairline()
-                actionRow(label: "Change passcode") { gateMode = .set }
+                // Verify the existing passcode before allowing a new one to be
+                // set — otherwise "Change passcode" was a way to take the gate
+                // over without knowing the current code.
+                actionRow(label: "Change passcode") {
+                    gateMode = .verify(title: "Enter your current passcode") {
+                        // Wait for the verify sheet to finish dismissing before
+                        // presenting the set-a-new-passcode sheet in its place.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            gateMode = .set
+                        }
+                    }
+                }
             }
             if subscription.isCoach && BiometricLock.isAvailable {
                 Hairline()
@@ -426,7 +437,18 @@ struct SettingsView: View {
         if on {
             gateMode = .set
         } else if gate.hasPIN {
-            showDisableGateConfirm = true
+            // Turning the gate OFF is itself a parent-only action. Previously
+            // this went straight to a confirmation dialog whose button called
+            // gate.disable(), so a child could switch off the passcode and open
+            // up every protected purchase without ever knowing it.
+            gateMode = .verify(title: "Enter the passcode to turn it off") {
+                // ParentGateView calls onSuccess and then dismisses itself, so
+                // anything presented here has to wait for that dismissal or it
+                // gets swallowed.
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    showDisableGateConfirm = true
+                }
+            }
         } else {
             gate.disable()
         }
