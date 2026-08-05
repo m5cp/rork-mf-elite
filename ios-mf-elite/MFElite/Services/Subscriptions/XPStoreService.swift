@@ -40,6 +40,9 @@ final class XPStoreService {
     }
 
     static let maxFreezes = 3
+    /// XP credited instead when a purchased streak freeze would exceed
+    /// `maxFreezes`, so a paid shield is never silently dropped.
+    static let freezeConsolationXP = 100
     /// Hard ceiling on purchased XP per calendar month (economy guardrail).
     static let monthlyXPCap = 2000
     /// Booster purchases allowed per calendar month.
@@ -162,11 +165,16 @@ final class XPStoreService {
     /// transaction so the purchase flow and the recovery listener can never
     /// double-grant the same consumable.
     private func grant(productID: String, storeTransactionID: String?) {
-        if let txID = storeTransactionID {
-            var processed = Set(UserDefaults.standard.stringArray(forKey: Self.processedKey) ?? [])
-            if processed.contains(txID) { return }
-            processed.insert(txID)
-            UserDefaults.standard.set(Array(processed), forKey: Self.processedKey)
+        // Check the idempotency record, but do NOT write it yet. Marking the
+        // transaction processed before the grant actually landed meant that if
+        // the PlayerState row wasn't there — a fresh install before onboarding
+        // seeds it, or the in-memory fallback container — the guard below
+        // returned, the goods were never delivered, and the recovery listener
+        // skipped it forever. The player was charged and got nothing, with no
+        // way to retry.
+        if let txID = storeTransactionID,
+           Set(UserDefaults.standard.stringArray(forKey: Self.processedKey) ?? []).contains(txID) {
+            return
         }
 
         guard let context,
@@ -178,7 +186,13 @@ final class XPStoreService {
             player.purchasedXP += product.xpAmount
             recordMonthlyXP(product.xpAmount)
         case .streakFreeze:
-            player.freezesRemaining = min(Self.maxFreezes, player.freezesRemaining + 1)
+            if player.freezesRemaining >= Self.maxFreezes {
+                // Already at the cap — don't silently swallow a paid shield.
+                // Convert it to the equivalent XP so the purchase still lands.
+                player.purchasedXP += Self.freezeConsolationXP
+            } else {
+                player.freezesRemaining += 1
+            }
             bumpMonthlyCount(forKey: Self.monthlyShieldKey)
         case .booster48h:
             let until = max(Date().timeIntervalSince1970,
@@ -188,6 +202,15 @@ final class XPStoreService {
             bumpMonthlyCount(forKey: Self.monthlyBoosterKey)
         }
         try? context.save()
+
+        // Only now is the grant genuinely delivered, so only now is it safe to
+        // record the transaction as processed.
+        if let txID = storeTransactionID {
+            var processed = Set(UserDefaults.standard.stringArray(forKey: Self.processedKey) ?? [])
+            processed.insert(txID)
+            UserDefaults.standard.set(Array(processed), forKey: Self.processedKey)
+        }
+
         SyncEngine.shared.enqueuePlayerState(player)
         SyncEngine.shared.enqueueXPTransaction(
             id: UUID(), productID: productID,
