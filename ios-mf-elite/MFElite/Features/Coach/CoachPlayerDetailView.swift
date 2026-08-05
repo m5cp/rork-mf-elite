@@ -23,6 +23,17 @@ struct CoachPlayerDetailView: View {
     @State private var noteDraft: String = ""
     @State private var noteSaved = false
     @State private var showReportBuilder = false
+    /// Non-nil when a coach save failed.
+    @State private var saveError: String?
+    /// The server values the drafts were last synced from, so a refresh that
+    /// lands mid-edit doesn't overwrite what the coach is typing.
+    @State private var loadedFocus: String = ""
+    @State private var loadedNote: String = ""
+    /// Set once the coach touches a field. Emptiness alone isn't a safe signal —
+    /// deliberately clearing a note leaves it empty, and refilling it from the
+    /// server would undo exactly the edit they meant to make.
+    @State private var focusEdited = false
+    @State private var noteEdited = false
 
     private var currentMonthKey: String {
         let formatter = DateFormatter()
@@ -96,6 +107,14 @@ struct CoachPlayerDetailView: View {
             await model.loadNotes(for: player.id)
             syncDrafts()
         }
+        .alert("Couldn't save", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )) {
+            Button("OK", role: .cancel) { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
+        }
         .onChange(of: focusDraft) { _, _ in focusSaved = false }
         .onChange(of: noteDraft) { _, _ in noteSaved = false }
         .sheet(item: $shareImage) { item in
@@ -110,9 +129,18 @@ struct CoachPlayerDetailView: View {
     }
 
     /// Sync editable drafts from freshly-loaded data (focus + this month's note).
+    /// Pull server values into the editors, but never clobber in-progress
+    /// typing. This ran from both `.task` and `.refreshable` and assigned
+    /// unconditionally, so a coach who started writing while the detail fetch
+    /// (six round-trips) was still in flight had their text wiped when it landed.
     private func syncDrafts() {
-        focusDraft = model.detailCache[player.id]?.coachFocus ?? ""
-        noteDraft = currentMonthNote?.body ?? ""
+        let serverFocus = model.detailCache[player.id]?.coachFocus ?? ""
+        if !focusEdited { focusDraft = serverFocus }
+        loadedFocus = serverFocus
+
+        let serverNote = currentMonthNote?.body ?? ""
+        if !noteEdited { noteDraft = serverNote }
+        loadedNote = serverNote
     }
 
     // MARK: - Trend (last 8 weeks)
@@ -231,11 +259,20 @@ struct CoachPlayerDetailView: View {
                         .style(.body)
                         .foregroundStyle(DS.Colors.Ink.primary)
                         .lineLimit(2...5)
+                        // Compare against the last synced server value: syncDrafts also
+                        // assigns this field, and that assignment must not count as
+                        // the coach editing it.
+                        .onChange(of: focusDraft) { _, new in
+                            if new != loadedFocus { focusEdited = true }
+                        }
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         Task {
-                            await model.saveCoachFocus(focusDraft, for: player.id)
-                            focusSaved = true
+                            // Only claim "Saved" when it actually saved.
+                            let ok = await model.saveCoachFocus(focusDraft, for: player.id)
+                            focusSaved = ok
+                            if ok { loadedFocus = focusDraft; focusEdited = false }
+                            if !ok { saveError = "Couldn't save that focus. Check your connection and try again." }
                         }
                     } label: {
                         Text(focusSaved ? "Saved" : "Save focus")
@@ -266,11 +303,16 @@ struct CoachPlayerDetailView: View {
                         .style(.body)
                         .foregroundStyle(DS.Colors.Ink.primary)
                         .lineLimit(3...8)
+                        .onChange(of: noteDraft) { _, new in
+                            if new != loadedNote { noteEdited = true }
+                        }
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         Task {
-                            await model.saveNote(month: currentMonthKey, text: noteDraft, for: player.id)
-                            noteSaved = true
+                            let ok = await model.saveNote(month: currentMonthKey, text: noteDraft, for: player.id)
+                            noteSaved = ok
+                            if ok { loadedNote = noteDraft; noteEdited = false }
+                            if !ok { saveError = "Couldn't save that note. Check your connection and try again." }
                         }
                     } label: {
                         Text(noteSaved ? "Saved" : "Save note")

@@ -34,6 +34,9 @@ struct SessionLoggedView: View {
     @State private var chainToCert = false
     @State private var showNotificationPrompt = false
     @State private var didRecordSummary = false
+    /// One-shot guard for the side effects in `handleDrillLogged` — `onAppear`
+    /// re-fires whenever a cover presented above this view is dismissed.
+    @State private var didHandleLogged = false
     @State private var showPerfectDay = false
 
     /// Seconds left before auto-advancing to the next drill, or `nil` when not
@@ -121,8 +124,17 @@ struct SessionLoggedView: View {
                     .padding(.top, DS.Spacing.s32)
 
                 HStack(spacing: DS.Spacing.s12) {
-                    rewardTile(label: "Earned", value: "+\(ProgressionRules.xpPerDrill) XP")
-                    rewardTile(label: "Streak", value: "\(viewModel.newStreak) DAY", suffix: "+1")
+                    // Show what was actually credited — the flat constant hid
+                    // the 2x weekend booster and the level/category bonuses,
+                    // so a boosted session said +25 while paying 50.
+                    rewardTile(label: "Earned", value: "+\(viewModel.lastAwardedXP) XP")
+                    // Only claim "+1" when the streak really moved. A second
+                    // drill on the same day doesn't advance it.
+                    rewardTile(
+                        label: "Streak",
+                        value: "\(viewModel.newStreak) DAY",
+                        suffix: viewModel.streakDidAdvance ? "+1" : nil
+                    )
                 }
                 .padding(.top, DS.Spacing.s20)
 
@@ -221,7 +233,15 @@ struct SessionLoggedView: View {
                 celebrate = true
             }
             recordCompletedSummary()
-            handleDrillLogged()
+            // Guarded by the same one-shot flag as the summary. `onAppear` runs
+            // again every time a full-screen cover presented over this view is
+            // dismissed (Game IQ, the next session, any celebration), which was
+            // counting one completed drill several times toward the lifetime
+            // total that drives the drill-count badges.
+            if !didHandleLogged {
+                didHandleLogged = true
+                handleDrillLogged()
+            }
             if viewModel.perfectDayJustClosed {
                 // The overlay fires its own success haptic on appear.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -300,8 +320,14 @@ struct SessionLoggedView: View {
             activeCelebration = .cert
         } else if let days = StreakMilestones.claim(for: viewModel.newStreak) {
             activeCelebration = .streak(days)
-        } else {
+        } else if queue.isLastDrill {
             onExit()
+        } else {
+            // Mid-routine. `onExit` dismisses the whole session, so falling
+            // through to it here dropped the player back on Today with the rest
+            // of their routine unrun. Just clear the celebration and return to
+            // the logged screen, which has the "Next" button.
+            activeCelebration = nil
         }
     }
 
@@ -478,7 +504,7 @@ struct SessionLoggedView: View {
                 title: drill.title,
                 disciplineMark: discipline.mark,
                 durationSec: viewModel.loggedDurationSec,
-                xp: ProgressionRules.xpPerDrill
+                xp: viewModel.lastAwardedXP
             )
         )
     }

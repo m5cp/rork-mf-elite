@@ -28,6 +28,11 @@ struct SearchResult: Identifiable {
 
     /// Relevance bucket — lower sorts first.
     let rank: Int
+    /// Position in curriculum order (discipline → category → level → drill).
+    /// Used as a stable tie-breaker: with an empty query every result has the
+    /// same rank, and Swift's `sorted` is NOT stable, so without this the
+    /// browse list came back in an arbitrary order that changed between runs.
+    let order: Int
 }
 
 /// Derives filtered search results from the curriculum.
@@ -103,11 +108,13 @@ final class CurriculumSearchViewModel {
         let scoped = selectedDiscipline.map { [$0] } ?? disciplines
 
         var results: [SearchResult] = []
+        var order = 0
 
         for discipline in scoped.sorted(by: { $0.sortIndex < $1.sortIndex }) {
             for category in discipline.categories.sorted(by: { $0.sortIndex < $1.sortIndex }) {
                 for level in category.levels.sorted(by: { $0.sortIndex < $1.sortIndex }) {
                     for drill in level.drills.sorted(by: { $0.sortIndex < $1.sortIndex }) {
+                        order += 1
                         if let equipmentFilter, !matchesEquipment(drill, equipmentFilter) { continue }
                         if let timeFilter, !matchesTime(drill, timeFilter) { continue }
 
@@ -125,7 +132,8 @@ final class CurriculumSearchViewModel {
                                 level: level,
                                 category: category,
                                 discipline: discipline,
-                                rank: rank
+                                rank: rank,
+                                order: order
                             )
                         )
                     }
@@ -133,7 +141,9 @@ final class CurriculumSearchViewModel {
             }
         }
 
-        return results.sorted { $0.rank < $1.rank }
+        return results.sorted {
+            $0.rank == $1.rank ? $0.order < $1.order : $0.rank < $1.rank
+        }
     }
 
     /// Returns a relevance bucket if the drill matches, otherwise nil.

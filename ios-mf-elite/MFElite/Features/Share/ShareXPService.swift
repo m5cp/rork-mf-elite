@@ -46,13 +46,17 @@ final class ShareXPService {
         awards = awards.filter { $0.hasPrefix(day) }
         guard !awards.contains(token) else { return 0 } // same platform today
         guard awards.count < Self.maxPlatformsPerDay else { return 0 } // daily cap
-        awards.insert(token)
-        UserDefaults.standard.set(Array(awards), forKey: Self.defaultsKey)
 
-        // Award earned XP.
+        // Award earned XP FIRST. Spending the day's token before the award
+        // landed meant a failed fetch cost the player that platform's bonus for
+        // the rest of the day with no retry.
         guard let player = try? context.fetch(FetchDescriptor<PlayerState>()).first else { return 0 }
         player.xp += Self.xpPerShare
         try? context.save()
+
+        awards.insert(token)
+        UserDefaults.standard.set(Array(awards), forKey: Self.defaultsKey)
+
         SyncEngine.shared.enqueuePlayerState(player)
         SyncEngine.shared.enqueueShareXP(day: day, platform: platform, cardKind: cardKind.rawValue)
         return Self.xpPerShare

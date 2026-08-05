@@ -40,6 +40,9 @@ final class XPStoreService {
     }
 
     static let maxFreezes = 3
+    /// XP credited instead when a purchased streak freeze would exceed
+    /// `maxFreezes`, so a paid shield is never silently dropped.
+    static let freezeConsolationXP = 100
     /// Hard ceiling on purchased XP per calendar month (economy guardrail).
     static let monthlyXPCap = 2000
     /// Booster purchases allowed per calendar month.
@@ -53,6 +56,9 @@ final class XPStoreService {
     private static let monthlyShieldKey = "MF_SHIELDS_MONTH" // "yyyy-MM|count"
     private static let monthlyBoosterKey = "MF_BOOSTER_MONTH" // "yyyy-MM|count"
     private static let processedKey = "MF_PROCESSED_TX" // idempotency guard
+    /// Purchases that were paid for but could not be credited yet, stored as
+    /// "productID|transactionID" so they can be retried on a later launch.
+    private static let pendingGrantsKey = "MF_PENDING_GRANTS"
 
     private(set) var products: [StoreProduct] = []
     private(set) var lastError: String?
@@ -60,8 +66,45 @@ final class XPStoreService {
 
     func configure(context: ModelContext) {
         self.context = context
+        retryPendingGrants()
         Task { await loadProducts() }
         Task { await listenForTransactions() }
+    }
+
+    // MARK: - Deferred grants
+
+    /// Retry purchases that were charged but couldn't be credited at the time —
+    /// typically because `PlayerState` didn't exist yet (a fresh install where
+    /// onboarding hasn't run, or a launch on the in-memory fallback store).
+    ///
+    /// RevenueCat finishes StoreKit transactions itself, so StoreKit will never
+    /// re-deliver these to us. If the app doesn't remember them, nobody does,
+    /// and the player is simply out the money.
+    private func retryPendingGrants() {
+        let pending = UserDefaults.standard.stringArray(forKey: Self.pendingGrantsKey) ?? []
+        guard !pending.isEmpty else { return }
+        var stillPending: [String] = []
+        for entry in pending {
+            let parts = entry.split(separator: "|", maxSplits: 1).map(String.init)
+            guard let productID = parts.first else { continue }
+            // An empty tail means the original had no transaction id; keep it
+            // nil rather than storing "" in the processed-transactions set.
+            let txID = (parts.count > 1 && !parts[1].isEmpty) ? parts[1] : nil
+            if !grant(productID: productID, storeTransactionID: txID, recordOnFailure: false) {
+                stillPending.append(entry)
+            }
+        }
+        UserDefaults.standard.set(stillPending, forKey: Self.pendingGrantsKey)
+    }
+
+    /// Remember a paid-for grant that couldn't be applied, so the next launch
+    /// can credit it.
+    private func recordPendingGrant(productID: String, storeTransactionID: String?) {
+        var pending = UserDefaults.standard.stringArray(forKey: Self.pendingGrantsKey) ?? []
+        let entry = "\(productID)|\(storeTransactionID ?? "")"
+        guard !pending.contains(entry) else { return }
+        pending.append(entry)
+        UserDefaults.standard.set(pending, forKey: Self.pendingGrantsKey)
     }
 
     func loadProducts() async {
@@ -149,9 +192,14 @@ final class XPStoreService {
         do {
             let result = try await Purchases.shared.purchase(product: product)
             if result.userCancelled { return false }
-            grant(productID: product.productIdentifier,
-                  storeTransactionID: result.transaction?.transactionIdentifier)
-            return true
+            let delivered = grant(productID: product.productIdentifier,
+                                  storeTransactionID: result.transaction?.transactionIdentifier)
+            if !delivered {
+                // Charged but not creditable right now. It's saved to the
+                // pending-grants list and applied on the next launch.
+                lastError = "Purchase went through but couldn't be applied yet. It will be credited the next time you open the app."
+            }
+            return delivered
         } catch {
             lastError = "Purchase failed. You were not charged."
             return false
@@ -161,24 +209,61 @@ final class XPStoreService {
     /// Grant entitlement for a verified purchase. Idempotent per store
     /// transaction so the purchase flow and the recovery listener can never
     /// double-grant the same consumable.
-    private func grant(productID: String, storeTransactionID: String?) {
-        if let txID = storeTransactionID {
-            var processed = Set(UserDefaults.standard.stringArray(forKey: Self.processedKey) ?? [])
-            if processed.contains(txID) { return }
-            processed.insert(txID)
-            UserDefaults.standard.set(Array(processed), forKey: Self.processedKey)
+    /// Returns true when the entitlement was actually delivered and recorded.
+    /// Callers must not finish the StoreKit transaction on false — leaving it
+    /// unfinished is what lets StoreKit re-deliver it and the player eventually
+    /// receive what they paid for.
+    @discardableResult
+    private func grant(
+        productID: String,
+        storeTransactionID: String?,
+        recordOnFailure: Bool = true
+    ) -> Bool {
+        // Check the idempotency record, but do NOT write it yet. Marking the
+        // transaction processed before the grant actually landed meant that if
+        // the PlayerState row wasn't there — a fresh install before onboarding
+        // seeds it, or the in-memory fallback container — the guard below
+        // returned, the goods were never delivered, and the recovery listener
+        // skipped it forever. The player was charged and got nothing, with no
+        // way to retry.
+        if let txID = storeTransactionID,
+           Set(UserDefaults.standard.stringArray(forKey: Self.processedKey) ?? []).contains(txID) {
+            // Already delivered — safe to finish.
+            return true
         }
 
+        guard let product = ProductID(rawValue: productID) else { return false }
+
         guard let context,
-              let player = try? context.fetch(FetchDescriptor<PlayerState>()).first,
-              let product = ProductID(rawValue: productID) else { return }
+              let player = try? context.fetch(FetchDescriptor<PlayerState>()).first else {
+            // Paid for, but there is nowhere to put it yet. Remember it so a
+            // later launch can credit it — nothing else will.
+            if recordOnFailure {
+                recordPendingGrant(productID: productID, storeTransactionID: storeTransactionID)
+            }
+            return false
+        }
+
+        // XP actually credited, which is not always `product.xpAmount` — an
+        // over-cap streak freeze is paid out as XP instead.
+        var grantedXP = product.xpAmount
 
         switch product {
         case .xp100, .xp300, .xp750:
             player.purchasedXP += product.xpAmount
             recordMonthlyXP(product.xpAmount)
         case .streakFreeze:
-            player.freezesRemaining = min(Self.maxFreezes, player.freezesRemaining + 1)
+            if player.freezesRemaining >= Self.maxFreezes {
+                // Already at the cap — don't silently swallow a paid shield.
+                // Convert it to the equivalent XP so the purchase still lands,
+                // and record it like any other purchased XP so it counts toward
+                // the monthly cap and the server ledger agrees with the balance.
+                player.purchasedXP += Self.freezeConsolationXP
+                recordMonthlyXP(Self.freezeConsolationXP)
+                grantedXP = Self.freezeConsolationXP
+            } else {
+                player.freezesRemaining += 1
+            }
             bumpMonthlyCount(forKey: Self.monthlyShieldKey)
         case .booster48h:
             let until = max(Date().timeIntervalSince1970,
@@ -188,11 +273,21 @@ final class XPStoreService {
             bumpMonthlyCount(forKey: Self.monthlyBoosterKey)
         }
         try? context.save()
+
+        // Only now is the grant genuinely delivered, so only now is it safe to
+        // record the transaction as processed.
+        if let txID = storeTransactionID {
+            var processed = Set(UserDefaults.standard.stringArray(forKey: Self.processedKey) ?? [])
+            processed.insert(txID)
+            UserDefaults.standard.set(Array(processed), forKey: Self.processedKey)
+        }
+
         SyncEngine.shared.enqueuePlayerState(player)
         SyncEngine.shared.enqueueXPTransaction(
             id: UUID(), productID: productID,
-            xpAmount: product.xpAmount, storeTransactionID: storeTransactionID
+            xpAmount: grantedXP, storeTransactionID: storeTransactionID
         )
+        return true
     }
 
     /// Best-effort recovery for transactions that complete outside the purchase
@@ -201,6 +296,10 @@ final class XPStoreService {
     private func listenForTransactions() async {
         for await update in Transaction.updates {
             guard case .verified(let transaction) = update else { continue }
+            // A failed grant is recorded to the pending list inside grant(),
+            // so it is retried on the next launch. Finish either way: RevenueCat
+            // owns finishing in its default mode, and leaving this unfinished
+            // buys nothing.
             grant(productID: transaction.productID, storeTransactionID: String(transaction.id))
             await transaction.finish()
         }

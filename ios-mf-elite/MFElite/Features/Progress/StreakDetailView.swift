@@ -13,6 +13,7 @@ struct StreakRoute: Hashable {}
 
 struct StreakDetailView: View {
     @Query private var players: [PlayerState]
+    @Query private var sessions: [SessionLogEntry]
     @Environment(SubscriptionService.self) private var subscription
 
     private var viewModel: StreakDetailViewModel {
@@ -20,7 +21,8 @@ struct StreakDetailView: View {
         return StreakDetailViewModel(
             streak: player?.streak ?? 0,
             freezesRemaining: player?.freezesRemaining ?? 0,
-            lastTrainedDate: player?.lastTrainedDate
+            lastTrainedDate: player?.lastTrainedDate,
+            trainedDates: Set(sessions.map { Calendar.current.startOfDay(for: $0.completedAt) })
         )
     }
 

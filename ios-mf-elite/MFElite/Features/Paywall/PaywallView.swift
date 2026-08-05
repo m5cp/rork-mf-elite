@@ -125,6 +125,24 @@ struct PaywallView: View {
         .onChange(of: subscription.isElite) { _, isElite in
             if isElite { dismiss() }
         }
+        // The parent gate must be presented BY the paywall, not by the view
+        // that presented the paywall — a host already showing a full-screen
+        // cover cannot also present a sheet, so hosting it upstream made the
+        // Subscribe button a silent no-op for every gated parent.
+        .sheet(item: gateBinding) { request in
+            ParentGateView(mode: .verify(title: request.title, onSuccess: request.action))
+                .preferredColorScheme(.dark)
+                .presentationDetents([.large])
+        }
+    }
+
+    /// Binding to the shared gate request. `subscription` arrives through the
+    /// environment, so there's no `@Bindable` projection to use here.
+    private var gateBinding: Binding<SubscriptionService.GateRequest?> {
+        Binding(
+            get: { subscription.gateRequest },
+            set: { subscription.gateRequest = $0 }
+        )
     }
 
     // MARK: - Hero (real brand assets; swap to training photo/film when available)
@@ -379,7 +397,7 @@ struct PaywallView: View {
             hint: trialHint
         ) {
             guard let package = selectedPackage else { return }
-            Task { await subscription.purchase(package: package) }
+            subscription.requestPurchase(package: package)
         }
         .disabled(subscription.isPurchasing || selectedPackage == nil)
         .opacity(subscription.isPurchasing ? 0.7 : 1)
@@ -408,7 +426,7 @@ struct PaywallView: View {
         VStack(spacing: DS.Spacing.s12) {
             HStack(spacing: DS.Spacing.s20) {
                 GhostButton(label: "Restore Purchases") {
-                    Task { await subscription.restorePurchases() }
+                    subscription.requestRestore()
                 }
                 GhostButton(label: "Redeem Code") {
                     Purchases.shared.presentCodeRedemptionSheet()

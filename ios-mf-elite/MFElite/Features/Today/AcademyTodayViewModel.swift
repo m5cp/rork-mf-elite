@@ -652,8 +652,16 @@ final class AcademyTodayViewModel {
     // MARK: - Quick Train
 
     /// Total seconds a drill takes: work across all sets + 15s rest between sets.
+    ///
+    /// `durationSec` is already the TOTAL across every set — DrillPlayerViewModel
+    /// divides by `sets` to get one set's length, and TrainingQueue and
+    /// SessionGenerator both treat it that way too. Multiplying by `sets` here
+    /// charged roughly 3x the real cost against the budget (135 of the 226
+    /// curriculum drills are 300s/3 sets: 330s actual, 930s charged), so a
+    /// "10 minute" Quick Train produced a single drill. That same path is the
+    /// new-player starter session.
     static func estimatedSeconds(_ d: Drill) -> Int {
-        d.durationSec * d.sets + max(0, d.sets - 1) * 15
+        d.durationSec + max(0, d.sets - 1) * 15
     }
 
     /// Assemble a time-boxed Quick Train queue.
@@ -739,7 +747,8 @@ final class AcademyTodayViewModel {
     /// Work seconds for a drill: duration across all sets (no rest), used to keep
     /// the activation pairing short.
     private func matchDayWorkSec(_ ctx: DrillContext) -> Int {
-        ctx.drill.durationSec * ctx.drill.sets
+        // See estimatedSeconds: durationSec already covers every set.
+        ctx.drill.durationSec
     }
 
     /// Assemble the Match Day pre-game routine from existing content:
@@ -866,8 +875,24 @@ final class AcademyTodayViewModel {
         discipline.categories.sorted { $0.sortIndex < $1.sortIndex }
     }
 
+    /// Levels of a category the player can actually train right now.
+    ///
+    /// Every caller of this is a "pick the next drill to train" path —
+    /// recommendations, Quick Train, Match Day, the tappable daily goals, the
+    /// starter session — not a browse surface that shows locked content behind
+    /// a badge. None of them filtered on the paywall, so a free player was
+    /// being handed Level 2–5 drills to train directly, bypassing the gate that
+    /// LevelView and DrillDetailView enforce. Filtering here closes all of them
+    /// at once.
+    ///
+    /// Falls back to the unfiltered list if a category has no free levels at
+    /// all, so a misconfigured curriculum can't produce an empty session.
     private func sortedLevels(_ category: Category) -> [MasteryLevel] {
-        category.levels.sorted { $0.number < $1.number }
+        let sorted = category.levels.sorted { $0.number < $1.number }
+        let subscription = SubscriptionService.shared
+        guard !subscription.hasFullAccess else { return sorted }
+        let unlocked = sorted.filter { !subscription.isLevelNumberLocked($0.number) }
+        return unlocked.isEmpty ? sorted : unlocked
     }
 
     /// Levels of a category ordered so a brand-new plan starts near the player's

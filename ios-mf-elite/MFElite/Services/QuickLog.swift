@@ -50,14 +50,10 @@ enum QuickLog {
         let player = try? context.fetch(FetchDescriptor<PlayerState>()).first
         if let player {
             player.xp += xpEarned
-            if !Calendar.current.isDateInToday(player.lastTrainedDate ?? .distantPast) {
-                player.streak += 1
-            }
-            player.lastTrainedDate = Date()
-
-            if player.streak == 7 && player.freezesRemaining < 1 { player.freezesRemaining += 1 }
-            if player.streak == 30 && player.freezesRemaining < 2 { player.freezesRemaining = 2 }
-            if player.streak == 50 { player.freezesRemaining += 1 }
+            // StreakEngine handles advancing, spending freezes to cover missed
+            // days, breaking the streak when they can't be covered, streakPB,
+            // and milestone freeze awards.
+            StreakEngine.recordTraining(player)
         }
 
         // Achievement badges (counts after this batch).
@@ -158,8 +154,9 @@ enum QuickLog {
 
         progress.passesLogged = min(ProgressionRules.masteryPasses, progress.passesLogged + 1)
         progress.lastLoggedAt = Date()
-        if progress.passesLogged >= ProgressionRules.masteryPasses {
+        if progress.passesLogged >= ProgressionRules.masteryPasses, !progress.isMastered {
             progress.isMastered = true
+            progress.masteredAt = Date()
         }
 
         let entry = SessionLogEntry(

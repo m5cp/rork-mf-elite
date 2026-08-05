@@ -27,6 +27,7 @@ struct DrillDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
+    @Environment(SubscriptionService.self) private var subscription
     @Query private var progress: [DrillProgress]
     @Query private var sessions: [SessionLogEntry]
     @Query private var notes: [DrillNote]
@@ -42,6 +43,16 @@ struct DrillDetailView: View {
     /// bottom offset — mirrors CustomTabBar's metrics) so the pinned CTA
     /// clears it instead of hiding behind it.
     private let tabBarClearance: CGFloat = 94
+
+    /// True when this drill sits in a level the current plan doesn't include.
+    ///
+    /// Gating used to live only in `LevelView`, so the Drill Library, Favorites
+    /// and the Progress-tab ring rows all linked straight past it and a free
+    /// player could open and train any Level 2–5 drill. This screen is the one
+    /// place every one of those routes converges, so the check belongs here.
+    private var isLocked: Bool {
+        subscription.isLevelNumberLocked(level.number)
+    }
 
     private var drillProgress: DrillProgress? {
         progress.first { $0.drillID == drill.id }
@@ -154,6 +165,12 @@ struct DrillDetailView: View {
 
     /// Log this single drill instantly, no timer, then confirm with a toast.
     private func logInstantly() {
+        // Belt and braces: the CTA is already hidden when locked, but this is
+        // the other way a completion can be recorded from this screen.
+        guard !isLocked else {
+            subscription.presentPaywall()
+            return
+        }
         let ctx = DrillContext(drill: drill, level: level, category: category, discipline: discipline)
         let result = QuickLog.logDrills([ctx], source: .single, sourceName: nil, context: context)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -850,26 +867,45 @@ struct DrillDetailView: View {
 
     // MARK: - 8. Bottom CTA
 
+    @ViewBuilder
     private func bottomCTA(_ vm: DrillDetailViewModel) -> some View {
         VStack(spacing: DS.Spacing.s8) {
-            PrimaryButton(
-                label: drill.isMentalExercise ? "Begin exercise" : "Start drill",
-                hint: vm.drill.durationSec.minutesHint
-            ) {
-                activeSession = makeQueue()
-            }
+            if isLocked {
+                // The drill page stays readable as a teaser, but training it is
+                // the thing behind the paywall. Gating here catches every route
+                // into this screen at once instead of per entry point.
+                PrimaryButton(
+                    label: "Unlock with Elite",
+                    hint: "Level \(level.number) drills"
+                ) {
+                    subscription.presentPaywall()
+                }
 
-            Button {
-                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                showLogConfirm = true
-            } label: {
-                Label("Log as done — no timer", systemImage: "checkmark.circle")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                Text("Level \(level.number) is part of Elite. Levels 1–\(ProgressionRules.freeLevels) stay free.")
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                    .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 40)
+            } else {
+                PrimaryButton(
+                    label: drill.isMentalExercise ? "Begin exercise" : "Start drill",
+                    hint: vm.drill.durationSec.minutesHint
+                ) {
+                    activeSession = makeQueue()
+                }
+
+                Button {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showLogConfirm = true
+                } label: {
+                    Label("Log as done — no timer", systemImage: "checkmark.circle")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 40)
+                }
+                .buttonStyle(PressableButtonStyle())
             }
-            .buttonStyle(PressableButtonStyle())
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s12)

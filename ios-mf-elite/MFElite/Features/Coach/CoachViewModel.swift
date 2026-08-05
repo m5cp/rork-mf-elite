@@ -476,8 +476,9 @@ final class CoachViewModel {
     }
 
     /// Publish a new featured workout to a chosen audience. Fails soft.
-    func publishWorkout(title: String, note: String, drillIDs: [String], audience: BroadcastAudience = BroadcastAudience()) async {
-        guard let createdBy = SupabaseAuth.shared.userID else { return }
+    @discardableResult
+    func publishWorkout(title: String, note: String, drillIDs: [String], audience: BroadcastAudience = BroadcastAudience()) async -> Bool {
+        guard let createdBy = SupabaseAuth.shared.userID else { return false }
         let coachName = PlayerProfileStore.shared.displayName
         var row: [String: Any] = [
             "title": title,
@@ -488,22 +489,34 @@ final class CoachViewModel {
             "created_by": createdBy
         ]
         audience.apply(to: &row)
-        await SupabaseClient.shared.insert(table: "coach_workouts", values: row)
+        // Report the real result. This was fire-and-forget, so a rejected
+        // publish left players on yesterday's workout while the coach was told
+        // nothing at all.
+        guard await SupabaseClient.shared.insert(table: "coach_workouts", values: row) else { return false }
         await loadPublishedWorkouts()
+        return true
     }
 
     /// Toggle a published workout active/inactive. Inactive workouts disappear
     /// from players' Today card; nothing else changes.
-    func setWorkoutActive(_ workout: CoachPublishedWorkout, active: Bool) async {
+    @discardableResult
+    func setWorkoutActive(_ workout: CoachPublishedWorkout, active: Bool) async -> Bool {
         // Optimistic local update so the toggle feels instant.
         if let index = publishedWorkouts.firstIndex(where: { $0.id == workout.id }) {
             publishedWorkouts[index].active = active
         }
-        await SupabaseClient.shared.update(
+        let ok = await SupabaseClient.shared.update(
             table: "coach_workouts",
             values: ["active": active],
             match: [URLQueryItem(name: "id", value: "eq.\(workout.id)")]
         )
+        // Roll the optimistic change back on failure. Without this, clearing
+        // the Workout of the Day showed "No workout set" to the coach while
+        // every athlete still had yesterday's.
+        if !ok, let index = publishedWorkouts.firstIndex(where: { $0.id == workout.id }) {
+            publishedWorkouts[index].active = !active
+        }
+        return ok
     }
 
     // MARK: - Announcements
@@ -535,19 +548,24 @@ final class CoachViewModel {
     }
 
     /// Publish a new announcement, then return the "<title> — <body>" text the
-    /// caller can share to a team chat. Fails soft.
+    /// caller can share to a team chat.
+    ///
+    /// Returns nil when the insert failed. It used to ignore the result and
+    /// always return the text, so the caller opened the share sheet and the
+    /// coach sent "Practice moved to 6pm" to a couple of parents believing the
+    /// whole team had been notified in-app. Nobody had.
     @discardableResult
-    func sendAnnouncement(title: String, body: String, audience: BroadcastAudience = BroadcastAudience()) async -> String {
+    func sendAnnouncement(title: String, body: String, audience: BroadcastAudience = BroadcastAudience()) async -> String? {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedTitle.isEmpty else { return "" }
+        guard !trimmedTitle.isEmpty else { return nil }
         var row: [String: Any] = [
             "title": trimmedTitle,
             "body": trimmedBody,
             "active": true
         ]
         audience.apply(to: &row)
-        await SupabaseClient.shared.insert(table: "announcements", values: row)
+        guard await SupabaseClient.shared.insert(table: "announcements", values: row) else { return nil }
         await loadAnnouncements()
         return trimmedBody.isEmpty ? trimmedTitle : "\(trimmedTitle) — \(trimmedBody)"
     }
@@ -572,7 +590,9 @@ final class CoachViewModel {
     @discardableResult
     func publishDrillEdit(original: Drill, edited: DrillEditFields) async -> Bool {
         let payload = edited.changedPayload(from: original)
-        guard !payload.isEmpty else { return false }
+        // Nothing changed is a success, not a failure — the caller now shows an
+        // error on false, and "you didn't edit anything" is not an error.
+        guard !payload.isEmpty else { return true }
         let coachName = PlayerProfileStore.shared.displayName
         let row: [String: Any] = [
             "drill_id": original.id,
@@ -581,13 +601,15 @@ final class CoachViewModel {
             "updated_by": coachName,
             "active": true
         ]
-        await SupabaseClient.shared.upsert(table: "curriculum_edits", values: row, onConflict: "drill_id")
-        return true
+        // Propagate the real result. This returned true unconditionally, so a
+        // rejected edit still produced a success haptic and a dismissed sheet.
+        return await SupabaseClient.shared.upsert(table: "curriculum_edits", values: row, onConflict: "drill_id")
     }
 
     /// Publish a brand-new coach-authored drill into a category/level. Generates a
     /// stable "COACH-…" id so it never collides with the bundled curriculum.
-    func publishNewDrill(drillID: String, categoryID: String, levelNumber: Int, fields: DrillEditFields) async {
+    @discardableResult
+    func publishNewDrill(drillID: String, categoryID: String, levelNumber: Int, fields: DrillEditFields) async -> Bool {
         let coachName = PlayerProfileStore.shared.displayName
         let id = drillID
         let row: [String: Any] = [
@@ -599,12 +621,13 @@ final class CoachViewModel {
             "category_id": categoryID,
             "level_number": levelNumber
         ]
-        await SupabaseClient.shared.upsert(table: "curriculum_edits", values: row, onConflict: "drill_id")
+        return await SupabaseClient.shared.upsert(table: "curriculum_edits", values: row, onConflict: "drill_id")
     }
 
     /// Hide a drill (rare). Players who haven't trained it stop seeing it in
     /// selection lists; their history and mastery are untouched.
-    func hideDrill(_ drill: Drill) async {
+    @discardableResult
+    func hideDrill(_ drill: Drill) async -> Bool {
         let coachName = PlayerProfileStore.shared.displayName
         let row: [String: Any] = [
             "drill_id": drill.id,
@@ -613,11 +636,12 @@ final class CoachViewModel {
             "updated_by": coachName,
             "active": true
         ]
-        await SupabaseClient.shared.upsert(table: "curriculum_edits", values: row, onConflict: "drill_id")
+        return await SupabaseClient.shared.upsert(table: "curriculum_edits", values: row, onConflict: "drill_id")
     }
 
     /// Revert any active overlay on a drill back to the original (deactivates the row).
-    func revertDrillEdit(drillID: String) async {
+    @discardableResult
+    func revertDrillEdit(drillID: String) async -> Bool {
         await SupabaseClient.shared.update(
             table: "curriculum_edits",
             values: ["active": false],
@@ -825,10 +849,22 @@ final class CoachViewModel {
         let iqRows = await iqRowsAsync
         let profileRows = await profileRowsAsync
 
-        // Any total failure (all nil) with no cache → failed.
-        if stateRows == nil && progressRows == nil && logRows == nil
-            && combineRows == nil && iqRows == nil && detailCache[pid] == nil {
-            detailState[pid] = .failed
+        // ANY failed fetch means this detail would be built from partial data.
+        //
+        // This used to only bail when all five came back nil, so a single
+        // failure — say just the session logs timing out — produced
+        // minutesAllTime 0, sessionCount 0, an empty history and a flat 8-week
+        // chart, which was then cached and marked loaded. The coach saw "No
+        // sessions logged yet" for an active child and re-entering the screen
+        // couldn't fix it, because the cache short-circuits the reload. That
+        // same zeroed record is what feeds the progress report PDF sent home to
+        // parents, so a partial failure was being printed as fact.
+        let anyFailed = stateRows == nil || progressRows == nil || logRows == nil
+            || combineRows == nil || iqRows == nil || profileRows == nil
+        if anyFailed {
+            // Keep any good cached detail rather than replacing it with zeros.
+            if detailCache[pid] == nil { detailState[pid] = .failed }
+            else { detailState[pid] = .loaded }
             return
         }
 
@@ -974,18 +1010,21 @@ final class CoachViewModel {
 
     /// Save the coach-authored training focus for a player. PATCHes
     /// player_profiles.coach_focus and updates the cached detail locally.
-    func saveCoachFocus(_ text: String, for playerID: String) async {
+    /// Returns false when the write failed, so the caller doesn't show "Saved".
+    @discardableResult
+    func saveCoachFocus(_ text: String, for playerID: String) async -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let ok = await SupabaseClient.shared.update(
             table: "player_profiles",
             values: ["coach_focus": trimmed],
             match: [URLQueryItem(name: "id", value: "eq.\(playerID)")]
         )
-        guard ok else { return }
+        guard ok else { return false }
         if var detail = detailCache[playerID] {
             detail.coachFocus = trimmed
             detailCache[playerID] = detail
         }
+        return true
     }
 
     /// Load all monthly coach notes for a player (newest month first).
@@ -1011,17 +1050,22 @@ final class CoachViewModel {
 
     /// Upsert a month's coach note (one row per month per player). Updates an
     /// existing row when present, otherwise inserts, then reloads the cache.
-    func saveNote(month: String, text: String, for playerID: String) async {
-        guard let coachID = SupabaseAuth.shared.userID else { return }
+    /// Returns false when the write failed. This ignored the result entirely,
+    /// so a coach writing a month's evaluation on a bad connection saw "Saved",
+    /// navigated away, and the note was gone.
+    @discardableResult
+    func saveNote(month: String, text: String, for playerID: String) async -> Bool {
+        guard let coachID = SupabaseAuth.shared.userID else { return false }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let ok: Bool
         if let existing = notesCache[playerID]?.first(where: { $0.month == month }) {
-            await SupabaseClient.shared.update(
+            ok = await SupabaseClient.shared.update(
                 table: "coach_notes",
                 values: ["body": trimmed, "updated_at": SyncEngine.iso.string(from: Date())],
                 match: [URLQueryItem(name: "id", value: "eq.\(existing.id)")]
             )
         } else {
-            await SupabaseClient.shared.insert(
+            ok = await SupabaseClient.shared.insert(
                 table: "coach_notes",
                 values: [
                     "player_user_id": playerID,
@@ -1031,7 +1075,9 @@ final class CoachViewModel {
                 ]
             )
         }
+        guard ok else { return false }
         await loadNotes(for: playerID)
+        return true
     }
 
     // MARK: - Local mapping helpers

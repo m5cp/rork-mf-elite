@@ -90,7 +90,7 @@ struct MembershipView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     GhostButton(label: "Restore Purchases") {
-                        Task { await subscription.restorePurchases() }
+                        subscription.requestRestore()
                     }
                     .frame(maxWidth: .infinity)
 
@@ -121,8 +121,24 @@ struct MembershipView: View {
                 NavigationStack { MFStoreView() }
             }
             .sheet(isPresented: $showPurchaseHelp) { PurchaseHelpView() }
+            // Hosted here rather than upstream: MembershipView is itself a
+            // sheet, and an ancestor sheet cannot present over it.
+            .sheet(item: gateBinding) { request in
+                ParentGateView(mode: .verify(title: request.title, onSuccess: request.action))
+                    .preferredColorScheme(.dark)
+                    .presentationDetents([.large])
+            }
         }
         .preferredColorScheme(.dark)
+    }
+
+    /// Binding to the shared gate request (`subscription` comes from the
+    /// environment, so there's no `@Bindable` projection available).
+    private var gateBinding: Binding<SubscriptionService.GateRequest?> {
+        Binding(
+            get: { subscription.gateRequest },
+            set: { subscription.gateRequest = $0 }
+        )
     }
 
     private var currentPlanCard: some View {
@@ -157,7 +173,7 @@ struct MembershipView: View {
 
     private func switchRow(_ package: Package) -> some View {
         Button {
-            Task { await subscription.purchase(package: package) }
+            subscription.requestPurchase(package: package)
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {

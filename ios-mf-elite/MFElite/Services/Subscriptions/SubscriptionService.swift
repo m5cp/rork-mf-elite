@@ -106,6 +106,48 @@ final class SubscriptionService {
         isLoading = false
     }
 
+    // MARK: - Parental gate
+
+    /// A parent-gate challenge that a host view (MainTabView) presents. The
+    /// gate used to be applied per button in Settings, which meant the paywall
+    /// CTA, the Membership plan switcher and the paywall's Restore button — all
+    /// reachable by tapping any lock badge in the app — were never gated at
+    /// all. Routing purchase entry points through the service closes that.
+    struct GateRequest: Identifiable {
+        let id = UUID()
+        let title: String
+        let action: () -> Void
+    }
+
+    var gateRequest: GateRequest?
+
+    /// Run a parent-only action, challenging for the passcode when the gate is
+    /// on. Calls straight through when it isn't.
+    func withParentApproval(_ title: String, _ action: @escaping () -> Void) {
+        let gate = ParentGate.shared
+        if gate.isEnabled && gate.hasPIN {
+            gateRequest = GateRequest(title: title, action: action)
+        } else {
+            action()
+        }
+    }
+
+    /// Gated entry point for buying a subscription. Views should call this
+    /// rather than `purchase(package:)` directly.
+    func requestPurchase(package: Package) {
+        withParentApproval("Unlock to subscribe") { [weak self] in
+            Task { await self?.purchase(package: package) }
+        }
+    }
+
+    /// Entry point for restoring purchases. Deliberately NOT behind the parent
+    /// gate: App Review expects restore to be reachable, it costs nothing, and
+    /// a passcode the parent has forgotten must never be able to strand a
+    /// paying customer on a new device.
+    func requestRestore() {
+        Task { await restorePurchases() }
+    }
+
     // MARK: - Purchase / restore
 
     func purchase(package: Package) async {

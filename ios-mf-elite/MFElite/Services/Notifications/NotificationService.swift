@@ -218,6 +218,11 @@ final class NotificationService {
         var comps = DateComponents()
         comps.weekday = 1 // Sunday
         comps.hour = 18
+        // Unspecified components are wildcards: without this the trigger
+        // matches ANY minute in the 18:00 hour, and since this is rescheduled
+        // after every logged session, a Sunday-evening session fired the
+        // weekly summary about a minute later.
+        comps.minute = 0
         let trigger = UNCalendarNotificationTrigger(dateMatching: comps, repeats: false)
         center.add(UNNotificationRequest(identifier: NotificationID.parentWeekly, content: content, trigger: trigger))
     }
@@ -280,5 +285,13 @@ final class NotificationService {
 
     func cancelAll() {
         center.removeAllPendingNotificationRequests()
+    }
+
+    /// Cancel ONLY the daily training reminder. The Settings toggle used to
+    /// call `cancelAll()`, which also destroyed queued streak-risk alerts,
+    /// match-day game reminders and the parent weekly summary — while their own
+    /// switches still read as on.
+    func cancelDailyReminder() {
+        center.removePendingNotificationRequests(withIdentifiers: [NotificationID.dailyReminder])
     }
 }

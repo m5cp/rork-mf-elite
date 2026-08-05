@@ -85,8 +85,20 @@ struct ShareEditorView: View {
                 titleVisibility: .visible
             ) {
                 Button("Instagram Stories") {
-                    if let image = shareOptions?.image {
-                        InstagramStoriesSharer.share(image)
+                    if let image = shareOptions?.image,
+                       InstagramStoriesSharer.share(image) {
+                        // This fast path bypasses UIActivityViewController, so
+                        // it never hit the share-XP callback — and Instagram is
+                        // the primary target, meaning the advertised "+5 XP per
+                        // platform" silently never paid out on the default route.
+                        let awarded = ShareXPService.shared.recordShare(
+                            cardKind: model.moment.kind,
+                            activityRawValue: "instagram",
+                            completed: true
+                        )
+                        if awarded > 0 {
+                            UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        }
                     }
                     shareOptions = nil
                 }

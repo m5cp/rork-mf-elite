@@ -44,6 +44,13 @@ final class HealthKitService {
     /// Whether step-read access has already been requested once.
     private(set) var hasRequestedStepsAccess: Bool
 
+    /// Last step count read for today. Cached so synchronous consumers (the
+    /// Watch glance payload, which is built off the main run loop with no place
+    /// to await) can render a real number. The Watch step ring previously sent
+    /// a hardcoded 0 alongside a real goal, so every user always saw
+    /// "0 / 8,000 steps".
+    private(set) var cachedTodaySteps: Int = 0
+
     /// The player's daily step goal, editable from the Progress tab.
     var stepGoal: Int {
         get {
@@ -169,7 +176,9 @@ final class HealthKitService {
                 options: .cumulativeSum
             ) { _, statistics, _ in
                 let count = statistics?.sumQuantity()?.doubleValue(for: .count()) ?? 0
-                continuation.resume(returning: Int(count.rounded()))
+                let steps = Int(count.rounded())
+                Task { @MainActor in HealthKitService.shared.cachedTodaySteps = steps }
+                continuation.resume(returning: steps)
             }
             store.execute(query)
         }

@@ -534,6 +534,10 @@ final class SyncEngine {
     /// active backoff window. Never throws into the UI.
     func flush() {
         guard !isFlushing else { return }
+        // Never push from a fallback in-memory store. Its contents are a blank
+        // slate, not the player's real state, and uploading it would overwrite
+        // good cloud data with an empty one.
+        guard !MFEliteApp.isRunningOnFallbackStore else { return }
         guard isOnline, SupabaseAuth.shared.isSignedIn else { return }
         guard let context, let playerID = SupabaseAuth.shared.userID else { return }
         if let backoffUntil, Date() < backoffUntil { scheduleBackoffRetry(); return }
@@ -552,8 +556,8 @@ final class SyncEngine {
             let ops = (try? context.fetch(descriptor)) ?? []
             guard !ops.isEmpty else { return }
 
-            for op in ops {
-                guard SupabaseAuth.shared.isSignedIn, isOnline else { break }
+            opLoop: for op in ops {
+                guard SupabaseAuth.shared.isSignedIn, isOnline else { break opLoop }
                 guard var payload = try? JSONSerialization.jsonObject(with: op.payloadJSON) as? [String: Any] else {
                     // Corrupt payload — drop it rather than blocking the queue.
                     context.delete(op)
@@ -587,10 +591,14 @@ final class SyncEngine {
                     print("[SyncEngine] QUARANTINED op for \(op.table) (HTTP \(status)) — queue continues.")
                     continue
                 case .transientFailure:
+                    // Stop the whole pass and back off. `break` on its own only
+                    // exits the switch, so a single 5xx or timeout used to walk
+                    // the remaining queue firing up to 200 more doomed requests
+                    // and scheduling a retry Task for every one of them.
                     op.attempts += 1
                     try? context.save()
                     applyBackoff(attempts: op.attempts)
-                    break
+                    break opLoop
                 }
             }
             refreshQuarantineCount()

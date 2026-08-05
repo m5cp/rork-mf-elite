@@ -26,12 +26,21 @@ final class ParentReportViewModel {
     let streak: Int
     let lastTrainedDate: Date?
 
-    /// Drill IDs the player has mastered.
+    /// Drill IDs the player has mastered, all time.
     private let masteredDrillIDs: Set<String>
-    /// Total honest sessions logged across the curriculum.
+    /// Sessions logged THIS MONTH. Previously this was the lifetime pass total
+    /// while the surrounding copy said "this month".
     let sessionsLogged: Int
+    /// Drills whose mastery was reached this month.
+    let drillsMastered: Int
 
     private let calendar: Calendar
+    /// Days the player actually trained, taken from the session log. This used
+    /// to be synthesised by walking `streak` days back from `lastTrainedDate`,
+    /// which meant the parent-facing attendance grid was a drawing of the
+    /// streak counter rather than a record of anything: a player who trained
+    /// four times a week for two months but skipped yesterday showed one filled
+    /// cell out of fifty-six.
     private let trainedDates: Set<Date>
 
     init(
@@ -40,45 +49,49 @@ final class ParentReportViewModel {
         streak: Int,
         lastTrainedDate: Date?,
         masteredDrillIDs: Set<String>,
-        sessionsLogged: Int
+        drillsMasteredThisMonth: Int,
+        sessionsThisMonth: Int,
+        trainedDates: Set<Date>
     ) {
         self.disciplines = disciplines.sorted { $0.sortIndex < $1.sortIndex }
         self.xp = xp
         self.streak = streak
         self.lastTrainedDate = lastTrainedDate
         self.masteredDrillIDs = masteredDrillIDs
-        self.sessionsLogged = sessionsLogged
+        self.drillsMastered = drillsMasteredThisMonth
+        self.sessionsLogged = sessionsThisMonth
 
         var cal = Calendar.current
         cal.firstWeekday = 2 // Monday
         self.calendar = cal
+        self.trainedDates = Set(trainedDates.map { cal.startOfDay(for: $0) })
+    }
 
-        let anchor = cal.startOfDay(for: lastTrainedDate ?? Date())
-        var dates: Set<Date> = []
-        for offset in 0..<max(0, streak) {
-            if let day = cal.date(byAdding: .day, value: -offset, to: anchor) {
-                dates.insert(day)
-            }
-        }
-        self.trainedDates = dates
+    /// Start of the current calendar month, for callers assembling the inputs.
+    static func startOfMonth(_ now: Date = Date(), calendar: Calendar = .current) -> Date {
+        calendar.date(from: calendar.dateComponents([.year, .month], from: now))
+            ?? calendar.startOfDay(for: now)
     }
 
     var currentRank: AcademyRank { AcademyRank.rank(for: xp) }
 
     // MARK: - Pillar stats
 
-    /// Real weekly consistency, derived from the player's actual streak (capped
-    /// at a 7-day week). Returns 0 until training is logged, so a fresh account
-    /// never shows a fabricated score. Grows as honest sessions are logged.
+    /// Weekly consistency: days actually trained in the last seven, from the
+    /// session log rather than from the streak counter.
     var consistencyPercent: Int {
-        guard streak > 0 else { return 0 }
-        return Int((Double(min(streak, 7)) / 7.0 * 100).rounded())
+        let today = calendar.startOfDay(for: Date())
+        let trainedInLastWeek = (0..<7).compactMap {
+            calendar.date(byAdding: .day, value: -$0, to: today)
+        }.filter { trainedDates.contains($0) }.count
+        guard trainedInLastWeek > 0 else { return 0 }
+        return Int((Double(trainedInLastWeek) / 7.0 * 100).rounded())
     }
 
-    /// Drills mastered this month.
-    var drillsMastered: Int { masteredDrillIDs.count }
-
-    /// New certifications earned this month.
+    /// Categories fully certified, ALL TIME. Named `newCertifications` for
+    /// historical reasons; the UI caption says "to date" so the number isn't
+    /// presented as monthly. Scoping this to the month would need a
+    /// `certifiedAt` date the app doesn't record yet.
     var newCertifications: Int { certifiedCategoryNames.count }
 
     // MARK: - Certifications
@@ -114,10 +127,12 @@ final class ParentReportViewModel {
         return .c
     }
 
+    /// Thresholds are monthly. They used to be applied to a lifetime pass
+    /// total, so 50 was reachable once and then permanent.
     var accountabilityGrade: ReportGrade {
-        if sessionsLogged >= 50 { return .a }
-        if sessionsLogged >= 30 { return .bPlus }
-        if sessionsLogged >= 15 { return .b }
+        if sessionsLogged >= 20 { return .a }
+        if sessionsLogged >= 12 { return .bPlus }
+        if sessionsLogged >= 6 { return .b }
         return .c
     }
 

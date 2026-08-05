@@ -52,6 +52,8 @@ struct SettingsView: View {
     @State private var upgradeConfirmed = false
     @State private var gateMode: ParentGateMode?
     @State private var showDisableGateConfirm = false
+    /// What to present once the parent-gate sheet has finished dismissing.
+    @State private var pendingGateFollowUp: GateFollowUp?
     @State private var mailRequest: MailRequest?
     @State private var showMailUnavailable = false
     @State private var pendingSupportSubject = ""
@@ -91,7 +93,11 @@ struct SettingsView: View {
             AccountEditSheet(field: field, profile: profile)
                 .preferredColorScheme(.dark)
         }
-        .sheet(item: $gateMode) { mode in
+        // `onDismiss` runs after the sheet has fully gone away, which is the
+        // only reliable moment to put another presentation in its place. A
+        // fixed delay raced the dismissal animation and silently swallowed the
+        // follow-up.
+        .sheet(item: $gateMode, onDismiss: runPendingGateFollowUp) { mode in
             ParentGateView(mode: mode)
                 .preferredColorScheme(.dark)
                 .presentationDetents([.large])
@@ -408,7 +414,14 @@ struct SettingsView: View {
                 .padding(.bottom, DS.Spacing.s8)
             if gate.hasPIN {
                 Hairline()
-                actionRow(label: "Change passcode") { gateMode = .set }
+                // Verify the existing passcode before allowing a new one to be
+                // set — otherwise "Change passcode" was a way to take the gate
+                // over without knowing the current code.
+                actionRow(label: "Change passcode") {
+                    gateMode = .verify(title: "Enter your current passcode") {
+                        pendingGateFollowUp = .setNewPasscode
+                    }
+                }
             }
             if subscription.isCoach && BiometricLock.isAvailable {
                 Hairline()
@@ -426,13 +439,36 @@ struct SettingsView: View {
         if on {
             gateMode = .set
         } else if gate.hasPIN {
-            showDisableGateConfirm = true
+            // Turning the gate OFF is itself a parent-only action. Previously
+            // this went straight to a confirmation dialog whose button called
+            // gate.disable(), so a child could switch off the passcode and open
+            // up every protected purchase without ever knowing it.
+            gateMode = .verify(title: "Enter the passcode to turn it off") {
+                pendingGateFollowUp = .confirmDisable
+            }
         } else {
             gate.disable()
         }
     }
 
     /// Run a parent-only action, gating it behind the passcode when enabled.
+    /// A presentation that must wait for the gate sheet to close first.
+    private enum GateFollowUp {
+        case confirmDisable
+        case setNewPasscode
+    }
+
+    /// Runs whatever the successful passcode entry unlocked, now that the gate
+    /// sheet is actually gone.
+    private func runPendingGateFollowUp() {
+        guard let followUp = pendingGateFollowUp else { return }
+        pendingGateFollowUp = nil
+        switch followUp {
+        case .confirmDisable:  showDisableGateConfirm = true
+        case .setNewPasscode:  gateMode = .set
+        }
+    }
+
     private func protected(_ title: String, _ action: @escaping () -> Void) {
         if gate.isEnabled && gate.hasPIN {
             gateMode = .verify(title: title, onSuccess: action)
@@ -833,7 +869,7 @@ struct SettingsView: View {
                 if granted { NotificationService.shared.scheduleDailyReminder() }
             }
         } else {
-            NotificationService.shared.cancelAll()
+            NotificationService.shared.cancelDailyReminder()
         }
     }
 

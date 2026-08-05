@@ -139,7 +139,10 @@ struct WatchGlanceView: View {
             sourceName: glance.sessionTitle
         )
         justLogged = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { runningSession = false }
+        // Reset `justLogged`, not `runningSession`. Clearing the wrong flag left
+        // the button reading "Logged!" and disabled for the life of the process,
+        // so the athlete could only ever quick-log once per launch.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { justLogged = false }
     }
 }
 

@@ -16,19 +16,29 @@ struct ReportCardView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
+    @Query private var sessions: [SessionLogEntry]
 
     @State private var profile = PlayerProfileStore.shared
     @State private var shareURL: URL?
     @State private var showShare = false
 
     private var viewModel: ParentReportViewModel {
-        ParentReportViewModel(
+        // Everything the report calls "this month" is now actually scoped to
+        // this month, and attendance comes from the session log instead of
+        // being drawn from the streak counter.
+        let monthStart = ParentReportViewModel.startOfMonth()
+        return ParentReportViewModel(
             disciplines: disciplines,
             xp: players.first?.xp ?? 0,
             streak: players.first?.streak ?? 0,
             lastTrainedDate: players.first?.lastTrainedDate,
             masteredDrillIDs: Set(progress.filter { $0.isMastered }.map { $0.drillID }),
-            sessionsLogged: progress.reduce(0) { $0 + $1.passesLogged }
+            drillsMasteredThisMonth: progress.filter {
+                guard let masteredAt = $0.masteredAt else { return false }
+                return $0.isMastered && masteredAt >= monthStart
+            }.count,
+            sessionsThisMonth: sessions.filter { $0.completedAt >= monthStart }.count,
+            trainedDates: Set(sessions.map { Calendar.current.startOfDay(for: $0.completedAt) })
         )
     }
 

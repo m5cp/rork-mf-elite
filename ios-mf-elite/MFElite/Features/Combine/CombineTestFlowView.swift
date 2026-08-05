@@ -241,6 +241,9 @@ struct CombineTestFlowView: View {
     private var parsedValue: Double? {
         let trimmed = entryText.trimmingCharacters(in: .whitespaces)
         guard let value = Double(trimmed), value > 0 else { return nil }
+        // Upper bound so a mistyped or deliberately huge entry can't be stored.
+        // No combine test has a legitimate score anywhere near this.
+        guard value < 1_000_000, value.isFinite else { return nil }
         return value
     }
 

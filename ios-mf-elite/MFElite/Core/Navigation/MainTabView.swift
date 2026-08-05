@@ -11,6 +11,7 @@ struct MainTabView: View {
     @State private var router = AppActionRouter.shared
     @State private var restore = SyncRestore.shared
     @State private var importPayload: WorkoutShare.Payload?
+    @State private var dismissedStoreWarning = false
 
     var body: some View {
         @Bindable var subscription = subscription
@@ -24,6 +25,11 @@ struct MainTabView: View {
             CustomTabBar(selectedTab: $selectedTab, tabs: visibleTabs)
                 .frame(maxWidth: AdaptiveLayout.maxContentWidth)
                 .frame(maxWidth: .infinity)
+        }
+        .overlay(alignment: .top) {
+            if MFEliteApp.isRunningOnFallbackStore && !dismissedStoreWarning {
+                fallbackStoreBanner
+            }
         }
         .preferredColorScheme(.dark)
         .mfDynamicTypeClamp()
@@ -56,6 +62,38 @@ struct MainTabView: View {
             guard let payload = WorkoutShare.decode(url) else { return }
             importPayload = payload
         }
+    }
+
+    /// Shown when the on-disk store could not be opened and this session is
+    /// running on a temporary in-memory one. Training logged now will not
+    /// survive, and syncing is paused so the blank state can't overwrite the
+    /// player's cloud data — so say so rather than losing their work quietly.
+    private var fallbackStoreBanner: some View {
+        HStack(alignment: .top, spacing: DS.Spacing.s8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 13, weight: .bold))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Training won't be saved")
+                    .font(.system(size: 13, weight: .bold))
+                Text("MF Elite couldn't open your saved data. Restart the app before training — your history is still on this device.")
+                    .font(.system(size: 11, weight: .medium))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: DS.Spacing.s8)
+            Button {
+                withAnimation(DS.Motion.standardSpring) { dismissedStoreWarning = true }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 11, weight: .bold))
+            }
+            .buttonStyle(.plain)
+        }
+        .foregroundStyle(DS.Colors.Ground.primary)
+        .padding(DS.Spacing.s12)
+        .background(Color(hex: "#E5A400"))
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous))
+        .padding(.horizontal, DS.Spacing.s16)
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
 
     /// Binds the restore prompt to the coordinator's pending remote state.

@@ -43,7 +43,7 @@ final class StreakDetailViewModel {
     private let calendar: Calendar
     private let trainedDates: Set<Date>
 
-    init(streak: Int, freezesRemaining: Int, lastTrainedDate: Date?) {
+    init(streak: Int, freezesRemaining: Int, lastTrainedDate: Date?, trainedDates: Set<Date>) {
         self.streak = streak
         self.freezesRemaining = freezesRemaining
         self.lastTrainedDate = lastTrainedDate
@@ -52,15 +52,12 @@ final class StreakDetailViewModel {
         cal.firstWeekday = 2 // Monday
         self.calendar = cal
 
-        // Reconstruct the last `streak` trained days, anchored at the last trained date.
-        let anchor = cal.startOfDay(for: lastTrainedDate ?? Date())
-        var dates: Set<Date> = []
-        for offset in 0..<max(0, streak) {
-            if let day = cal.date(byAdding: .day, value: -offset, to: anchor) {
-                dates.insert(day)
-            }
-        }
-        self.trainedDates = dates
+        // Real training days from the session log. This grid used to be
+        // reconstructed by counting `streak` days back from `lastTrainedDate`,
+        // so it drew the streak counter rather than the player's history —
+        // filling in days they never trained, and blanking weeks of real work
+        // the moment the streak was short.
+        self.trainedDates = Set(trainedDates.map { cal.startOfDay(for: $0) })
     }
 
     // MARK: - Today status
@@ -70,7 +67,7 @@ final class StreakDetailViewModel {
         return calendar.isDateInToday(last)
     }
 
-    var freezeTotal: Int { 3 }
+    var freezeTotal: Int { XPStoreService.maxFreezes }
 
     // MARK: - Activity grid (5 weeks × 7 days, Monday-first)
 

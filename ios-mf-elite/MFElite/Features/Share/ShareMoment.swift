@@ -80,7 +80,7 @@ enum ShareMomentData: Equatable {
     case badge(image: String, big: String, unit: String, title: String, date: String)
     case streak(count: Int, unit: String, title: String, badge: String, date: String)
     case playerCard(rating: Int, position: String, name: String, club: String, stats: [ShareStat])
-    case combineResult(test: String, value: String, unit: String, delta: String, pct: Int, pctLabel: String)
+    case combineResult(test: String, value: String, unit: String, delta: String, pct: Int, pctLabel: String, isPersonalBest: Bool)
     case combineScorecard(overall: Int, rows: [ShareScoreRow])
     case levelMastered(badge: String, level: Int, of: Int, drill: String, category: String, sessions: Int)
     case weeklyRecap(xp: Int, grid: [ShareStat])
@@ -147,8 +147,44 @@ extension ShareMoment {
         return parts.joined(separator: "  ·  ")
     }
 
-    /// Sample data matching the design handoff — used by the DEBUG preview and as
-    /// a safe fallback when a live value isn't available yet.
+    /// An honest "nothing yet" version of a card, for a player who hasn't
+    /// generated the underlying accomplishment.
+    ///
+    /// Cards used to fall back to `sample(_:)` here, which meant a player with a
+    /// zero streak who tapped the Streak tile got a card reading "30 · DAY
+    /// STREAK · NO DAYS OFF", and a player with no badges got "100 SESSIONS ·
+    /// CENTURY CLUB · JUL 10, 2026" — a hardcoded date. Those are shareable to
+    /// Instagram, so the app was handing players a fabricated achievement to
+    /// post as their own. `sample(_:)` is now for previews only.
+    static func empty(_ kind: ShareMomentKind, playerLine: String) -> ShareMoment {
+        let data: ShareMomentData
+        switch kind {
+        case .badge:
+            data = .badge(image: "medal_badge_100_crown", big: "0", unit: "BADGES YET",
+                          title: "FIRST ONE'S COMING", date: "")
+        case .streak:
+            data = .streak(count: 0, unit: "DAY STREAK", title: "DAY ONE STARTS NOW",
+                           badge: "medal_flame_badge_30", date: "")
+        case .combineResult:
+            data = .combineResult(test: "MF COMBINE", value: "—", unit: "",
+                                  delta: "No test recorded yet", pct: 0, pctLabel: "",
+                                  isPersonalBest: false)
+        case .combineScorecard:
+            data = .combineScorecard(overall: 0, rows: [])
+        case .levelMastered:
+            data = .levelMastered(badge: "medal_trophy_badge", level: 1, of: 5,
+                                  drill: "CHASING LEVEL 1", category: "NO LEVEL MASTERED YET", sessions: 0)
+        case .playerCard, .weeklyRecap, .invite, .repBadge:
+            // These four are always built from real data (or need none), so an
+            // empty state never renders for them — fall back to the real
+            // builder's own zero output.
+            return sample(kind, playerLine: playerLine)
+        }
+        return ShareMoment(kind: kind, data: data, playerLine: playerLine)
+    }
+
+    /// Sample data matching the design handoff — **previews only.** Do not use
+    /// as a runtime fallback; see `empty(_:)`.
     static func sample(_ kind: ShareMomentKind, playerLine: String = "LEO  ·  #10  ·  U14") -> ShareMoment {
         let data: ShareMomentData
         switch kind {
@@ -166,7 +202,7 @@ extension ShareMoment {
                 ]
             )
         case .combineResult:
-            data = .combineResult(test: "20M SPRINT", value: "3.12", unit: "SEC", delta: "-0.18s vs last test", pct: 92, pctLabel: "FASTER THAN 92% OF U14")
+            data = .combineResult(test: "20M SPRINT", value: "3.12", unit: "SEC", delta: "-0.18s vs last test", pct: 92, pctLabel: "FASTER THAN 92% OF U14", isPersonalBest: true)
         case .combineScorecard:
             data = .combineScorecard(
                 overall: 82,

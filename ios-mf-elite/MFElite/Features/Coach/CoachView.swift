@@ -17,6 +17,9 @@ struct CoachView: View {
     @State private var sync = SyncEngine.shared
     @State private var showPublish = false
     @State private var showAnnounce = false
+    /// Non-nil when a coach action failed, so the coach is told rather than
+    /// being shown a success state for something that never reached players.
+    @State private var coachActionError: String?
     @State private var shareText: ShareableText?
     @State private var indexCache = DrillIndexCache()
     @State private var showWODPicker = false
@@ -132,9 +135,11 @@ struct CoachView: View {
         .sheet(isPresented: $showAnnounce) {
             AnnouncementComposerView { title, body, audience in
                 Task {
-                    let text = await model.sendAnnouncement(title: title, body: body, audience: audience)
-                    if !text.isEmpty {
+                    // Only offer to share it onward if it actually published.
+                    if let text = await model.sendAnnouncement(title: title, body: body, audience: audience) {
                         shareText = ShareableText(text: text)
+                    } else {
+                        coachActionError = "Couldn't post that announcement. Check your connection and try again — nothing was sent to your players."
                     }
                 }
             }
@@ -143,7 +148,12 @@ struct CoachView: View {
         }
         .sheet(isPresented: $showPublish) {
             WorkoutBuilderView { title, note, drillIDs, audience in
-                Task { await model.publishWorkout(title: title, note: note, drillIDs: drillIDs, audience: audience) }
+                Task {
+                    let ok = await model.publishWorkout(title: title, note: note, drillIDs: drillIDs, audience: audience)
+                    if !ok {
+                        coachActionError = "Couldn't publish that workout. Check your connection and try again — your players didn't receive it."
+                    }
+                }
             }
         }
         .sheet(isPresented: $showWODPicker) {
@@ -151,7 +161,12 @@ struct CoachView: View {
                 coachWorkouts: model.publishedWorkouts,
                 drillIndex: drillIndex
             ) { title, note, drillIDs, audience in
-                Task { await model.publishWorkout(title: title, note: note, drillIDs: drillIDs, audience: audience) }
+                Task {
+                    let ok = await model.publishWorkout(title: title, note: note, drillIDs: drillIDs, audience: audience)
+                    if !ok {
+                        coachActionError = "Couldn't set the Workout of the Day. Check your connection and try again — your players didn't receive it."
+                    }
+                }
             }
         }
         .confirmationDialog(
@@ -170,6 +185,14 @@ struct CoachView: View {
         }
         .sheet(isPresented: $showInvite) {
             CoachInvitePlayerView(model: model)
+        }
+        .alert("Didn't reach your players", isPresented: Binding(
+            get: { coachActionError != nil },
+            set: { if !$0 { coachActionError = nil } }
+        )) {
+            Button("OK", role: .cancel) { coachActionError = nil }
+        } message: {
+            Text(coachActionError ?? "")
         }
     }
 
@@ -455,8 +478,13 @@ struct CoachView: View {
     private func clearWorkoutOfTheDay() {
         let active = model.publishedWorkouts.filter(\.active)
         Task {
+            var allCleared = true
             for workout in active {
-                await model.setWorkoutActive(workout, active: false)
+                let ok = await model.setWorkoutActive(workout, active: false)
+                if !ok { allCleared = false }
+            }
+            if !allCleared {
+                coachActionError = "Couldn't clear the Workout of the Day. Check your connection and try again — your players may still be seeing it."
             }
         }
     }

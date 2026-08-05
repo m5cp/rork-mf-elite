@@ -4,7 +4,7 @@
 //
 //  Resolves real `ShareMoment` values from the app's live data models so the
 //  gallery tiles and celebration deep-links render the player's actual
-//  accomplishments. Every builder falls back to `ShareMoment.sample(_:)` when
+//  accomplishments. Every builder falls back to `ShareMoment.empty(_:)` when
 //  the underlying data isn't available yet, so a card always has something to
 //  show. All identity is first-name-only via `ShareMoment.currentPlayerLine()`.
 //
@@ -30,7 +30,7 @@ enum ShareMomentBuilder {
     /// Streak milestone card for a given day count (used by the streak card and
     /// the milestone celebration, which both know the real count).
     static func streak(days: Int, date: Date = Date()) -> ShareMoment {
-        guard days > 0 else { return .sample(.streak, playerLine: playerLine) }
+        guard days > 0 else { return .empty(.streak, playerLine: playerLine) }
         let badge: String
         let title: String
         switch days {
@@ -80,18 +80,45 @@ enum ShareMomentBuilder {
         let valueText = CombineFormat.value(value, unit: test.unit)
         let unit = test.unit == "seconds" ? "SEC" : test.unit.uppercased()
 
-        // Delta vs the previous attempt for this test, when there is one.
-        let priorSorted = results
+        let history = results
             .filter { $0.testID == test.id }
             .sorted { $0.recordedAt < $1.recordedAt }
-        let previous = priorSorted.dropLast().last?.value ?? priorSorted.first(where: { $0.value != value })?.value
-        var deltaText = "First recorded result"
-        if let previous, previous != value {
-            let diff = value - previous
-            let improved = test.lowerIsBetter ? diff < 0 : diff > 0
-            let magnitude = CombineFormat.value(abs(diff), unit: test.unit)
-            deltaText = "\(improved ? "▲" : "▼") \(magnitude) vs last test"
+
+        // Delta against the attempt immediately BEFORE the one being featured.
+        // This used to be `dropLast().last`, i.e. the second-most-recent attempt
+        // regardless of which result the card was showing — so featuring a
+        // personal best set three attempts ago compared two unrelated numbers,
+        // and a history of 4.5 / 3.9(PB) / 4.3 made the card read "First
+        // recorded result" for a player with three attempts.
+        let featuredIndex = history.lastIndex { $0.value == value }
+        let previous: Double? = {
+            guard let featuredIndex, featuredIndex > 0 else { return nil }
+            return history[featuredIndex - 1].value
+        }()
+
+        var deltaText = history.count <= 1 ? "First recorded result" : "Combine result"
+        if let previous {
+            if previous == value {
+                deltaText = "Matches your best"
+            } else {
+                let diff = value - previous
+                let improved = test.lowerIsBetter ? diff < 0 : diff > 0
+                let magnitude = CombineFormat.value(abs(diff), unit: test.unit)
+                deltaText = "\(improved ? "▲" : "▼") \(magnitude) vs previous"
+            }
         }
+
+        // Is the featured value actually the player's best for this test?
+        // The card's headline claimed "NEW PERSONAL BEST" unconditionally, so
+        // logging a worse score and tapping Share announced a PB that wasn't.
+        let isPersonalBest: Bool = {
+            guard let best = CombineStats.personalBest(test, results: results) else { return true }
+            guard value == best else { return false }
+            // Matching an existing best is not a NEW best. Only claim it when
+            // this attempt actually improved on the one before it.
+            guard let previous else { return history.count <= 1 }
+            return test.lowerIsBetter ? value < previous : value > previous
+        }()
 
         // Shareables show the raw result only — no population comparison / percentile.
         let pct = 0
@@ -101,7 +128,8 @@ enum ShareMomentBuilder {
             kind: .combineResult,
             data: .combineResult(
                 test: test.name, value: valueText, unit: unit,
-                delta: deltaText, pct: pct, pctLabel: pctLabel
+                delta: deltaText, pct: pct, pctLabel: pctLabel,
+                isPersonalBest: isPersonalBest
             ),
             playerLine: playerLine
         )
@@ -122,11 +150,18 @@ enum ShareMomentBuilder {
         for test in tests {
             if let including, !including.contains(test.id) { continue }
             guard let best = CombineStats.personalBest(test, results: results) else { continue }
-            var pct = 50
-            if let band, let tier = benchmarks.tier(testID: test.id, value: best, bandID: band.id, female: false) {
+            // Grade against the player's own scale. This was hardcoded to the
+            // male tables while CombineScorecardView reads the real setting, so
+            // a girl's shared OVR disagreed with the one in the app — and was
+            // understated by roughly 20 points per physical test.
+            var pct = 0
+            if let band,
+               let tier = benchmarks.tier(
+                    testID: test.id, value: best, bandID: band.id, female: profile.gradesFemale
+               ) {
                 pct = tierPercent(tier)
+                pcts.append(pct)
             }
-            pcts.append(pct)
             rows.append(ShareScoreRow(
                 name: test.name,
                 value: CombineFormat.value(best, unit: test.unit),
@@ -134,8 +169,13 @@ enum ShareMomentBuilder {
             ))
         }
 
-        guard !rows.isEmpty else { return .sample(.combineScorecard, playerLine: playerLine) }
-        let overall = Int((Double(pcts.reduce(0, +)) / Double(pcts.count)).rounded())
+        guard !rows.isEmpty else { return .empty(.combineScorecard, playerLine: playerLine) }
+        // With no birth year there is no age band, so nothing can be graded.
+        // This used to default every row to 50 and print a confident "50 OVR"
+        // the player never earned. 0 tells the body to omit the figure.
+        let overall = pcts.isEmpty
+            ? 0
+            : Int((Double(pcts.reduce(0, +)) / Double(pcts.count)).rounded())
         return ShareMoment(
             kind: .combineScorecard,
             data: .combineScorecard(overall: overall, rows: rows),
@@ -268,12 +308,12 @@ enum ShareMomentBuilder {
             if let (test, value) = bestCombineHighlight(tests: combineTests, results: combineResults) {
                 return combineResult(test: test, value: value, results: combineResults)
             }
-            return .sample(.combineResult, playerLine: playerLine)
+            return .empty(.combineResult, playerLine: playerLine)
         case .combineScorecard:
             return combineScorecard(tests: combineTests, results: combineResults)
         case .badge:
             if let badge = bestEarnedBadge() { return self.badge(badge) }
-            return .sample(.badge, playerLine: playerLine)
+            return .empty(.badge, playerLine: playerLine)
         case .playerCard:
             return playerCard(player: player, progress: progress, sessions: sessions)
         case .invite:
@@ -283,7 +323,7 @@ enum ShareMomentBuilder {
         case .levelMastered:
             // No cheap "most recently mastered level" lookup here — the real card
             // is deep-linked from the mastery celebration; the tile previews a sample.
-            return .sample(.levelMastered, playerLine: playerLine)
+            return .empty(.levelMastered, playerLine: playerLine)
         }
     }
 
