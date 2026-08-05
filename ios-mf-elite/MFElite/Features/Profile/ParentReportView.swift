@@ -99,8 +99,8 @@ struct ParentReportView: View {
                        caption: "drills mastered this month")
             pillarCard(label: "Accountability", value: "\(vm.sessionsLogged)",
                        caption: "sessions logged this month")
-            pillarCard(label: "Growth", value: "+\(vm.newCertifications)",
-                       caption: "new certifications earned")
+            pillarCard(label: "Growth", value: "\(vm.newCertifications)",
+                       caption: "categories certified to date")
         }
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s24 + 4)

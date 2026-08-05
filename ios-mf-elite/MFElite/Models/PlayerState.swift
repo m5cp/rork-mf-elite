@@ -20,12 +20,6 @@ final class PlayerState {
     /// XP bought through the store. Counts toward academy rank/levels ONLY.
     /// Leaderboards, Game Center, and coach views read earned `xp` — never this.
     var purchasedXP: Int = 0
-    /// The last calendar day a spent streak freeze is defending. The streak is
-    /// alive through the later of this and `lastTrainedDate`, which lets a
-    /// freeze bridge a missed day without pretending the player trained on it.
-    /// Managed exclusively by `StreakEngine`. Optional so existing stores
-    /// migrate in place.
-    var streakShieldedThrough: Date?
 
     /// The XP used for academy rank / level progression displays.
     var rankXP: Int { xp + purchasedXP }

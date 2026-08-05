@@ -42,14 +42,16 @@ final class WatchSyncBridge: NSObject {
     /// delivered even if the watch app isn't foregrounded) and to the shared
     /// App Group so the complication can render without the watch app running.
     func refreshAndPush() {
-        guard let context else { return }
-        // Refresh the cached step count in the background and push again if it
-        // moved, so the watch ring shows a real number rather than a stale one.
+        // Refresh the step count in the background and push again if it moved,
+        // so the watch ring shows a real number rather than a stale one.
+        // Compare the AWAITED value, not the cache: the cache is written from a
+        // separate main-actor hop inside the HealthKit callback, so re-reading
+        // it here can race and miss the update.
         if HealthKitService.shared.hasRequestedStepsAccess {
             Task { @MainActor in
                 let before = HealthKitService.shared.cachedTodaySteps
-                _ = await HealthKitService.shared.fetchTodaySteps()
-                if HealthKitService.shared.cachedTodaySteps != before { self.pushCurrentSnapshot() }
+                let steps = await HealthKitService.shared.fetchTodaySteps()
+                if steps != before { self.pushCurrentSnapshot() }
             }
         }
         pushCurrentSnapshot()

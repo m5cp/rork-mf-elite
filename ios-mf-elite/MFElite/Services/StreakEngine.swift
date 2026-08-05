@@ -14,19 +14,20 @@
 //
 //  The rules, in one place:
 //
-//  * A streak is alive through the later of the last training day and the last
-//    day covered by a spent freeze (`streakShieldedThrough`).
-//  * Training on the same day it is already alive through changes nothing.
-//  * Training the day after keeps it going: +1.
-//  * Training after a longer gap spends one freeze per fully missed day. If
-//    there are enough freezes the streak survives and still advances; if not,
-//    the streak restarts at 1.
-//  * Simply opening the app after a missed day settles the same arithmetic via
-//    `reconcile`, so the number on screen is honest before the player trains
-//    again rather than only being corrected on their next session.
+//  * Training on a day already counted changes nothing.
+//  * Training the day after the last training day keeps the run going: +1.
+//  * Training after a longer gap spends one freeze per fully missed day. With
+//    enough freezes the streak survives and still advances; without them it
+//    restarts at 1.
+//  * Opening the app settles the same arithmetic (`reconcile`) so the number on
+//    screen is honest before the next session rather than only after it.
 //
-//  Freezes are spent for whole missed days, never for the current day — the
-//  player still has today to train.
+//  One deliberate asymmetry: **only `recordTraining` ever spends a freeze.**
+//  `reconcile` decides whether the streak is still defensible and breaks it if
+//  it isn't, but it never debits the wallet. A freeze is a thing the player
+//  earned or paid for, and it should only be consumed at the moment it
+//  demonstrably rescues a streak — not drained a day at a time by someone who
+//  opens the app, doesn't train, and never comes back.
 //
 
 import Foundation
@@ -55,7 +56,8 @@ enum StreakEngine {
     // MARK: - Public API
 
     /// Settle a stale streak against the current date **without** recording any
-    /// training. Safe and cheap to call on every launch and foreground.
+    /// training and without spending anything. Safe and cheap to call on every
+    /// launch and foreground, and idempotent within a day.
     ///
     /// Returns `true` when it changed something worth saving.
     @discardableResult
@@ -64,22 +66,14 @@ enum StreakEngine {
         now: Date = Date(),
         calendar: Calendar = .current
     ) -> Bool {
-        guard player.streak > 0, let alive = aliveThrough(player, calendar) else { return false }
+        guard player.streak > 0, let last = player.lastTrainedDate else { return false }
 
-        let gap = dayGap(from: alive, to: now, calendar)
-        // gap 0 = alive today, gap 1 = alive yesterday and today is still open.
-        guard gap >= 2 else { return false }
+        let missed = missedDays(since: last, now: now, calendar: calendar)
+        // The streak is only broken once the missed days outrun the freezes the
+        // player is holding. Nothing is debited here — see the note above.
+        guard missed > player.freezesRemaining else { return false }
 
-        let missedDays = gap - 1
-        if player.freezesRemaining >= missedDays {
-            player.freezesRemaining -= missedDays
-            player.streakShieldedThrough = calendar.date(
-                byAdding: .day, value: -1, to: calendar.startOfDay(for: now)
-            )
-        } else {
-            player.streak = 0
-            player.streakShieldedThrough = nil
-        }
+        player.streak = 0
         return true
     }
 
@@ -94,83 +88,64 @@ enum StreakEngine {
     ) -> Outcome {
         var freezesUsed = 0
         var didReset = false
-        var didAdvance = true
 
-        if player.streak > 0, let alive = aliveThrough(player, calendar) {
-            let gap = dayGap(from: alive, to: now, calendar)
-            if gap <= 0 {
+        if player.streak > 0, let last = player.lastTrainedDate {
+            if calendar.isDate(last, inSameDayAs: now) {
                 // Already counted today. Refresh the timestamp so "last trained"
-                // is accurate, but do not advance the streak a second time.
+                // stays accurate, but don't advance the streak a second time.
                 player.lastTrainedDate = now
                 return Outcome(streak: player.streak, didAdvance: false, freezesUsed: 0, didReset: false)
-            } else if gap == 1 {
+            }
+
+            let missed = missedDays(since: last, now: now, calendar: calendar)
+            if missed == 0 {
+                // Trained yesterday — an unbroken run.
+                player.streak += 1
+            } else if missed <= player.freezesRemaining {
+                // Freezes cover every missed day, so the run survives.
+                player.freezesRemaining -= missed
+                freezesUsed = missed
                 player.streak += 1
             } else {
-                let missedDays = gap - 1
-                if player.freezesRemaining >= missedDays {
-                    player.freezesRemaining -= missedDays
-                    freezesUsed = missedDays
-                    player.streak += 1
-                } else {
-                    player.streak = 1
-                    didReset = true
-                }
+                player.streak = 1
+                didReset = true
             }
         } else {
-            // First ever session, or picking back up after a broken streak.
-            didReset = player.streak == 0 && player.lastTrainedDate != nil
+            // First ever session, resuming after a broken streak, or a restored
+            // account whose streak came down without a last-trained date. Any
+            // non-trivial prior streak being replaced by 1 is a reset, and the
+            // post-session screen must not claim "+1" for it.
+            didReset = player.streak > 1
             player.streak = 1
         }
 
         player.lastTrainedDate = now
-        // Any shield is consumed by actually training.
-        player.streakShieldedThrough = nil
         player.streakPB = max(player.streakPB, player.streak)
         awardMilestoneFreezes(player)
 
         return Outcome(
             streak: player.streak,
-            didAdvance: didAdvance,
+            didAdvance: true,
             freezesUsed: freezesUsed,
             didReset: didReset
         )
     }
 
-    /// True when the player has already banked a training day today, so a
-    /// second session should not advance the streak again.
-    static func hasTrainedToday(
-        _ player: PlayerState,
-        now: Date = Date(),
-        calendar: Calendar = .current
-    ) -> Bool {
-        guard let last = player.lastTrainedDate else { return false }
-        return calendar.isDate(last, inSameDayAs: now)
-    }
-
     // MARK: - Internals
 
-    /// The last calendar day the streak is known to be intact through: the
-    /// later of the last training day and any day a spent freeze covered.
-    private static func aliveThrough(_ player: PlayerState, _ calendar: Calendar) -> Date? {
-        let trained = player.lastTrainedDate.map { calendar.startOfDay(for: $0) }
-        let shielded = player.streakShieldedThrough.map { calendar.startOfDay(for: $0) }
-        switch (trained, shielded) {
-        case let (trained?, shielded?): return max(trained, shielded)
-        case let (trained?, nil):       return trained
-        case let (nil, shielded?):      return shielded
-        case (nil, nil):                return nil
-        }
-    }
-
-    /// Whole calendar days between two instants. Uses `Calendar` day arithmetic
-    /// rather than dividing a time interval, so DST transitions and timezone
-    /// changes don't produce a 23- or 25-hour "day".
-    private static func dayGap(from: Date, to: Date, _ calendar: Calendar) -> Int {
-        calendar.dateComponents(
+    /// Whole days that passed with no training between `last` and today,
+    /// excluding today itself — the player still has today to train.
+    ///
+    /// Uses `Calendar` day arithmetic rather than dividing a time interval, so
+    /// DST transitions and timezone changes can't produce a 23- or 25-hour
+    /// "day". Clamped at 0 so a clock moved backwards can't return a negative.
+    private static func missedDays(since last: Date, now: Date, calendar: Calendar) -> Int {
+        let gap = calendar.dateComponents(
             [.day],
-            from: calendar.startOfDay(for: from),
-            to: calendar.startOfDay(for: to)
+            from: calendar.startOfDay(for: last),
+            to: calendar.startOfDay(for: now)
         ).day ?? 0
+        return max(0, gap - 1)
     }
 
     /// Milestone freeze rewards, clamped to the store's cap so the counter can

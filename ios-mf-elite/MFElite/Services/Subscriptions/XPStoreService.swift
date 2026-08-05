@@ -152,9 +152,15 @@ final class XPStoreService {
         do {
             let result = try await Purchases.shared.purchase(product: product)
             if result.userCancelled { return false }
-            grant(productID: product.productIdentifier,
-                  storeTransactionID: result.transaction?.transactionIdentifier)
-            return true
+            let delivered = grant(productID: product.productIdentifier,
+                                  storeTransactionID: result.transaction?.transactionIdentifier)
+            if !delivered {
+                // Charged but not yet credited. The transaction is deliberately
+                // left unfinished so StoreKit re-delivers it to the recovery
+                // listener on a later launch.
+                lastError = "Purchase went through but couldn't be applied yet. Reopen the app and it will be credited automatically."
+            }
+            return delivered
         } catch {
             lastError = "Purchase failed. You were not charged."
             return false
@@ -164,7 +170,12 @@ final class XPStoreService {
     /// Grant entitlement for a verified purchase. Idempotent per store
     /// transaction so the purchase flow and the recovery listener can never
     /// double-grant the same consumable.
-    private func grant(productID: String, storeTransactionID: String?) {
+    /// Returns true when the entitlement was actually delivered and recorded.
+    /// Callers must not finish the StoreKit transaction on false — leaving it
+    /// unfinished is what lets StoreKit re-deliver it and the player eventually
+    /// receive what they paid for.
+    @discardableResult
+    private func grant(productID: String, storeTransactionID: String?) -> Bool {
         // Check the idempotency record, but do NOT write it yet. Marking the
         // transaction processed before the grant actually landed meant that if
         // the PlayerState row wasn't there — a fresh install before onboarding
@@ -174,12 +185,17 @@ final class XPStoreService {
         // way to retry.
         if let txID = storeTransactionID,
            Set(UserDefaults.standard.stringArray(forKey: Self.processedKey) ?? []).contains(txID) {
-            return
+            // Already delivered — safe to finish.
+            return true
         }
 
         guard let context,
               let player = try? context.fetch(FetchDescriptor<PlayerState>()).first,
-              let product = ProductID(rawValue: productID) else { return }
+              let product = ProductID(rawValue: productID) else { return false }
+
+        // XP actually credited, which is not always `product.xpAmount` — an
+        // over-cap streak freeze is paid out as XP instead.
+        var grantedXP = product.xpAmount
 
         switch product {
         case .xp100, .xp300, .xp750:
@@ -188,8 +204,12 @@ final class XPStoreService {
         case .streakFreeze:
             if player.freezesRemaining >= Self.maxFreezes {
                 // Already at the cap — don't silently swallow a paid shield.
-                // Convert it to the equivalent XP so the purchase still lands.
+                // Convert it to the equivalent XP so the purchase still lands,
+                // and record it like any other purchased XP so it counts toward
+                // the monthly cap and the server ledger agrees with the balance.
                 player.purchasedXP += Self.freezeConsolationXP
+                recordMonthlyXP(Self.freezeConsolationXP)
+                grantedXP = Self.freezeConsolationXP
             } else {
                 player.freezesRemaining += 1
             }
@@ -214,8 +234,9 @@ final class XPStoreService {
         SyncEngine.shared.enqueuePlayerState(player)
         SyncEngine.shared.enqueueXPTransaction(
             id: UUID(), productID: productID,
-            xpAmount: product.xpAmount, storeTransactionID: storeTransactionID
+            xpAmount: grantedXP, storeTransactionID: storeTransactionID
         )
+        return true
     }
 
     /// Best-effort recovery for transactions that complete outside the purchase
@@ -224,7 +245,10 @@ final class XPStoreService {
     private func listenForTransactions() async {
         for await update in Transaction.updates {
             guard case .verified(let transaction) = update else { continue }
-            grant(productID: transaction.productID, storeTransactionID: String(transaction.id))
+            // Only finish once the grant landed. Finishing unconditionally told
+            // StoreKit "delivered" for a purchase that wasn't, so it was never
+            // re-offered and the player was charged for nothing.
+            guard grant(productID: transaction.productID, storeTransactionID: String(transaction.id)) else { continue }
             await transaction.finish()
         }
     }

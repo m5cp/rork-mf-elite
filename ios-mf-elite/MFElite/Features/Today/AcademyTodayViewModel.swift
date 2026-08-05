@@ -875,8 +875,24 @@ final class AcademyTodayViewModel {
         discipline.categories.sorted { $0.sortIndex < $1.sortIndex }
     }
 
+    /// Levels of a category the player can actually train right now.
+    ///
+    /// Every caller of this is a "pick the next drill to train" path —
+    /// recommendations, Quick Train, Match Day, the tappable daily goals, the
+    /// starter session — not a browse surface that shows locked content behind
+    /// a badge. None of them filtered on the paywall, so a free player was
+    /// being handed Level 2–5 drills to train directly, bypassing the gate that
+    /// LevelView and DrillDetailView enforce. Filtering here closes all of them
+    /// at once.
+    ///
+    /// Falls back to the unfiltered list if a category has no free levels at
+    /// all, so a misconfigured curriculum can't produce an empty session.
     private func sortedLevels(_ category: Category) -> [MasteryLevel] {
-        category.levels.sorted { $0.number < $1.number }
+        let sorted = category.levels.sorted { $0.number < $1.number }
+        let subscription = SubscriptionService.shared
+        guard !subscription.hasFullAccess else { return sorted }
+        let unlocked = sorted.filter { !subscription.isLevelNumberLocked($0.number) }
+        return unlocked.isEmpty ? sorted : unlocked
     }
 
     /// Levels of a category ordered so a brand-new plan starts near the player's

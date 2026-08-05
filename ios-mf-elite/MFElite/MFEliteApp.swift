@@ -133,6 +133,7 @@ struct MFEliteApp: App {
                         // If already authorized, keep the daily reminder scheduled.
                         NotificationService.shared.scheduleDailyReminderIfAuthorized()
                         reconcileStreak()
+                        backfillMasteryDates()
                         profileStore.incrementSession()
                         KeyboardWarmup.run()
                         submitTotalXPToGameCenter()
@@ -164,6 +165,31 @@ struct MFEliteApp: App {
                 Task { await SupportAdjustments.shared.applyPending() }
             }
         }
+    }
+
+    /// One-time backfill for `DrillProgress.masteredAt`, which is nil for every
+    /// drill mastered before it existed.
+    ///
+    /// Without this, the parent report would tell every existing family their
+    /// child mastered zero drills this month and grade them a C — the report is
+    /// exported as the PDF that goes home. `lastLoggedAt` is the best available
+    /// approximation of when mastery happened, and it is always in the past for
+    /// these rows, so they correctly fall outside the current month unless the
+    /// drill really was trained recently.
+    private func backfillMasteryDates() {
+        let key = "MF_MASTERED_AT_BACKFILL_DONE"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        let context = container.mainContext
+        let descriptor = FetchDescriptor<DrillProgress>(
+            predicate: #Predicate { $0.isMastered == true && $0.masteredAt == nil }
+        )
+        if let rows = try? context.fetch(descriptor), !rows.isEmpty {
+            for row in rows {
+                row.masteredAt = row.lastLoggedAt ?? Date.distantPast
+            }
+            try? context.save()
+        }
+        UserDefaults.standard.set(true, forKey: key)
     }
 
     /// Settle the streak against today's date on launch and on every return to

@@ -590,7 +590,9 @@ final class CoachViewModel {
     @discardableResult
     func publishDrillEdit(original: Drill, edited: DrillEditFields) async -> Bool {
         let payload = edited.changedPayload(from: original)
-        guard !payload.isEmpty else { return false }
+        // Nothing changed is a success, not a failure — the caller now shows an
+        // error on false, and "you didn't edit anything" is not an error.
+        guard !payload.isEmpty else { return true }
         let coachName = PlayerProfileStore.shared.displayName
         let row: [String: Any] = [
             "drill_id": original.id,

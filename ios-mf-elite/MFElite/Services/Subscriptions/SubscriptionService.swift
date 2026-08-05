@@ -140,11 +140,12 @@ final class SubscriptionService {
         }
     }
 
-    /// Gated entry point for restoring purchases.
+    /// Entry point for restoring purchases. Deliberately NOT behind the parent
+    /// gate: App Review expects restore to be reachable, it costs nothing, and
+    /// a passcode the parent has forgotten must never be able to strand a
+    /// paying customer on a new device.
     func requestRestore() {
-        withParentApproval("Unlock to restore") { [weak self] in
-            Task { await self?.restorePurchases() }
-        }
+        Task { await restorePurchases() }
     }
 
     // MARK: - Purchase / restore

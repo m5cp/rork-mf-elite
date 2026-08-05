@@ -96,7 +96,7 @@ enum ShareMomentBuilder {
             return history[featuredIndex - 1].value
         }()
 
-        var deltaText = history.count <= 1 ? "First recorded result" : "Personal best"
+        var deltaText = history.count <= 1 ? "First recorded result" : "Combine result"
         if let previous {
             if previous == value {
                 deltaText = "Matches your best"
@@ -113,7 +113,11 @@ enum ShareMomentBuilder {
         // logging a worse score and tapping Share announced a PB that wasn't.
         let isPersonalBest: Bool = {
             guard let best = CombineStats.personalBest(test, results: results) else { return true }
-            return value == best
+            guard value == best else { return false }
+            // Matching an existing best is not a NEW best. Only claim it when
+            // this attempt actually improved on the one before it.
+            guard let previous else { return history.count <= 1 }
+            return test.lowerIsBetter ? value < previous : value > previous
         }()
 
         // Shareables show the raw result only — no population comparison / percentile.

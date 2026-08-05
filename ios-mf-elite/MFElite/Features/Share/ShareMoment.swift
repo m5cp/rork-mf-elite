@@ -172,8 +172,8 @@ extension ShareMoment {
         case .combineScorecard:
             data = .combineScorecard(overall: 0, rows: [])
         case .levelMastered:
-            data = .levelMastered(badge: "medal_trophy_badge", level: 0, of: 5,
-                                  drill: "NOT YET", category: "KEEP TRAINING", sessions: 0)
+            data = .levelMastered(badge: "medal_trophy_badge", level: 1, of: 5,
+                                  drill: "CHASING LEVEL 1", category: "NO LEVEL MASTERED YET", sessions: 0)
         case .playerCard, .weeklyRecap, .invite, .repBadge:
             // These four are always built from real data (or need none), so an
             // empty state never renders for them — fall back to the real

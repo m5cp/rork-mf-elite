@@ -121,8 +121,24 @@ struct MembershipView: View {
                 NavigationStack { MFStoreView() }
             }
             .sheet(isPresented: $showPurchaseHelp) { PurchaseHelpView() }
+            // Hosted here rather than upstream: MembershipView is itself a
+            // sheet, and an ancestor sheet cannot present over it.
+            .sheet(item: gateBinding) { request in
+                ParentGateView(mode: .verify(title: request.title, onSuccess: request.action))
+                    .preferredColorScheme(.dark)
+                    .presentationDetents([.large])
+            }
         }
         .preferredColorScheme(.dark)
+    }
+
+    /// Binding to the shared gate request (`subscription` comes from the
+    /// environment, so there's no `@Bindable` projection available).
+    private var gateBinding: Binding<SubscriptionService.GateRequest?> {
+        Binding(
+            get: { subscription.gateRequest },
+            set: { subscription.gateRequest = $0 }
+        )
     }
 
     private var currentPlanCard: some View {

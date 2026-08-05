@@ -88,7 +88,10 @@ final class ParentReportViewModel {
         return Int((Double(trainedInLastWeek) / 7.0 * 100).rounded())
     }
 
-    /// Categories fully certified, all time.
+    /// Categories fully certified, ALL TIME. Named `newCertifications` for
+    /// historical reasons; the UI caption says "to date" so the number isn't
+    /// presented as monthly. Scoping this to the month would need a
+    /// `certifiedAt` date the app doesn't record yet.
     var newCertifications: Int { certifiedCategoryNames.count }
 
     // MARK: - Certifications
