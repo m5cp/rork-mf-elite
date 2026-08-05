@@ -16,6 +16,10 @@ final class AcademyProgressionViewModel {
     /// eligibility and the earned-rank check keep reading earned `xp`.
     let rankXP: Int
     let streak: Int
+    /// Highest streak ever reached. The "Streak personal best" row was
+    /// displaying the CURRENT streak, so a player whose best run was 40 days
+    /// but who is on day 2 saw "personal best - 2 days".
+    let streakPB: Int
 
     /// Drill IDs the player has mastered.
     private let masteredDrillIDs: Set<String>
@@ -27,6 +31,7 @@ final class AcademyProgressionViewModel {
         xp: Int,
         rankXP: Int,
         streak: Int,
+        streakPB: Int,
         masteredDrillIDs: Set<String>,
         loggedDrillIDs: Set<String>
     ) {
@@ -34,6 +39,7 @@ final class AcademyProgressionViewModel {
         self.xp = xp
         self.rankXP = rankXP
         self.streak = streak
+        self.streakPB = max(streakPB, streak)
         self.masteredDrillIDs = masteredDrillIDs
         self.loggedDrillIDs = loggedDrillIDs
     }

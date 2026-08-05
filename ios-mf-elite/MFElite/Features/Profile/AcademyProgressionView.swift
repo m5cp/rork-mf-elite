@@ -28,6 +28,7 @@ struct AcademyProgressionView: View {
             xp: players.first?.xp ?? 0,
             rankXP: players.first?.rankXP ?? 0,
             streak: players.first?.streak ?? 0,
+            streakPB: players.first?.streakPB ?? 0,
             masteredDrillIDs: Set(progress.filter { $0.isMastered }.map { $0.drillID }),
             loggedDrillIDs: Set(progress.filter { $0.passesLogged > 0 }.map { $0.drillID })
         )
@@ -241,7 +242,7 @@ struct AcademyProgressionView: View {
 
     private func milestonesSection(_ vm: AcademyProgressionViewModel) -> some View {
         let rows: [(String, String)] = [
-            ("Streak personal best", "\(vm.streak) days"),
+            ("Streak personal best", "\(vm.streakPB) days"),
             ("Certifications earned", "\(vm.certCount) of \(totalCategories)"),
             ("Drills logged", "\(vm.totalDrillsLogged)"),
             ("This week", "\(vm.weeklyConsistencyPercent)%")

@@ -457,6 +457,7 @@ final class DrillPlayerViewModel {
         progress.lastLoggedAt = Date()
         if progress.passesLogged >= ProgressionRules.masteryPasses && !progress.isMastered {
             progress.isMastered = true
+            progress.masteredAt = Date()
             justMastered = true
         } else {
             justMastered = progress.isMastered && progress.passesLogged >= ProgressionRules.masteryPasses

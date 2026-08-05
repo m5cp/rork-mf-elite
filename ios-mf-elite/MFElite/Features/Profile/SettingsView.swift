@@ -855,7 +855,7 @@ struct SettingsView: View {
                 if granted { NotificationService.shared.scheduleDailyReminder() }
             }
         } else {
-            NotificationService.shared.cancelAll()
+            NotificationService.shared.cancelDailyReminder()
         }
     }
 

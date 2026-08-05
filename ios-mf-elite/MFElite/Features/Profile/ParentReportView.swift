@@ -15,6 +15,7 @@ struct ParentReportView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var players: [PlayerState]
     @Query private var progress: [DrillProgress]
+    @Query private var sessions: [SessionLogEntry]
     @Query(sort: \CombineTest.sortIndex) private var combineTests: [CombineTest]
     @Query private var combineResults: [CombineResult]
     @Query(sort: \GameIQLesson.sortIndex) private var gameIQLessons: [GameIQLesson]
@@ -22,13 +23,22 @@ struct ParentReportView: View {
     @State private var profile = PlayerProfileStore.shared
 
     private var viewModel: ParentReportViewModel {
-        ParentReportViewModel(
+        // Everything the report calls "this month" is now actually scoped to
+        // this month, and attendance comes from the session log instead of
+        // being drawn from the streak counter.
+        let monthStart = ParentReportViewModel.startOfMonth()
+        return ParentReportViewModel(
             disciplines: disciplines,
             xp: players.first?.xp ?? 0,
             streak: players.first?.streak ?? 0,
             lastTrainedDate: players.first?.lastTrainedDate,
             masteredDrillIDs: Set(progress.filter { $0.isMastered }.map { $0.drillID }),
-            sessionsLogged: progress.reduce(0) { $0 + $1.passesLogged }
+            drillsMasteredThisMonth: progress.filter {
+                guard let masteredAt = $0.masteredAt else { return false }
+                return $0.isMastered && masteredAt >= monthStart
+            }.count,
+            sessionsThisMonth: sessions.filter { $0.completedAt >= monthStart }.count,
+            trainedDates: Set(sessions.map { Calendar.current.startOfDay(for: $0.completedAt) })
         )
     }
 
@@ -84,11 +94,11 @@ struct ParentReportView: View {
         ]
         return LazyVGrid(columns: columns, spacing: DS.Spacing.s12) {
             pillarCard(label: "Consistency", value: "\(vm.consistencyPercent)%",
-                       caption: "of training days completed")
+                       caption: "of the last 7 days trained")
             pillarCard(label: "Discipline", value: "\(vm.drillsMastered)",
                        caption: "drills mastered this month")
             pillarCard(label: "Accountability", value: "\(vm.sessionsLogged)",
-                       caption: "sessions logged honestly")
+                       caption: "sessions logged this month")
             pillarCard(label: "Growth", value: "+\(vm.newCertifications)",
                        caption: "new certifications earned")
         }

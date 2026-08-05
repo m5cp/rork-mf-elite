@@ -154,8 +154,9 @@ enum QuickLog {
 
         progress.passesLogged = min(ProgressionRules.masteryPasses, progress.passesLogged + 1)
         progress.lastLoggedAt = Date()
-        if progress.passesLogged >= ProgressionRules.masteryPasses {
+        if progress.passesLogged >= ProgressionRules.masteryPasses, !progress.isMastered {
             progress.isMastered = true
+            progress.masteredAt = Date()
         }
 
         let entry = SessionLogEntry(

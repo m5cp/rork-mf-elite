@@ -652,8 +652,16 @@ final class AcademyTodayViewModel {
     // MARK: - Quick Train
 
     /// Total seconds a drill takes: work across all sets + 15s rest between sets.
+    ///
+    /// `durationSec` is already the TOTAL across every set — DrillPlayerViewModel
+    /// divides by `sets` to get one set's length, and TrainingQueue and
+    /// SessionGenerator both treat it that way too. Multiplying by `sets` here
+    /// charged roughly 3x the real cost against the budget (135 of the 226
+    /// curriculum drills are 300s/3 sets: 330s actual, 930s charged), so a
+    /// "10 minute" Quick Train produced a single drill. That same path is the
+    /// new-player starter session.
     static func estimatedSeconds(_ d: Drill) -> Int {
-        d.durationSec * d.sets + max(0, d.sets - 1) * 15
+        d.durationSec + max(0, d.sets - 1) * 15
     }
 
     /// Assemble a time-boxed Quick Train queue.
@@ -739,7 +747,8 @@ final class AcademyTodayViewModel {
     /// Work seconds for a drill: duration across all sets (no rest), used to keep
     /// the activation pairing short.
     private func matchDayWorkSec(_ ctx: DrillContext) -> Int {
-        ctx.drill.durationSec * ctx.drill.sets
+        // See estimatedSeconds: durationSec already covers every set.
+        ctx.drill.durationSec
     }
 
     /// Assemble the Match Day pre-game routine from existing content:
