@@ -26,9 +26,10 @@ struct ShareMomentBody: View {
         case let .playerCard(rating, position, name, club, stats):
             PlayerCardBody(rating: rating, position: position, name: name, club: club,
                            stats: stats, theme: theme, show: show)
-        case let .combineResult(test, value, unit, delta, pct, pctLabel):
+        case let .combineResult(test, value, unit, delta, pct, pctLabel, isPersonalBest):
             CombineResultBody(test: test, value: value, unit: unit, delta: delta, pct: pct,
-                              pctLabel: pctLabel, playerLine: moment.playerLine, theme: theme, show: show)
+                              pctLabel: pctLabel, isPersonalBest: isPersonalBest,
+                              playerLine: moment.playerLine, theme: theme, show: show)
         case let .combineScorecard(overall, rows):
             CombineScorecardBody(overall: overall, rows: rows,
                                  playerLine: moment.playerLine, theme: theme, show: show)
@@ -231,12 +232,16 @@ private struct CombineResultBody: View {
     let delta: String
     let pct: Int
     let pctLabel: String
+    let isPersonalBest: Bool
     let playerLine: String
     let theme: ShareTheme
     let show: ShareShow
 
     var body: some View {
-        ShareEyebrow(text: "NEW PERSONAL BEST", theme: theme)
+        // The headline used to be hardcoded to "NEW PERSONAL BEST", so a player
+        // who logged a worse score, saw "Previous best stands", and tapped
+        // Share got a card announcing a personal best they hadn't set.
+        ShareEyebrow(text: isPersonalBest ? "NEW PERSONAL BEST" : "COMBINE RESULT", theme: theme)
 
         Text(test.uppercased())
             .font(ShareFont.display(84))
@@ -285,13 +290,21 @@ private struct CombineScorecardBody: View {
     var body: some View {
         ShareEyebrow(text: "COMBINE SCORECARD", theme: theme)
 
-        HStack(alignment: .lastTextBaseline, spacing: 30) {
-            Text("\(overall)")
-                .font(ShareFont.display(260))
+        // `overall == 0` means nothing could be graded (no birth year, so no
+        // age band). Show the raw results rather than a made-up OVR figure.
+        if overall > 0 {
+            HStack(alignment: .lastTextBaseline, spacing: 30) {
+                Text("\(overall)")
+                    .font(ShareFont.display(260))
+                    .foregroundStyle(theme.accent)
+                Text("OVR")
+                    .font(ShareFont.display(60))
+                    .foregroundStyle(theme.ink)
+            }
+        } else {
+            Text("MY RESULTS")
+                .font(ShareFont.display(120))
                 .foregroundStyle(theme.accent)
-            Text("OVR")
-                .font(ShareFont.display(60))
-                .foregroundStyle(theme.ink)
         }
 
         if show.stats {

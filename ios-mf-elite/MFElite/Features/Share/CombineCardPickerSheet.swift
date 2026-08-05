@@ -47,7 +47,7 @@ struct CombineCardPickerSheet: View {
                     .foregroundStyle(DS.Colors.Ink.tertiary)
                     .fixedSize(horizontal: false, vertical: true)
                 PrimaryButton(label: "Preview sample card") {
-                    onBuilt(.sample(kind, playerLine: ShareMomentBuilder.playerLine))
+                    onBuilt(.empty(kind, playerLine: ShareMomentBuilder.playerLine))
                     dismiss()
                 }
             } else {

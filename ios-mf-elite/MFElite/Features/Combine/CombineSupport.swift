@@ -114,7 +114,11 @@ enum CombineFormat {
             return String(format: "%.2f", value)
         }
         if value == value.rounded() {
-            return String(Int(value))
+            // `Int(value)` traps above Int.max. The score field is a decimal pad
+            // with no upper bound, so a long enough entry crashed here — and
+            // because the value is saved before the result screen formats it,
+            // it then crashed the Combine tab on every launch until reinstall.
+            return String(format: "%.0f", value)
         }
         return String(format: "%.1f", value)
     }

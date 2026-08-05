@@ -43,6 +43,22 @@ final class WatchSyncBridge: NSObject {
     /// App Group so the complication can render without the watch app running.
     func refreshAndPush() {
         guard let context else { return }
+        // Refresh the cached step count in the background and push again if it
+        // moved, so the watch ring shows a real number rather than a stale one.
+        if HealthKitService.shared.hasRequestedStepsAccess {
+            Task { @MainActor in
+                let before = HealthKitService.shared.cachedTodaySteps
+                _ = await HealthKitService.shared.fetchTodaySteps()
+                if HealthKitService.shared.cachedTodaySteps != before { self.pushCurrentSnapshot() }
+            }
+        }
+        pushCurrentSnapshot()
+    }
+
+    /// Build and send today's snapshot. Split out of `refreshAndPush` so the
+    /// async step refresh can re-send without re-entering it (and looping).
+    private func pushCurrentSnapshot() {
+        guard let context else { return }
         let payload = Self.buildGlanceData(context: context)
         WatchShared.save(payload)
         guard let session, session.activationState == .activated, session.isPaired else { return }
@@ -130,7 +146,7 @@ final class WatchSyncBridge: NSObject {
             mindGoal: DailyRings.mindGoal,
             streak: players.first?.streak ?? 0,
             xp: players.first?.xp ?? 0,
-            steps: 0,
+            steps: health.cachedTodaySteps,
             stepGoal: health.stepGoal,
             updatedAt: Date()
         )
