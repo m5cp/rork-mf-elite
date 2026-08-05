@@ -27,8 +27,15 @@ struct ShareEditorView: View {
     @State private var showPhotoPicker = false
     @State private var photoItem: PhotosPickerItem?
 
-    /// Gold used for the editor chrome accents (matches DS gold).
-    private let gold = Color(hex: "E8B84B")
+    // The editor used to hardcode `Color(hex: "E8B84B")` — AppAccent.gold frozen
+    // at compile time. A player on Crimson saw a crimson app and then a gold
+    // share editor. These resolve through the live accent instead.
+    //
+    // Per the design system's contrast rules: `base` for fills/strokes/tints,
+    // `textLight` for small accent TYPE, `inkOnGold` for ink on a solid fill.
+    private var accent: Color { DS.Colors.Gold.base }
+    private var accentText: Color { DS.Colors.Gold.textLight }
+    private var accentWash: Color { DS.Colors.Gold.soft }
 
     init(moment: ShareMoment, theme: ShareTheme = .gold) {
         _model = StateObject(wrappedValue: ShareEditorModel(moment: moment, themeID: theme.id))
@@ -41,13 +48,11 @@ struct ShareEditorView: View {
 
                 VStack(spacing: 0) {
                     formatRow
-                    if ShareXPService.isEligible(model.moment.kind) {
-                        Label("+5 XP per platform — first share on each app daily", systemImage: "bolt.fill")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(DS.Colors.Gold.textLight)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 6)
-                    }
+                    // Shared with the gallery so the two can't drift apart.
+                    // Hides itself for cards that earn nothing.
+                    ShareXPBanner(kind: model.moment.kind)
+                        .padding(.horizontal, DS.Spacing.s20)
+                        .padding(.bottom, DS.Spacing.s8)
                     previewArea
                     toolSection
                 }
@@ -145,10 +150,10 @@ struct ShareEditorView: View {
         } label: {
             Text(model.isExporting ? "Preparing…" : "Share")
                 .font(.system(size: 14, weight: .bold))
-                .foregroundStyle(Color(hex: "141005"))
+                .foregroundStyle(DS.Colors.Gold.inkOnGold)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
-                .background(gold)
+                .background(accent)
                 .clipShape(Capsule())
         }
         .disabled(model.isExporting)
@@ -174,13 +179,13 @@ struct ShareEditorView: View {
         } label: {
             Text("\(format.name) \(format.ratio)")
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(active ? gold : DS.Colors.Ink.tertiary)
+                .foregroundStyle(active ? accentText : DS.Colors.Ink.tertiary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .background(active ? gold.opacity(0.16) : Color.white.opacity(0.05))
+                .background(active ? accentWash : DS.Colors.Bg.raised)
                 .overlay(
                     RoundedRectangle(cornerRadius: 12)
-                        .stroke(active ? gold : Color.white.opacity(0.18), lineWidth: 1)
+                        .stroke(active ? accent : DS.Colors.Line.subtle, lineWidth: 1)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 12))
         }
@@ -229,7 +234,7 @@ struct ShareEditorView: View {
                 .background(Color.black.opacity(0.86))
                 .overlay(
                     RoundedRectangle(cornerRadius: 14)
-                        .stroke(gold.opacity(0.4), lineWidth: 1)
+                        .stroke(DS.Colors.Gold.line, lineWidth: 1)
                 )
                 .clipShape(RoundedRectangle(cornerRadius: 14))
                 .padding(.bottom, 16)
@@ -276,12 +281,12 @@ struct ShareEditorView: View {
                                 .frame(width: 44, height: 44)
                                 .overlay(Circle().fill(theme.accent).frame(width: 16, height: 16))
                                 .overlay(
-                                    Circle().stroke(active ? gold : Color.white.opacity(0.16),
+                                    Circle().stroke(active ? accent : DS.Colors.Line.hairline,
                                                     lineWidth: active ? 3 : 1)
                                 )
                             Text(theme.name)
                                 .font(.system(size: 11, weight: active ? .bold : .medium))
-                                .foregroundStyle(active ? gold : DS.Colors.Ink.tertiary)
+                                .foregroundStyle(active ? accentText : DS.Colors.Ink.tertiary)
                         }
                     }
                     .buttonStyle(PressableButtonStyle())
@@ -323,12 +328,12 @@ struct ShareEditorView: View {
                 Text(backdrop.name)
                     .font(.system(size: 13, weight: .semibold))
             }
-            .foregroundStyle(active ? gold : DS.Colors.Ink.tertiary)
+            .foregroundStyle(active ? accentText : DS.Colors.Ink.tertiary)
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
-            .background(active ? gold.opacity(0.16) : Color.white.opacity(0.05))
+            .background(active ? accentWash : DS.Colors.Bg.raised)
             .overlay(
-                Capsule().stroke(active ? gold : Color.white.opacity(0.18), lineWidth: 1)
+                Capsule().stroke(active ? accent : DS.Colors.Line.subtle, lineWidth: 1)
             )
             .clipShape(Capsule())
         }
@@ -394,12 +399,12 @@ struct ShareEditorView: View {
                             .font(.system(size: 13, weight: .semibold))
                             .lineLimit(1)
                     }
-                    .foregroundStyle(model.hasCaption ? gold : DS.Colors.Ink.primary)
+                    .foregroundStyle(model.hasCaption ? accentText : DS.Colors.Ink.primary)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(model.hasCaption ? gold.opacity(0.16) : Color.white.opacity(0.05))
+                    .background(model.hasCaption ? accentWash : DS.Colors.Bg.raised)
                     .overlay(
-                        Capsule().stroke(model.hasCaption ? gold : Color.white.opacity(0.18), lineWidth: 1)
+                        Capsule().stroke(model.hasCaption ? accent : DS.Colors.Line.subtle, lineWidth: 1)
                     )
                     .clipShape(Capsule())
                 }
@@ -411,10 +416,10 @@ struct ShareEditorView: View {
                     } label: {
                         Text("Remove")
                             .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(Color(hex: "F04A55"))
+                            .foregroundStyle(DS.Colors.Status.bad)
                             .padding(.horizontal, 16)
                             .padding(.vertical, 10)
-                            .overlay(Capsule().stroke(Color(hex: "F04A55").opacity(0.5), lineWidth: 1))
+                            .overlay(Capsule().stroke(DS.Colors.Status.bad.opacity(0.5), lineWidth: 1))
                     }
                     .buttonStyle(PressableButtonStyle())
                 }
@@ -498,7 +503,7 @@ struct ShareEditorView: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(DS.Colors.Ink.primary)
         }
-        .tint(gold)
+        .tint(accent)
         .frame(height: 40)
     }
 
@@ -515,10 +520,10 @@ struct ShareEditorView: View {
                         Image(systemName: tool.icon).font(.system(size: 16, weight: .semibold))
                         Text(tool.label).font(.system(size: 10, weight: .semibold))
                     }
-                    .foregroundStyle(active ? gold : DS.Colors.Ink.tertiary)
+                    .foregroundStyle(active ? accentText : DS.Colors.Ink.tertiary)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 8)
-                    .background(active ? gold.opacity(0.12) : Color.clear)
+                    .background(active ? accentWash : Color.clear)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(PressableButtonStyle())
@@ -543,7 +548,7 @@ struct ShareEditorView: View {
                     .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
                     .overlay(
                         RoundedRectangle(cornerRadius: DS.Radius.md)
-                            .stroke(captionError == nil ? Color.clear : Color(hex: "F04A55"), lineWidth: 1)
+                            .stroke(captionError == nil ? Color.clear : DS.Colors.Status.bad, lineWidth: 1)
                     )
                     .onChange(of: captionDraft) { _, newValue in
                         if newValue.count > CaptionModerator.maxLength {
@@ -556,7 +561,7 @@ struct ShareEditorView: View {
                     if let captionError {
                         Text(captionError)
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(Color(hex: "F04A55"))
+                            .foregroundStyle(DS.Colors.Status.bad)
                             .fixedSize(horizontal: false, vertical: true)
                             .transition(.opacity)
                     }
@@ -588,7 +593,7 @@ struct ShareEditorView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Add to card") { submitCaption() }
                         .fontWeight(.bold)
-                        .foregroundStyle(gold)
+                        .foregroundStyle(accentText)
                         .disabled(captionDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
@@ -682,7 +687,7 @@ private struct StickerItem: View {
     @State private var resizeStartRadius: CGFloat?
     @State private var resizeStartScale: CGFloat?
 
-    private let gold = Color(hex: "E8B84B")
+    private var accent: Color { DS.Colors.Gold.base }
 
     private var isSelected: Bool { model.selectedStickerID == sticker.id }
     private var center: CGPoint {
@@ -703,7 +708,7 @@ private struct StickerItem: View {
 
     private var outline: some View {
         RoundedRectangle(cornerRadius: 10)
-            .stroke(gold, lineWidth: 2.5)
+            .stroke(accent, lineWidth: 2.5)
             .padding(-8)
     }
 
@@ -716,7 +721,7 @@ private struct StickerItem: View {
                 .foregroundStyle(.white)
                 .frame(width: 30, height: 30)
                 .background(Circle().fill(Color.black.opacity(0.82)))
-                .overlay(Circle().stroke(gold, lineWidth: 1.5))
+                .overlay(Circle().stroke(accent, lineWidth: 1.5))
                 .frame(width: 44, height: 44)
                 .contentShape(Circle())
         }
@@ -726,7 +731,7 @@ private struct StickerItem: View {
 
     private var resizeHandle: some View {
         Circle()
-            .fill(gold)
+            .fill(accent)
             .frame(width: 26, height: 26)
             .overlay(
                 Image(systemName: "arrow.up.left.and.arrow.down.right")

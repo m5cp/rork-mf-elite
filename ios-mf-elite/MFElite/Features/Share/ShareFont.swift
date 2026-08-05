@@ -26,6 +26,23 @@ enum ShareFont {
         isDisplayAvailable ? .custom(displayName, size: size) : .system(size: size, weight: .black)
     }
 
+    /// Anton for IN-APP chrome, scaled with Dynamic Type.
+    ///
+    /// `display(_:)` above is deliberately fixed because cards render to a
+    /// 1080px image. Screen headlines are a different problem: the gallery
+    /// headline was frozen at 38pt while the body copy around it doubled at
+    /// accessibility sizes, which inverted the hierarchy.
+    static func displayScaled(
+        _ size: CGFloat,
+        relativeTo style: UIFont.TextStyle = .largeTitle
+    ) -> Font {
+        guard isDisplayAvailable, let base = UIFont(name: displayName, size: size) else {
+            // DS.Typography.scaled already takes a UIFont.TextStyle.
+            return DS.Typography.scaled(size, weight: .black, relativeTo: style)
+        }
+        return Font(UIFontMetrics(forTextStyle: style).scaledFont(for: base))
+    }
+
     /// System text font for labels, player line, and captions.
     static func text(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight)
