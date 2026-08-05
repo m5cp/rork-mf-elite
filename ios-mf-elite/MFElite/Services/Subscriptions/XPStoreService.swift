@@ -56,6 +56,9 @@ final class XPStoreService {
     private static let monthlyShieldKey = "MF_SHIELDS_MONTH" // "yyyy-MM|count"
     private static let monthlyBoosterKey = "MF_BOOSTER_MONTH" // "yyyy-MM|count"
     private static let processedKey = "MF_PROCESSED_TX" // idempotency guard
+    /// Purchases that were paid for but could not be credited yet, stored as
+    /// "productID|transactionID" so they can be retried on a later launch.
+    private static let pendingGrantsKey = "MF_PENDING_GRANTS"
 
     private(set) var products: [StoreProduct] = []
     private(set) var lastError: String?
@@ -63,8 +66,45 @@ final class XPStoreService {
 
     func configure(context: ModelContext) {
         self.context = context
+        retryPendingGrants()
         Task { await loadProducts() }
         Task { await listenForTransactions() }
+    }
+
+    // MARK: - Deferred grants
+
+    /// Retry purchases that were charged but couldn't be credited at the time —
+    /// typically because `PlayerState` didn't exist yet (a fresh install where
+    /// onboarding hasn't run, or a launch on the in-memory fallback store).
+    ///
+    /// RevenueCat finishes StoreKit transactions itself, so StoreKit will never
+    /// re-deliver these to us. If the app doesn't remember them, nobody does,
+    /// and the player is simply out the money.
+    private func retryPendingGrants() {
+        let pending = UserDefaults.standard.stringArray(forKey: Self.pendingGrantsKey) ?? []
+        guard !pending.isEmpty else { return }
+        var stillPending: [String] = []
+        for entry in pending {
+            let parts = entry.split(separator: "|", maxSplits: 1).map(String.init)
+            guard let productID = parts.first else { continue }
+            // An empty tail means the original had no transaction id; keep it
+            // nil rather than storing "" in the processed-transactions set.
+            let txID = (parts.count > 1 && !parts[1].isEmpty) ? parts[1] : nil
+            if !grant(productID: productID, storeTransactionID: txID, recordOnFailure: false) {
+                stillPending.append(entry)
+            }
+        }
+        UserDefaults.standard.set(stillPending, forKey: Self.pendingGrantsKey)
+    }
+
+    /// Remember a paid-for grant that couldn't be applied, so the next launch
+    /// can credit it.
+    private func recordPendingGrant(productID: String, storeTransactionID: String?) {
+        var pending = UserDefaults.standard.stringArray(forKey: Self.pendingGrantsKey) ?? []
+        let entry = "\(productID)|\(storeTransactionID ?? "")"
+        guard !pending.contains(entry) else { return }
+        pending.append(entry)
+        UserDefaults.standard.set(pending, forKey: Self.pendingGrantsKey)
     }
 
     func loadProducts() async {
@@ -155,10 +195,9 @@ final class XPStoreService {
             let delivered = grant(productID: product.productIdentifier,
                                   storeTransactionID: result.transaction?.transactionIdentifier)
             if !delivered {
-                // Charged but not yet credited. The transaction is deliberately
-                // left unfinished so StoreKit re-delivers it to the recovery
-                // listener on a later launch.
-                lastError = "Purchase went through but couldn't be applied yet. Reopen the app and it will be credited automatically."
+                // Charged but not creditable right now. It's saved to the
+                // pending-grants list and applied on the next launch.
+                lastError = "Purchase went through but couldn't be applied yet. It will be credited the next time you open the app."
             }
             return delivered
         } catch {
@@ -175,7 +214,11 @@ final class XPStoreService {
     /// unfinished is what lets StoreKit re-deliver it and the player eventually
     /// receive what they paid for.
     @discardableResult
-    private func grant(productID: String, storeTransactionID: String?) -> Bool {
+    private func grant(
+        productID: String,
+        storeTransactionID: String?,
+        recordOnFailure: Bool = true
+    ) -> Bool {
         // Check the idempotency record, but do NOT write it yet. Marking the
         // transaction processed before the grant actually landed meant that if
         // the PlayerState row wasn't there — a fresh install before onboarding
@@ -189,9 +232,17 @@ final class XPStoreService {
             return true
         }
 
+        guard let product = ProductID(rawValue: productID) else { return false }
+
         guard let context,
-              let player = try? context.fetch(FetchDescriptor<PlayerState>()).first,
-              let product = ProductID(rawValue: productID) else { return false }
+              let player = try? context.fetch(FetchDescriptor<PlayerState>()).first else {
+            // Paid for, but there is nowhere to put it yet. Remember it so a
+            // later launch can credit it — nothing else will.
+            if recordOnFailure {
+                recordPendingGrant(productID: productID, storeTransactionID: storeTransactionID)
+            }
+            return false
+        }
 
         // XP actually credited, which is not always `product.xpAmount` — an
         // over-cap streak freeze is paid out as XP instead.
@@ -245,10 +296,11 @@ final class XPStoreService {
     private func listenForTransactions() async {
         for await update in Transaction.updates {
             guard case .verified(let transaction) = update else { continue }
-            // Only finish once the grant landed. Finishing unconditionally told
-            // StoreKit "delivered" for a purchase that wasn't, so it was never
-            // re-offered and the player was charged for nothing.
-            guard grant(productID: transaction.productID, storeTransactionID: String(transaction.id)) else { continue }
+            // A failed grant is recorded to the pending list inside grant(),
+            // so it is retried on the next launch. Finish either way: RevenueCat
+            // owns finishing in its default mode, and leaving this unfinished
+            // buys nothing.
+            grant(productID: transaction.productID, storeTransactionID: String(transaction.id))
             await transaction.finish()
         }
     }

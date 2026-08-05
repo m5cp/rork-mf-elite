@@ -183,11 +183,18 @@ struct MFEliteApp: App {
         let descriptor = FetchDescriptor<DrillProgress>(
             predicate: #Predicate { $0.isMastered == true && $0.masteredAt == nil }
         )
-        if let rows = try? context.fetch(descriptor), !rows.isEmpty {
-            for row in rows {
-                row.masteredAt = row.lastLoggedAt ?? Date.distantPast
-            }
-            try? context.save()
+        // Only mark this done once it actually succeeded. Setting the flag
+        // unconditionally meant a single transient SwiftData failure would skip
+        // the backfill permanently for that install — and the parent report is
+        // exactly what this protects.
+        guard let rows = try? context.fetch(descriptor) else { return }
+        for row in rows {
+            row.masteredAt = row.lastLoggedAt ?? Date.distantPast
+        }
+        do {
+            try context.save()
+        } catch {
+            return  // try again next launch
         }
         UserDefaults.standard.set(true, forKey: key)
     }
