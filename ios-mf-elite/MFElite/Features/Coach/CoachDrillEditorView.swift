@@ -24,13 +24,89 @@ struct CoachDrillEditorView: View {
     @State private var searchText = ""
     @State private var editing: Drill?
     @State private var showNew = false
+    @State private var sortOrder: DrillSortOrder = .curriculum
+    @State private var filterDisciplineID: String?
+    @State private var filterLevel: Int?
+    @State private var editedOnly = false
+
+    /// How the editor list is ordered. Curriculum order is the default because
+    /// it matches how the drills are laid out everywhere else in the app.
+    enum DrillSortOrder: String, CaseIterable, Identifiable {
+        case curriculum = "Curriculum order"
+        case titleAZ = "Title A–Z"
+        case titleZA = "Title Z–A"
+        case levelAscending = "Level (low to high)"
+        case levelDescending = "Level (high to low)"
+        case shortestFirst = "Shortest first"
+        case longestFirst = "Longest first"
+
+        var id: String { rawValue }
+
+        var icon: String {
+            switch self {
+            case .curriculum:                     return "list.number"
+            case .titleAZ, .titleZA:              return "textformat"
+            case .levelAscending, .levelDescending: return "chart.bar"
+            case .shortestFirst, .longestFirst:   return "clock"
+            }
+        }
+    }
 
     private var viewModel: CurriculumSearchViewModel {
         CurriculumSearchViewModel(disciplines: disciplines, searchText: searchText)
     }
 
+    /// Every level number present in the curriculum, for the level filter.
+    private var allLevelNumbers: [Int] {
+        var levels: Set<Int> = []
+        for discipline in disciplines {
+            for category in discipline.categories {
+                for level in category.levels { levels.insert(level.number) }
+            }
+        }
+        return levels.sorted()
+    }
+
+    /// Search results with the coach's filters and sort applied. Without this
+    /// the editor was an unordered 270-row wall with no way to narrow it.
+    private var filteredResults: [SearchResult] {
+        var results = viewModel.searchDrills()
+
+        if let filterDisciplineID {
+            results = results.filter { $0.discipline.id == filterDisciplineID }
+        }
+        if let filterLevel {
+            results = results.filter { $0.level.number == filterLevel }
+        }
+        if editedOnly {
+            results = results.filter { $0.drill.coachEditedBy != nil || $0.drill.isCoachHidden }
+        }
+
+        switch sortOrder {
+        case .curriculum:
+            results.sort { $0.order < $1.order }
+        case .titleAZ:
+            results.sort { $0.drill.title.localizedCaseInsensitiveCompare($1.drill.title) == .orderedAscending }
+        case .titleZA:
+            results.sort { $0.drill.title.localizedCaseInsensitiveCompare($1.drill.title) == .orderedDescending }
+        case .levelAscending:
+            results.sort { ($0.level.number, $0.order) < ($1.level.number, $1.order) }
+        case .levelDescending:
+            results.sort { ($0.level.number, -$0.order) > ($1.level.number, -$1.order) }
+        case .shortestFirst:
+            results.sort { ($0.drill.durationSec, $0.order) < ($1.drill.durationSec, $1.order) }
+        case .longestFirst:
+            results.sort { ($0.drill.durationSec, -$0.order) > ($1.drill.durationSec, -$1.order) }
+        }
+        return results
+    }
+
+    private var hasActiveFilter: Bool {
+        filterDisciplineID != nil || filterLevel != nil || editedOnly
+    }
+
     var body: some View {
-        let results = viewModel.searchDrills()
+        let results = filteredResults
 
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 0) {
@@ -39,9 +115,25 @@ struct CoachDrillEditorView: View {
                     .padding(.top, DS.Spacing.s16)
                     .padding(.bottom, DS.Spacing.s8)
 
-                Eyebrow(text: "\(results.count) Drills")
-                    .padding(.horizontal, DS.Spacing.s20)
-                    .padding(.vertical, DS.Spacing.s8)
+                filterBar
+
+                HStack {
+                    Eyebrow(text: "\(results.count) Drill\(results.count == 1 ? "" : "s")")
+                    Spacer(minLength: DS.Spacing.s8)
+                    sortMenu
+                }
+                .padding(.horizontal, DS.Spacing.s20)
+                .padding(.vertical, DS.Spacing.s8)
+
+                if results.isEmpty {
+                    Text("No drills match. Try clearing the filters or the search.")
+                        .style(.body)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, DS.Spacing.s20)
+                        .padding(.top, DS.Spacing.s48)
+                }
 
                 ForEach(results) { result in
                     Button {
@@ -63,13 +155,97 @@ struct CoachDrillEditorView: View {
         .scrollIndicators(.hidden)
         .navigationTitle("Drill Editor")
         .navigationBarTitleDisplayMode(.inline)
-        .searchable(text: $searchText, prompt: "Search drills to edit…")
+        .searchable(text: $searchText, prompt: "Search 270 drills by name, focus or category")
         .sheet(item: $editing) { drill in
             CoachDrillEditSheet(drill: drill, model: model)
         }
         .sheet(isPresented: $showNew) {
             CoachNewDrillSheet(disciplines: disciplines, model: model)
         }
+    }
+
+    /// Sort picker. Kept as a Menu so it costs one row of chrome rather than a
+    /// second scrolling bar.
+    private var sortMenu: some View {
+        Menu {
+            Picker("Sort", selection: $sortOrder) {
+                ForEach(DrillSortOrder.allCases) { order in
+                    Label(order.rawValue, systemImage: order.icon).tag(order)
+                }
+            }
+        } label: {
+            HStack(spacing: DS.Spacing.s4) {
+                Image(systemName: "arrow.up.arrow.down")
+                    .font(.system(size: 11, weight: .bold))
+                Text(sortOrder.rawValue)
+                    .font(.system(size: 12, weight: .semibold))
+            }
+            .foregroundStyle(DS.Colors.Ink.secondary)
+        }
+    }
+
+    /// Discipline / level / edited filters plus a clear-all.
+    private var filterBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DS.Spacing.s8) {
+                if hasActiveFilter {
+                    chip(label: "Clear", selected: false, systemImage: "xmark") {
+                        filterDisciplineID = nil
+                        filterLevel = nil
+                        editedOnly = false
+                    }
+                }
+
+                chip(label: "Edited", selected: editedOnly, systemImage: "pencil") {
+                    editedOnly.toggle()
+                }
+
+                ForEach(disciplines) { discipline in
+                    chip(
+                        label: discipline.name,
+                        selected: filterDisciplineID == discipline.id
+                    ) {
+                        filterDisciplineID = (filterDisciplineID == discipline.id) ? nil : discipline.id
+                    }
+                }
+
+                ForEach(allLevelNumbers, id: \.self) { level in
+                    chip(label: "LV\(level)", selected: filterLevel == level) {
+                        filterLevel = (filterLevel == level) ? nil : level
+                    }
+                }
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+        }
+        .padding(.bottom, DS.Spacing.s4)
+    }
+
+    private func chip(
+        label: String,
+        selected: Bool,
+        systemImage: String? = nil,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            withAnimation(DS.Motion.standardSpring) { action() }
+        } label: {
+            HStack(spacing: DS.Spacing.s4) {
+                if let systemImage {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 10, weight: .bold))
+                }
+                Text(label)
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundStyle(selected ? DS.Colors.Ground.primary : DS.Colors.Ink.secondary)
+            .padding(.vertical, 7)
+            .padding(.horizontal, 14)
+            .background(selected ? Color.white : DS.Colors.Bg.raised)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(DS.Colors.Line.hairline, lineWidth: 1))
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 
     private var addNewRow: some View {

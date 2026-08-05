@@ -426,7 +426,10 @@ final class SupabaseAuth {
             table: "coaches",
             values: ["user_id": userID],
             match: [
-                URLQueryItem(name: "email", value: "ilike.\(mail)"),
+                // `eq.`, not `ilike.` — `_` and `%` are ILIKE wildcards, so an
+                // address like `mf_elitetraining@gmail.com` would have matched
+                // the real `mf.elitetraining@gmail.com` row and claimed it.
+                URLQueryItem(name: "email", value: "eq.\(mail)"),
                 URLQueryItem(name: "user_id", value: "is.null")
             ]
         )
