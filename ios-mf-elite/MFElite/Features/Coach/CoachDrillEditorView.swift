@@ -164,6 +164,9 @@ private struct CoachDrillEditSheet: View {
     @State private var fields: DrillEditFields
     @State private var isSaving = false
     @State private var showHideConfirm = false
+    /// Non-nil when the last write failed, so the sheet stays open and says so
+    /// instead of closing with a success buzz.
+    @State private var saveError: String?
 
     init(drill: Drill, model: CoachViewModel) {
         self.drill = drill
@@ -217,26 +220,52 @@ private struct CoachDrillEditSheet: View {
             } message: {
                 Text("Players who haven't trained it stop seeing it. Anyone who already logged it keeps their history.")
             }
+            .alert("Couldn't save", isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )) {
+                Button("OK", role: .cancel) { saveError = nil }
+            } message: {
+                Text(saveError ?? "")
+            }
         }
         .preferredColorScheme(.dark)
     }
 
+    /// Save, and only dismiss when the write actually landed. This used to fire
+    /// a success haptic and close regardless: a coach authoring a drill on a
+    /// flaky connection got a confirmation buzz and lost the whole thing.
     private func save() async {
         isSaving = true
-        await model.publishDrillEdit(original: drill, edited: fields)
+        let ok = await model.publishDrillEdit(original: drill, edited: fields)
+        isSaving = false
+        guard ok else {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            saveError = "Couldn't save. Check your connection and try again."
+            return
+        }
+        saveError = nil
         await CurriculumOverlay.refresh(context: modelContext)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()
     }
 
     private func hide() async {
-        await model.hideDrill(drill)
+        guard await model.hideDrill(drill) else {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            saveError = "Couldn't hide this drill. Check your connection and try again."
+            return
+        }
         await CurriculumOverlay.refresh(context: modelContext)
         dismiss()
     }
 
     private func revert() async {
-        await model.revertDrillEdit(drillID: drill.id)
+        guard await model.revertDrillEdit(drillID: drill.id) else {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            saveError = "Couldn't revert this drill. Check your connection and try again."
+            return
+        }
         await CurriculumOverlay.refresh(context: modelContext)
         dismiss()
     }
@@ -254,6 +283,8 @@ private struct CoachNewDrillSheet: View {
     @State private var categoryID: String = ""
     @State private var levelNumber: Int = 1
     @State private var isSaving = false
+    /// Non-nil when publishing failed, so the sheet stays open and says so.
+    @State private var saveError: String?
     /// Stable id generated once when the sheet appears, so media uploads and the
     /// published drill share the same identifier.
     @State private var newDrillID = "COACH-" + UUID().uuidString.prefix(8).uppercased()
@@ -318,13 +349,31 @@ private struct CoachNewDrillSheet: View {
             .onChange(of: categoryID) { _, _ in
                 if !levelNumbers.contains(levelNumber) { levelNumber = levelNumbers.first ?? 1 }
             }
+            .alert("Couldn't publish", isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )) {
+                Button("OK", role: .cancel) { saveError = nil }
+            } message: {
+                Text(saveError ?? "")
+            }
         }
         .preferredColorScheme(.dark)
     }
 
     private func publish() async {
         isSaving = true
-        await model.publishNewDrill(drillID: String(newDrillID), categoryID: categoryID, levelNumber: levelNumber, fields: fields)
+        let ok = await model.publishNewDrill(
+            drillID: String(newDrillID), categoryID: categoryID,
+            levelNumber: levelNumber, fields: fields
+        )
+        isSaving = false
+        guard ok else {
+            UINotificationFeedbackGenerator().notificationOccurred(.error)
+            saveError = "Couldn't publish this drill. Check your connection and try again."
+            return
+        }
+        saveError = nil
         await CurriculumOverlay.refresh(context: modelContext)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         dismiss()

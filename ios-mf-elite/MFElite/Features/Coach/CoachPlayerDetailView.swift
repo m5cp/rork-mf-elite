@@ -23,6 +23,12 @@ struct CoachPlayerDetailView: View {
     @State private var noteDraft: String = ""
     @State private var noteSaved = false
     @State private var showReportBuilder = false
+    /// Non-nil when a coach save failed.
+    @State private var saveError: String?
+    /// The server values the drafts were last synced from, so a refresh that
+    /// lands mid-edit doesn't overwrite what the coach is typing.
+    @State private var loadedFocus: String = ""
+    @State private var loadedNote: String = ""
 
     private var currentMonthKey: String {
         let formatter = DateFormatter()
@@ -96,6 +102,14 @@ struct CoachPlayerDetailView: View {
             await model.loadNotes(for: player.id)
             syncDrafts()
         }
+        .alert("Couldn't save", isPresented: Binding(
+            get: { saveError != nil },
+            set: { if !$0 { saveError = nil } }
+        )) {
+            Button("OK", role: .cancel) { saveError = nil }
+        } message: {
+            Text(saveError ?? "")
+        }
         .onChange(of: focusDraft) { _, _ in focusSaved = false }
         .onChange(of: noteDraft) { _, _ in noteSaved = false }
         .sheet(item: $shareImage) { item in
@@ -110,9 +124,22 @@ struct CoachPlayerDetailView: View {
     }
 
     /// Sync editable drafts from freshly-loaded data (focus + this month's note).
+    /// Pull server values into the editors, but never clobber in-progress
+    /// typing. This ran from both `.task` and `.refreshable` and assigned
+    /// unconditionally, so a coach who started writing while the detail fetch
+    /// (six round-trips) was still in flight had their text wiped when it landed.
     private func syncDrafts() {
-        focusDraft = model.detailCache[player.id]?.coachFocus ?? ""
-        noteDraft = currentMonthNote?.body ?? ""
+        let serverFocus = model.detailCache[player.id]?.coachFocus ?? ""
+        if focusDraft.isEmpty || focusDraft == loadedFocus {
+            focusDraft = serverFocus
+        }
+        loadedFocus = serverFocus
+
+        let serverNote = currentMonthNote?.body ?? ""
+        if noteDraft.isEmpty || noteDraft == loadedNote {
+            noteDraft = serverNote
+        }
+        loadedNote = serverNote
     }
 
     // MARK: - Trend (last 8 weeks)
@@ -234,8 +261,10 @@ struct CoachPlayerDetailView: View {
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         Task {
-                            await model.saveCoachFocus(focusDraft, for: player.id)
-                            focusSaved = true
+                            // Only claim "Saved" when it actually saved.
+                            let ok = await model.saveCoachFocus(focusDraft, for: player.id)
+                            focusSaved = ok
+                            if !ok { saveError = "Couldn't save that focus. Check your connection and try again." }
                         }
                     } label: {
                         Text(focusSaved ? "Saved" : "Save focus")
@@ -269,8 +298,9 @@ struct CoachPlayerDetailView: View {
                     Button {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         Task {
-                            await model.saveNote(month: currentMonthKey, text: noteDraft, for: player.id)
-                            noteSaved = true
+                            let ok = await model.saveNote(month: currentMonthKey, text: noteDraft, for: player.id)
+                            noteSaved = ok
+                            if !ok { saveError = "Couldn't save that note. Check your connection and try again." }
                         }
                     } label: {
                         Text(noteSaved ? "Saved" : "Save note")
