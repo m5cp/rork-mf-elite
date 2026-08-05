@@ -882,10 +882,6 @@ private struct AccountEditSheet: View {
     @State private var selectedBirthYear: Int = 0
     @FocusState private var inputFocused: Bool
 
-    private var birthYearRange: [Int] {
-        let current = Calendar.current.component(.year, from: Date())
-        return Array((current - 60)...(current - 4)).reversed()
-    }
 
     private let positions = ["Goalkeeper", "Defender", "Midfielder", "Forward", "Winger", "No preference"]
 
@@ -922,15 +918,9 @@ private struct AccountEditSheet: View {
                             .style(.foot)
                             .foregroundStyle(DS.Colors.Ink.quaternary)
                             .fixedSize(horizontal: false, vertical: true)
-                        Picker("Year of birth", selection: $selectedBirthYear) {
-                            Text("Not set").tag(0)
-                            ForEach(birthYearRange, id: \.self) { year in
-                                Text(String(year)).tag(year)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(maxWidth: .infinity)
-                        .tint(DS.Colors.Ink.primary)
+                        // Was a .wheel over 58 years, which shows four at a
+                        // time. BirthYearField narrows by decade first.
+                        BirthYearField(year: $selectedBirthYear)
                     }
                 }
                 Spacer()

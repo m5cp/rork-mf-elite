@@ -27,6 +27,8 @@ struct FavoritesView: View {
     @State private var sharingWorkout: ShareableWorkout?
     @State private var lastLogResult: QuickLog.Result?
     @State private var streakMilestone: StreakMilestone?
+    @State private var drillSearch = ""
+    @State private var drillDisciplineID: String?
 
     private struct MarkCompleteTarget: Identifiable {
         let id = UUID()
@@ -52,10 +54,41 @@ struct FavoritesView: View {
         workouts.filter { favorites.isFavoriteWorkout($0.id) }
     }
 
-    private var favDrills: [ResolvedDrill] {
+    /// Every favourited drill, resolved. Can reach the full 226-drill
+    /// curriculum, since any drill can be hearted.
+    private var allFavDrills: [ResolvedDrill] {
         let index = drillIndex
         return favorites.drillIDs.compactMap { index[$0] }
-            .sorted { $0.drill.title.localizedCaseInsensitiveCompare($1.drill.title) == .orderedAscending }
+    }
+
+    /// Disciplines that actually appear in the player's favourites, so the
+    /// filter row only offers chips that will return something.
+    private var favDisciplines: [Discipline] {
+        let present = Set(allFavDrills.map { $0.discipline.id })
+        return disciplines.filter { present.contains($0.id) }
+    }
+
+    /// Favourited drills after the search and discipline filter, ordered by
+    /// curriculum position rather than alphabetically — a flat A-Z list of up
+    /// to 226 drills ignored the structure the rest of the app is organised by.
+    private var favDrills: [ResolvedDrill] {
+        let query = drillSearch.trimmingCharacters(in: .whitespaces).lowercased()
+        var result = allFavDrills
+
+        if let drillDisciplineID {
+            result = result.filter { $0.discipline.id == drillDisciplineID }
+        }
+        if !query.isEmpty {
+            result = result.filter {
+                $0.drill.title.lowercased().contains(query)
+                    || $0.drill.focus.lowercased().contains(query)
+                    || $0.category.name.lowercased().contains(query)
+            }
+        }
+        return result.sorted {
+            ($0.discipline.sortIndex, $0.category.sortIndex, $0.level.number, $0.drill.sortIndex)
+                < ($1.discipline.sortIndex, $1.category.sortIndex, $1.level.number, $1.drill.sortIndex)
+        }
     }
 
     var body: some View {
@@ -73,15 +106,16 @@ struct FavoritesView: View {
                     if !favWorkouts.isEmpty {
                         workoutsSection(index, doneToday: doneToday)
                     }
-                    if !favDrills.isEmpty {
+                    if !allFavDrills.isEmpty {
                         drillsSection
                     }
                 }
             }
-            .padding(.bottom, 120)
+            .padding(.bottom, DS.tabBarClearance + DS.Spacing.s24)
         }
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)
+        .searchable(text: $drillSearch, prompt: "Search your saved drills")
         .navigationTitle("Favorites")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $sharingWorkout) { workout in WorkoutShareView(workout: workout) }
@@ -187,14 +221,38 @@ struct FavoritesView: View {
     }
 
     private var drillsSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Eyebrow(text: "Drills")
-                .padding(.horizontal, DS.Spacing.s20)
-                .padding(.bottom, DS.Spacing.s4)
-            ForEach(favDrills) { item in
+        let shown = favDrills
+        return LazyVStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Eyebrow(text: "Drills")
+                Spacer(minLength: DS.Spacing.s8)
+                Text("\(shown.count) of \(allFavDrills.count)")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.bottom, DS.Spacing.s8)
+
+            // Only worth a filter row once the list is long enough to scroll.
+            if favDisciplines.count > 1, allFavDrills.count > 6 {
+                disciplineFilterRow
+                    .padding(.bottom, DS.Spacing.s8)
+            }
+
+            if shown.isEmpty {
+                Text("No saved drills match. Try clearing the filter or the search.")
+                    .style(.body)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal, DS.Spacing.s20)
+                    .padding(.top, DS.Spacing.s24)
+            }
+
+            ForEach(shown) { item in
                 FavoriteDrillRow(
                     item: item,
-                    isLast: item.id == favDrills.last?.id,
+                    isLast: item.id == shown.last?.id,
                     onUnfavorite: {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         withAnimation(DS.Motion.standardSpring) { favorites.toggleDrill(item.drill.id) }
@@ -203,6 +261,48 @@ struct FavoritesView: View {
             }
         }
         .padding(.top, DS.Spacing.s32)
+    }
+
+    private var disciplineFilterRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: DS.Spacing.s8) {
+                filterChip(label: "All", selected: drillDisciplineID == nil) {
+                    drillDisciplineID = nil
+                }
+                ForEach(favDisciplines) { discipline in
+                    filterChip(
+                        label: discipline.name,
+                        selected: drillDisciplineID == discipline.id
+                    ) {
+                        drillDisciplineID = (drillDisciplineID == discipline.id) ? nil : discipline.id
+                    }
+                }
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+        }
+    }
+
+    private func filterChip(
+        label: String,
+        selected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            withAnimation(DS.Motion.standardSpring) { action() }
+        } label: {
+            Text(label)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(selected ? DS.Colors.Ground.primary : DS.Colors.Ink.secondary)
+                .padding(.vertical, 7)
+                .padding(.horizontal, 14)
+                .background(selected ? Color.white : DS.Colors.Bg.raised)
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 
     // MARK: - Empty state
