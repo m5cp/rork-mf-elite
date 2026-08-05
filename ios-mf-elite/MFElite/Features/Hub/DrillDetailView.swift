@@ -126,6 +126,9 @@ struct DrillDetailView: View {
         .safeAreaInset(edge: .bottom) {
             bottomCTA(vm)
         }
+        // The pinned CTA owns the bottom band on this screen, so the app-wide
+        // floating search button would sit on its trailing end.
+        .suppressesFloatingSearch()
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)
         .navigationBarHidden(true)

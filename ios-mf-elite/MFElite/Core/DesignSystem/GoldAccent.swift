@@ -174,14 +174,59 @@ extension DS.Colors {
 
 /// A 3-D metallic finish (accent or silver) for an SF Symbol / image: a top-lit
 /// metal gradient plus a soft drop shadow for lift.
+/// How symbols and avatars are finished across the app.
+///
+/// The accent hue is already user-selectable; this is the second axis the
+/// owner asked for — whether identity symbols pick the accent up at all, or
+/// stay monochrome. Some people want a gold app; some want black-and-white
+/// with gold used sparingly. Persisted alongside the accent.
+enum SymbolStyle: String, CaseIterable, Identifiable {
+    /// Icons, avatars, badges and seals take the accent. Default.
+    case accent
+    /// Everything stays white/ink; the accent appears only on progress fills
+    /// and selection states, where it carries meaning rather than decoration.
+    case monochrome
+
+    var id: String { rawValue }
+
+    static let storageKey = "MF_SYMBOL_STYLE"
+
+    /// Read synchronously so Canvas / paint-time code can resolve it.
+    static var current: SymbolStyle {
+        SymbolStyle(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .accent
+    }
+
+    var displayName: String {
+        switch self {
+        case .accent:     return "Accent"
+        case .monochrome: return "Monochrome"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .accent:     return "Icons, avatars and badges use your accent color."
+        case .monochrome: return "Icons and avatars stay white. Accent is kept for progress and selection."
+        }
+    }
+}
+
 struct MetallicSymbol: ViewModifier {
     enum Finish { case gold, silver }
     var finish: Finish = .gold
 
     func body(content: Content) -> some View {
         content
-            .foregroundStyle(finish == .gold ? DS.Colors.Gold.symbolGradient : DS.Colors.Silver.symbolGradient)
+            .foregroundStyle(shading)
             .shadow(color: .black.opacity(0.45), radius: 2, y: 1.5)
+    }
+
+    /// Honors the user's symbol-style preference. In monochrome the symbol
+    /// keeps the metallic depth but drops to a neutral ramp, so the finish
+    /// still reads as deliberate rather than flat white.
+    private var shading: LinearGradient {
+        guard SymbolStyle.current == .accent else { return DS.Colors.Silver.symbolGradient }
+        return finish == .gold ? DS.Colors.Gold.symbolGradient : DS.Colors.Silver.symbolGradient
     }
 }
 

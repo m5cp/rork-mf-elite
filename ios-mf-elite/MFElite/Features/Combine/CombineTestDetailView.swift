@@ -58,6 +58,8 @@ struct CombineTestDetailView: View {
                 .ignoresSafeArea()
             )
         }
+        // The pinned "Start test" CTA owns the bottom band on this screen.
+        .suppressesFloatingSearch()
         .fullScreenCover(item: $runningTest) { test in
             CombineTestFlowView(test: test)
         }

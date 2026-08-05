@@ -411,22 +411,29 @@ private struct BallonDorNode: View {
     let coachName: String?
     let requirementText: String
 
-    private static let gold = Color(red: 0.86, green: 0.71, blue: 0.36)
+    // The award surfaces used to hardcode Color(red: 0.86, green: 0.71, blue: 0.36)
+    // (≈#DBB55C), which meant picking Crimson or Royal left this one node stubbornly
+    // gold. These now resolve through the live accent.
+    private static var accent: Color { DS.Colors.Gold.base }
+    /// Small accent TYPE must use textLight at full opacity (GoldAccent.swift rules).
+    private static var accentText: Color { DS.Colors.Gold.textLight }
+    /// Ink for text sitting ON a solid accent fill — `.black` is wrong for Royal.
+    private static var accentInk: Color { DS.Colors.Gold.inkOnGold }
     private var isApproved: Bool { state == .approved }
 
     var body: some View {
         HStack(alignment: .top, spacing: DS.Spacing.s16) {
             VStack(spacing: 0) {
                 Circle()
-                    .fill(isApproved ? AnyShapeStyle(Self.gold) : AnyShapeStyle(Color.clear))
+                    .fill(isApproved ? AnyShapeStyle(Self.accent) : AnyShapeStyle(Color.clear))
                     .frame(width: 44, height: 44)
                     .overlay(
-                        Circle().stroke(isApproved ? Self.gold : DS.Colors.Line.subtle, lineWidth: isApproved ? 0 : 1)
+                        Circle().stroke(isApproved ? Self.accent : DS.Colors.Line.subtle, lineWidth: isApproved ? 0 : 1)
                     )
                     .overlay(
                         Image(systemName: "trophy.fill")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundStyle(isApproved ? Color.black : (state == .locked ? DS.Colors.Ink.disabled : Self.gold))
+                            .foregroundStyle(isApproved ? Self.accentInk : (state == .locked ? DS.Colors.Ink.disabled : Self.accent))
                     )
             }
             .frame(width: 44)
@@ -438,7 +445,9 @@ private struct BallonDorNode: View {
                 }
                 Text(AppConfigStore.shared.awardTitle)
                     .style(.title3)
-                    .foregroundStyle(isApproved ? Self.gold : DS.Colors.Ink.primary)
+                    // Titles stay white per the design system's contrast rules —
+                    // this was rendering 17pt semibold in raw accent on black.
+                    .foregroundStyle(DS.Colors.Ink.primary)
                 Text(subtitle)
                     .style(.micro)
                     .foregroundStyle(isApproved ? DS.Colors.Ink.secondary : DS.Colors.Ink.quaternary)
@@ -468,22 +477,22 @@ private struct BallonDorNode: View {
             Text("Pending")
                 .style(.microSm)
         }
-        .foregroundStyle(Self.gold)
+        .foregroundStyle(Self.accentText)
         .padding(.vertical, 3)
         .padding(.horizontal, 8)
         .overlay(
             RoundedRectangle(cornerRadius: DS.Radius.pill)
-                .stroke(Self.gold.opacity(0.5), lineWidth: 1)
+                .stroke(DS.Colors.Gold.line, lineWidth: 1)
         )
     }
 
     private var approvedChip: some View {
         Text("Unlocked")
             .style(.microSm)
-            .foregroundStyle(.black)
+            .foregroundStyle(Self.accentInk)
             .padding(.vertical, 3)
             .padding(.horizontal, 8)
-            .background(Self.gold)
+            .background(Self.accent)
             .clipShape(RoundedRectangle(cornerRadius: DS.Radius.pill))
     }
 }

@@ -34,7 +34,7 @@ struct CoachLockGate<Content: View>: View {
             Spacer()
             Image(systemName: "lock.shield.fill")
                 .font(.system(size: 44, weight: .semibold))
-                .foregroundStyle(DS.Colors.Ink.secondary)
+                .metallicSymbol(.gold)
             VStack(spacing: DS.Spacing.s8) {
                 Text("Coach Mode is locked")
                     .style(.title2)

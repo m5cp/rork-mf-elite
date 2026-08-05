@@ -175,20 +175,14 @@ private struct RenameRow: View {
                     .frame(height: 40)
                     .background(DS.Colors.Bg.raised)
                     .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
-                Button {
-                    guard !isSaving, isMeaningfulChange else { return }
+                ConfirmButton(
+                    isEnabled: isMeaningfulChange,
+                    isBusy: isSaving,
+                    isConfirmed: !isMeaningfulChange && hasOverride,
+                    label: "Publish rename"
+                ) {
                     showPublishConfirm = true
-                } label: {
-                    Text(isSaving ? "…" : "Save")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(isMeaningfulChange ? DS.Colors.Ground.primary : DS.Colors.Ink.quaternary)
-                        .padding(.horizontal, DS.Spacing.s12)
-                        .frame(height: 40)
-                        .background(isMeaningfulChange ? Color.white : DS.Colors.Bg.raised)
-                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
                 }
-                .buttonStyle(PressableButtonStyle())
-                .disabled(!isMeaningfulChange || isSaving)
                 if hasOverride {
                     Button {
                         Task {
@@ -229,6 +223,33 @@ private struct RenameRow: View {
     }
 }
 
+/// One renameable thing, flattened with the group it belongs to.
+private struct RenameItem: Identifiable {
+    let kind: String
+    let targetID: String
+    let name: String
+    /// "Technical · Ball Mastery" — the category or program it sits under.
+    let group: String
+    var id: String { "\(kind)|\(targetID)" }
+}
+
+/// A sub-heading inside a section (a discipline, or a discipline · category).
+private struct RenameGroup: Identifiable {
+    let title: String
+    let items: [RenameItem]
+    var id: String { title }
+}
+
+/// One collapsible kind: Ranks, Drills, Levels…
+private struct RenameSection: Identifiable {
+    let kind: String
+    let title: String
+    let note: String?
+    let groups: [RenameGroup]
+    var id: String { kind }
+    var count: Int { groups.reduce(0) { $0 + $1.items.count } }
+}
+
 struct RenameBrowserView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query(sort: \CombineTest.sortIndex) private var combineTests: [CombineTest]
@@ -236,48 +257,334 @@ struct RenameBrowserView: View {
     @State private var awardText = ""
     @State private var showAwardConfirm = false
     @State private var searchText = ""
+    @State private var expanded: Set<String> = []
 
-    private var allDrills: [(discipline: Discipline, category: Category, level: MasteryLevel, drill: Drill)] {
-        var result: [(discipline: Discipline, category: Category, level: MasteryLevel, drill: Drill)] = []
-        for discipline in disciplines {
-            for category in discipline.categories {
-                for level in category.levels.sorted(by: { $0.sortIndex < $1.sortIndex }) {
-                    for drill in level.drills.sorted(by: { $0.sortIndex < $1.sortIndex }) {
-                        result.append((discipline, category, level, drill))
+    // MARK: - Model
+
+    /// Everything renameable, grouped by the category or program it belongs to.
+    ///
+    /// This screen used to render all seven kinds as flat, always-visible
+    /// sections in one non-lazy ScrollView — about 342 editable rows, each with
+    /// its own TextField, state, config observer and alert, built eagerly on
+    /// appear. The search box only filtered the drills; the other 116 rows were
+    /// always on screen.
+    private var sections: [RenameSection] {
+        let sortedCategories: (Discipline) -> [Category] = { discipline in
+            discipline.categories.sorted { $0.sortIndex < $1.sortIndex }
+        }
+
+        var result: [RenameSection] = []
+
+        result.append(
+            RenameSection(
+                kind: "rank",
+                title: "Ranks",
+                note: "The academy pathway names.",
+                groups: [
+                    RenameGroup(
+                        title: "Academy pathway",
+                        items: AcademyRank.allCases.map {
+                            RenameItem(kind: "rank", targetID: "\($0.rawValue)",
+                                       name: $0.title, group: "Academy pathway")
+                        }
+                    )
+                ]
+            )
+        )
+
+        result.append(
+            RenameSection(
+                kind: "discipline",
+                title: "Disciplines",
+                note: "The four training pillars.",
+                groups: [
+                    RenameGroup(
+                        title: "Training pillars",
+                        items: disciplines.map {
+                            RenameItem(kind: "discipline", targetID: $0.id,
+                                       name: $0.name, group: "Training pillars")
+                        }
+                    )
+                ]
+            )
+        )
+
+        result.append(
+            RenameSection(
+                kind: "category",
+                title: "Categories",
+                note: "Grouped by the discipline they belong to.",
+                groups: disciplines.map { discipline in
+                    RenameGroup(
+                        title: discipline.name,
+                        items: sortedCategories(discipline).map {
+                            RenameItem(kind: "category", targetID: $0.id,
+                                       name: $0.name, group: discipline.name)
+                        }
+                    )
+                }
+            )
+        )
+
+        result.append(
+            RenameSection(
+                kind: "level",
+                title: "Levels",
+                note: "Grouped by discipline and category.",
+                groups: disciplines.flatMap { discipline in
+                    sortedCategories(discipline).map { category in
+                        let group = "\(discipline.name) · \(category.name)"
+                        return RenameGroup(
+                            title: group,
+                            items: category.levels
+                                .sorted { $0.sortIndex < $1.sortIndex }
+                                .map {
+                                    RenameItem(kind: "level", targetID: $0.id,
+                                               name: $0.name, group: group)
+                                }
+                        )
                     }
                 }
-            }
-        }
+            )
+        )
+
+        result.append(
+            RenameSection(
+                kind: "drill",
+                title: "Drills",
+                note: "Grouped by discipline and category.",
+                groups: disciplines.flatMap { discipline in
+                    sortedCategories(discipline).map { category in
+                        let group = "\(discipline.name) · \(category.name)"
+                        return RenameGroup(
+                            title: group,
+                            items: category.levels
+                                .sorted { $0.sortIndex < $1.sortIndex }
+                                .flatMap { level in
+                                    level.drills
+                                        .sorted { $0.sortIndex < $1.sortIndex }
+                                        .map {
+                                            RenameItem(kind: "drill", targetID: $0.id,
+                                                       name: $0.title, group: group)
+                                        }
+                                }
+                        )
+                    }
+                }
+            )
+        )
+
+        result.append(
+            RenameSection(
+                kind: "combine_test",
+                title: "Combine Tests",
+                note: nil,
+                groups: [
+                    RenameGroup(
+                        title: "MF Combine",
+                        items: combineTests.map {
+                            RenameItem(kind: "combine_test", targetID: $0.id,
+                                       name: $0.name, group: "MF Combine")
+                        }
+                    )
+                ]
+            )
+        )
+
+        result.append(
+            RenameSection(
+                kind: "certification",
+                title: "Certifications",
+                note: "One per category.",
+                groups: disciplines.map { discipline in
+                    RenameGroup(
+                        title: discipline.name,
+                        items: sortedCategories(discipline).map {
+                            RenameItem(kind: "certification", targetID: $0.id,
+                                       name: $0.certName, group: discipline.name)
+                        }
+                    )
+                }
+            )
+        )
+
         return result
     }
 
-    private var filteredDrills: [(discipline: Discipline, category: Category, level: MasteryLevel, drill: Drill)] {
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard !query.isEmpty else { return allDrills }
-        return allDrills.filter { $0.drill.title.lowercased().contains(query) || $0.drill.id.lowercased().contains(query) }
+    private var query: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
+    private var isSearching: Bool { !query.isEmpty }
+
+    /// Sections with the search applied, dropping anything that ends up empty.
+    /// The search now spans every kind, not just drills.
+    private var visibleSections: [RenameSection] {
+        guard isSearching else { return sections }
+        return sections.compactMap { section in
+            let groups = section.groups.compactMap { group -> RenameGroup? in
+                let items = group.items.filter {
+                    $0.name.lowercased().contains(query)
+                        || $0.targetID.lowercased().contains(query)
+                        || group.title.lowercased().contains(query)
+                }
+                return items.isEmpty ? nil : RenameGroup(title: group.title, items: items)
+            }
+            return groups.isEmpty
+                ? nil
+                : RenameSection(kind: section.kind, title: section.title,
+                                note: section.note, groups: groups)
+        }
+    }
+
+    /// Both hero-card numbers from a single curriculum walk. Read once in
+    /// `body` and passed down — reading it twice would walk it twice.
+    private var totals: (items: Int, groups: Int) {
+        let all = sections
+        return (all.reduce(0) { $0 + $1.count }, all.count)
+    }
+
+    // MARK: - Body
+
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: DS.Spacing.s24) {
+        // Bound once per body pass. `sections` builds ~342 items by walking the
+        // whole curriculum, and heroCard, matchCount, the empty check and the
+        // ForEach each used to rebuild it from scratch.
+        let shown = visibleSections
+        let matches = shown.reduce(0) { $0 + $1.count }
+        let counts = totals
+        return ScrollView {
+            LazyVStack(alignment: .leading, spacing: DS.Spacing.s16) {
+                heroCard(items: counts.items, groups: counts.groups)
+
                 awardSection
-                ranksSection
-                disciplinesSection
-                categoriesSection
-                levelsSection
-                drillsSection
-                combineSection
-                certificationsSection
+
+                if isSearching {
+                    Text("\(matches) match\(matches == 1 ? "" : "es")")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+
+                if shown.isEmpty {
+                    Text("Nothing matches “\(searchText)”.")
+                        .style(.body)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, DS.Spacing.s32)
+                }
+
+                ForEach(shown) { section in
+                    sectionBlock(section)
+                }
             }
             .padding(.horizontal, DS.Spacing.s20)
             .padding(.top, DS.Spacing.s16)
-            .padding(.bottom, 120)
+            .padding(.bottom, DS.tabBarClearance + DS.Spacing.s24)
         }
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)
+        .searchable(text: $searchText, prompt: "Search anything you can rename")
         .navigationTitle("Renaming")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { awardText = store.awardTitle }
+    }
+
+    /// Explains the screen and carries the counts, so the first thing on screen
+    /// is orientation rather than 342 text fields.
+    private func heroCard(items: Int, groups: Int) -> some View {
+        Card {
+            VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                HStack(spacing: DS.Spacing.s12) {
+                    SectionIcon(systemName: "textformat")
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Rename anything")
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("\(items) items across \(groups) groups")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                Text("Renames apply to every player as soon as you publish. Search, or open a group to browse.")
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    // MARK: - Sections
+
+    @ViewBuilder
+    private func sectionBlock(_ section: RenameSection) -> some View {
+        // While searching, everything is open — hiding matches behind a
+        // collapsed header would defeat the search.
+        let isOpen = isSearching || expanded.contains(section.kind)
+
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                withAnimation(DS.Motion.standardSpring) {
+                    if expanded.contains(section.kind) { expanded.remove(section.kind) }
+                    else { expanded.insert(section.kind) }
+                }
+            } label: {
+                HStack(spacing: DS.Spacing.s12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(section.title)
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        if let note = section.note {
+                            Text(note)
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Ink.quaternary)
+                        }
+                    }
+                    Spacer(minLength: DS.Spacing.s8)
+                    Text("\(section.count)")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Gold.textLight)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                        .rotationEffect(.degrees(isOpen ? 90 : 0))
+                }
+                .padding(DS.Spacing.s16)
+                .frame(maxWidth: .infinity)
+                .background(DS.Colors.Bg.card)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Radius.md)
+                        .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
+            .disabled(isSearching)
+            .accessibilityLabel("\(section.title), \(section.count) items")
+            .accessibilityHint(isOpen ? "Collapse" : "Expand")
+
+            if isOpen {
+                ForEach(section.groups) { group in
+                    groupBlock(group, showsHeader: section.groups.count > 1)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func groupBlock(_ group: RenameGroup, showsHeader: Bool) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            if showsHeader {
+                Eyebrow(text: group.title)
+                    .padding(.top, DS.Spacing.s8)
+            }
+            ForEach(group.items) { item in
+                RenameRow(kind: item.kind, targetID: item.targetID, builtInName: item.name)
+            }
+        }
+        .padding(.leading, showsHeader ? DS.Spacing.s8 : 0)
     }
 
     private func section<Content: View>(_ title: String, note: String? = nil, @ViewBuilder content: () -> Content) -> some View {
@@ -307,19 +614,9 @@ struct RenameBrowserView: View {
                         .frame(height: 40)
                         .background(DS.Colors.Bg.raised)
                         .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
-                    Button {
+                    ConfirmButton(isEnabled: !awardText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
                         showAwardConfirm = true
-                    } label: {
-                        Text("Save")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundStyle(DS.Colors.Ground.primary)
-                            .padding(.horizontal, DS.Spacing.s12)
-                            .frame(height: 40)
-                            .background(Color.white)
-                            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
                     }
-                    .buttonStyle(PressableButtonStyle())
-                    .disabled(awardText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
             .padding(DS.Spacing.s12)
@@ -333,99 +630,6 @@ struct RenameBrowserView: View {
                 }
             } message: {
                 Text("This renames it for every player immediately. Publish?")
-            }
-        }
-    }
-
-    private var ranksSection: some View {
-        section("Ranks") {
-            VStack(spacing: DS.Spacing.s8) {
-                ForEach(AcademyRank.allCases, id: \.self) { rank in
-                    RenameRow(kind: "rank", targetID: "\(rank.rawValue)", builtInName: rank.title)
-                }
-            }
-        }
-    }
-
-    private var disciplinesSection: some View {
-        section("Disciplines") {
-            VStack(spacing: DS.Spacing.s8) {
-                ForEach(disciplines) { discipline in
-                    RenameRow(kind: "discipline", targetID: discipline.id, builtInName: discipline.name)
-                }
-            }
-        }
-    }
-
-    private var categoriesSection: some View {
-        section("Categories") {
-            VStack(spacing: DS.Spacing.s8) {
-                ForEach(disciplines) { discipline in
-                    ForEach(discipline.categories.sorted(by: { $0.sortIndex < $1.sortIndex })) { category in
-                        RenameRow(kind: "category", targetID: category.id, builtInName: category.name)
-                    }
-                }
-            }
-        }
-    }
-
-    private var levelsSection: some View {
-        section("Levels") {
-            VStack(spacing: DS.Spacing.s8) {
-                ForEach(disciplines) { discipline in
-                    ForEach(discipline.categories.sorted(by: { $0.sortIndex < $1.sortIndex })) { category in
-                        ForEach(category.levels.sorted(by: { $0.sortIndex < $1.sortIndex })) { level in
-                            RenameRow(kind: "level", targetID: level.id, builtInName: level.name)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private var drillsSection: some View {
-        section("Drills") {
-            VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-                HStack(spacing: DS.Spacing.s8) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.quaternary)
-                    TextField("", text: $searchText, prompt: Text("Search drills").foregroundColor(DS.Colors.Ink.quaternary))
-                        .style(.body)
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                }
-                .padding(.horizontal, DS.Spacing.s12)
-                .frame(height: 40)
-                .background(DS.Colors.Bg.raised)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
-
-                VStack(spacing: DS.Spacing.s8) {
-                    ForEach(filteredDrills, id: \.drill.id) { entry in
-                        RenameRow(kind: "drill", targetID: entry.drill.id, builtInName: entry.drill.title)
-                    }
-                }
-            }
-        }
-    }
-
-    private var combineSection: some View {
-        section("Combine Tests") {
-            VStack(spacing: DS.Spacing.s8) {
-                ForEach(combineTests) { test in
-                    RenameRow(kind: "combine_test", targetID: test.id, builtInName: test.name)
-                }
-            }
-        }
-    }
-
-    private var certificationsSection: some View {
-        section("Certifications") {
-            VStack(spacing: DS.Spacing.s8) {
-                ForEach(disciplines) { discipline in
-                    ForEach(discipline.categories.sorted(by: { $0.sortIndex < $1.sortIndex })) { category in
-                        RenameRow(kind: "certification", targetID: category.id, builtInName: category.certName)
-                    }
-                }
             }
         }
     }

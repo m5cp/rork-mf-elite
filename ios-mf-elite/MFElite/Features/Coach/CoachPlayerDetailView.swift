@@ -275,7 +275,10 @@ struct CoachPlayerDetailView: View {
                             if !ok { saveError = "Couldn't save that focus. Check your connection and try again." }
                         }
                     } label: {
-                        Text(focusSaved ? "Saved" : "Save focus")
+                        Label(
+                            focusSaved ? "Saved" : "Save focus",
+                            systemImage: focusSaved ? "checkmark.circle.fill" : "checkmark"
+                        )
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(DS.Colors.Ground.primary)
                             .frame(maxWidth: .infinity)
@@ -315,7 +318,10 @@ struct CoachPlayerDetailView: View {
                             if !ok { saveError = "Couldn't save that note. Check your connection and try again." }
                         }
                     } label: {
-                        Text(noteSaved ? "Saved" : "Save note")
+                        Label(
+                            noteSaved ? "Saved" : "Save note",
+                            systemImage: noteSaved ? "checkmark.circle.fill" : "checkmark"
+                        )
                             .font(.system(size: 14, weight: .semibold))
                             .foregroundStyle(DS.Colors.Ground.primary)
                             .frame(maxWidth: .infinity)
@@ -361,9 +367,7 @@ struct CoachPlayerDetailView: View {
                 showReportBuilder = true
             } label: {
                 HStack(spacing: DS.Spacing.s12) {
-                    Image(systemName: "doc.text.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                    SectionIcon(systemName: "doc.text.fill")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Create / edit report")
                             .style(.title3)

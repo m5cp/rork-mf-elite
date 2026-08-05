@@ -86,6 +86,24 @@ enum DS {
             static let secondary = Color.black.opacity(0.62)
             static let tertiary = Color.black.opacity(0.40)
         }
+
+        /// Semantic status colors. These carry MEANING, not brand — they never
+        /// follow the accent, because "improved" must not turn red when a
+        /// player picks the Crimson accent.
+        ///
+        /// Before this existed the app had five different reds
+        /// (#FF453A, #FF5A5A, #FF5A5F, #FF4D4D, .red) and two greens
+        /// (#30D158, #34C759) scattered across the coach and profile screens.
+        enum Status {
+            /// Improvement, success, valid input.
+            static let good = Color(hex: "#30D158")
+            /// Caution, approaching a cap, needs attention soon.
+            static let warn = Color(hex: "#E5A400")
+            /// Regression, failure, destructive actions, validation errors.
+            static let bad = Color(hex: "#FF453A")
+            /// No change / neutral trend.
+            static let flat = Color.white.opacity(0.52)
+        }
     }
 
     // MARK: - Typography

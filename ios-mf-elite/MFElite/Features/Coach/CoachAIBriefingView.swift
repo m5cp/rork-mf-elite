@@ -73,9 +73,7 @@ struct CoachAIBriefingView: View {
             }
         } label: {
             HStack(spacing: DS.Spacing.s12) {
-                Image(systemName: "person.crop.circle")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.secondary)
+                SectionIcon(systemName: "person.crop.circle", size: 36)
                 Text(selectedPlayer?.displayName ?? "Choose a player")
                     .style(.title3)
                     .foregroundStyle(selectedPlayer == nil ? DS.Colors.Ink.tertiary : DS.Colors.Ink.primary)

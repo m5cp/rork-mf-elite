@@ -285,12 +285,7 @@ struct ProfileTabView: View {
     private func menuRow<R: Hashable>(icon: String, label: String, route: R) -> some View {
         NavigationLink(value: route) {
             HStack(spacing: DS.Spacing.s16) {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                    .frame(width: 36, height: 36)
-                    .background(DS.Colors.Bg.raised)
-                    .clipShape(Circle())
+                SectionIcon(systemName: icon, size: 36)
 
                 Text(label)
                     .style(.title3)

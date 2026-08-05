@@ -203,9 +203,7 @@ struct CoachView: View {
             Eyebrow(text: "AI Briefing")
             NavigationLink(value: CoachAIBriefingRoute()) {
                 HStack(spacing: DS.Spacing.s12) {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                    SectionIcon(systemName: "sparkles")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Private AI insights")
                             .style(.title3)
@@ -237,9 +235,7 @@ struct CoachView: View {
             Eyebrow(text: "Team Snapshot")
             NavigationLink(value: CoachTeamSnapshotRoute()) {
                 HStack(spacing: DS.Spacing.s12) {
-                    Image(systemName: "chart.bar.doc.horizontal.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                    SectionIcon(systemName: "chart.bar.doc.horizontal.fill")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Weekly team snapshot")
                             .style(.title3)
@@ -334,7 +330,7 @@ struct CoachView: View {
                 HStack(spacing: DS.Spacing.s8) {
                     Image(systemName: "trophy.fill")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundStyle(BallonDorTheme.gold)
+                        .foregroundStyle(BallonDorTheme.text)
                     Eyebrow(text: "\(AppConfigStore.shared.awardTitle) · Approvals")
                 }
                 Text("Players who've reached the final tier and await your invitation.")
@@ -364,9 +360,7 @@ struct CoachView: View {
                 showAnnounce = true
             } label: {
                 HStack(spacing: DS.Spacing.s12) {
-                    Image(systemName: "megaphone.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                    SectionIcon(systemName: "megaphone.fill")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Send a message")
                             .style(.title3)
@@ -500,9 +494,7 @@ struct CoachView: View {
                 showPublish = true
             } label: {
                 HStack(spacing: DS.Spacing.s12) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                    SectionIcon(systemName: "plus.circle.fill")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Publish a workout")
                             .style(.title3)
@@ -544,9 +536,7 @@ struct CoachView: View {
             Eyebrow(text: "Drill Editor")
             NavigationLink(value: CoachDrillEditorRoute()) {
                 HStack(spacing: DS.Spacing.s12) {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                    SectionIcon(systemName: "slider.horizontal.3")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Improve the drills")
                             .style(.title3)
@@ -578,9 +568,7 @@ struct CoachView: View {
             Eyebrow(text: "Teams")
             NavigationLink(value: CoachTeamsRoute()) {
                 HStack(spacing: DS.Spacing.s12) {
-                    Image(systemName: "person.3.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                    SectionIcon(systemName: "person.3.fill")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Teams & rosters")
                             .style(.title3)
@@ -612,9 +600,7 @@ struct CoachView: View {
             Eyebrow(text: "Team Schedule")
             NavigationLink(value: CoachScheduleRoute()) {
                 HStack(spacing: DS.Spacing.s12) {
-                    Image(systemName: "calendar.badge.clock")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                    SectionIcon(systemName: "calendar.badge.clock")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Team Schedule")
                             .style(.title3)
@@ -646,9 +632,7 @@ struct CoachView: View {
             Eyebrow(text: "Help")
             NavigationLink(value: CoachGuideRoute()) {
                 HStack(spacing: DS.Spacing.s12) {
-                    Image(systemName: "questionmark.circle")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundStyle(DS.Colors.Ink.primary)
+                    SectionIcon(systemName: "questionmark.circle")
                     VStack(alignment: .leading, spacing: 2) {
                         Text("How Coach Mode works")
                             .style(.title3)
@@ -929,7 +913,7 @@ struct CoachRosterRow: View {
                         Text(AppConfigStore.shared.awardTitle.uppercased())
                             .font(.system(size: 8, weight: .heavy, design: .monospaced))
                             .tracking(0.5)
-                            .foregroundStyle(.black)
+                            .foregroundStyle(BallonDorTheme.ink)
                             .padding(.vertical, 2)
                             .padding(.horizontal, 5)
                             .background(BallonDorTheme.gold)
@@ -1028,9 +1012,17 @@ struct CoachWorkoutRow: View {
 
 // MARK: - Ballon d'Or approval row
 
-/// Shared gold accent for the Ballon d'Or surfaces.
+/// Shared accent for the Ballon d'Or surfaces.
+///
+/// This was a frozen `Color(red: 0.86, green: 0.71, blue: 0.36)` (≈#DBB55C),
+/// so the award chips stayed gold no matter which accent the user picked —
+/// and it didn't even match the Gold accent's own #E8B84B.
 enum BallonDorTheme {
-    static let gold = Color(red: 0.86, green: 0.71, blue: 0.36)
+    static var gold: Color { DS.Colors.Gold.base }
+    /// Ink for text on a solid accent fill. `.black` is wrong for Royal/Pitch.
+    static var ink: Color { DS.Colors.Gold.inkOnGold }
+    /// Small accent type.
+    static var text: Color { DS.Colors.Gold.textLight }
 }
 
 /// One pending request with a stats summary plus Approve / Not yet actions.
@@ -1091,7 +1083,7 @@ struct BallonDorApprovalRow: View {
                             .style(.foot)
                             .fontWeight(.semibold)
                     }
-                    .foregroundStyle(.black)
+                    .foregroundStyle(BallonDorTheme.ink)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, DS.Spacing.s12)
                     .background(BallonDorTheme.gold)
@@ -1105,7 +1097,7 @@ struct BallonDorApprovalRow: View {
         .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: DS.Radius.md)
-                .stroke(BallonDorTheme.gold.opacity(0.35), lineWidth: 1)
+                .stroke(DS.Colors.Gold.line, lineWidth: 1)
         )
         .alert("Award the \(AppConfigStore.shared.awardTitle)?", isPresented: $showApproveConfirm) {
             Button("Cancel", role: .cancel) {}

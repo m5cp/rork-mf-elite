@@ -24,10 +24,6 @@ struct EditProfileSheet: View {
     }
 
     /// Plausible player birth years, newest first.
-    private var birthYearRange: [Int] {
-        let current = Calendar.current.component(.year, from: Date())
-        return Array((current - 60)...(current - 4)).reversed()
-    }
 
     var body: some View {
         NavigationStack {
@@ -63,15 +59,7 @@ struct EditProfileSheet: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         }
                         field(label: "Birth year") {
-                            Picker("Birth year", selection: $birthYear) {
-                                Text("Not set").tag(0)
-                                ForEach(birthYearRange, id: \.self) { year in
-                                    Text(String(year)).tag(year)
-                                }
-                            }
-                            .pickerStyle(.menu)
-                            .tint(DS.Colors.Ink.primary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            BirthYearField(year: $birthYear)
                         }
                     }
                 }

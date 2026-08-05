@@ -19,6 +19,9 @@ struct AvatarPickerSheet: View {
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: DS.Spacing.s12), count: 3)
 
+    /// True when the uploaded photo is the avatar currently in use.
+    private var isPhotoSelected: Bool { profile.avatar == .photo }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -34,6 +37,10 @@ struct AvatarPickerSheet: View {
                             Spacer()
                             if isLoading {
                                 ProgressView().tint(DS.Colors.Ink.primary)
+                            } else if isPhotoSelected {
+                                // The uploaded photo had no selected state at
+                                // all, so a player couldn't tell it was live.
+                                ConfirmBadge(isConfirmed: true, label: "In use")
                             } else {
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 13, weight: .semibold))

@@ -831,12 +831,7 @@ struct SettingsView: View {
     private func iconRow(icon: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: DS.Spacing.s16) {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                    .frame(width: 36, height: 36)
-                    .background(DS.Colors.Bg.raised)
-                    .clipShape(Circle())
+                SectionIcon(systemName: icon, size: 36)
                 Text(label)
                     .style(.title3)
                     .foregroundStyle(DS.Colors.Ink.primary)
@@ -887,10 +882,6 @@ private struct AccountEditSheet: View {
     @State private var selectedBirthYear: Int = 0
     @FocusState private var inputFocused: Bool
 
-    private var birthYearRange: [Int] {
-        let current = Calendar.current.component(.year, from: Date())
-        return Array((current - 60)...(current - 4)).reversed()
-    }
 
     private let positions = ["Goalkeeper", "Defender", "Midfielder", "Forward", "Winger", "No preference"]
 
@@ -927,15 +918,9 @@ private struct AccountEditSheet: View {
                             .style(.foot)
                             .foregroundStyle(DS.Colors.Ink.quaternary)
                             .fixedSize(horizontal: false, vertical: true)
-                        Picker("Year of birth", selection: $selectedBirthYear) {
-                            Text("Not set").tag(0)
-                            ForEach(birthYearRange, id: \.self) { year in
-                                Text(String(year)).tag(year)
-                            }
-                        }
-                        .pickerStyle(.wheel)
-                        .frame(maxWidth: .infinity)
-                        .tint(DS.Colors.Ink.primary)
+                        // Was a .wheel over 58 years, which shows four at a
+                        // time. BirthYearField narrows by decade first.
+                        BirthYearField(year: $selectedBirthYear)
                     }
                 }
                 Spacer()

@@ -26,7 +26,62 @@ struct AccentColorSection: View {
                 .style(.micro)
                 .foregroundStyle(DS.Colors.Ink.quaternary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            Hairline()
+                .padding(.vertical, DS.Spacing.s8)
+
+            symbolStylePicker
         }
+    }
+
+    /// Second axis: whether symbols and avatars pick the accent up at all.
+    /// Some players want a gold app; some want black-and-white with the accent
+    /// reserved for progress and selection.
+    private var symbolStylePicker: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            SectionHead(title: "Icons & avatars")
+
+            HStack(spacing: DS.Spacing.s8) {
+                ForEach(SymbolStyle.allCases) { style in
+                    styleOption(style)
+                }
+            }
+
+            Text(currentSymbolStyle.detail)
+                .style(.micro)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var currentSymbolStyle: SymbolStyle {
+        SymbolStyle(rawValue: profile.symbolStyleID) ?? .accent
+    }
+
+    private func styleOption(_ style: SymbolStyle) -> some View {
+        let isSelected = currentSymbolStyle == style
+        return Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            profile.symbolStyleID = style.rawValue
+        } label: {
+            HStack(spacing: DS.Spacing.s8) {
+                Image(systemName: style == .accent ? "seal.fill" : "circle.righthalf.filled")
+                    .font(.system(size: 13, weight: .bold))
+                Text(style.displayName)
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundStyle(isSelected ? DS.Colors.Ground.primary : DS.Colors.Ink.secondary)
+            .padding(.vertical, DS.Spacing.s8 + 2)
+            .padding(.horizontal, DS.Spacing.s16)
+            .frame(maxWidth: .infinity)
+            .background(isSelected ? Color.white : DS.Colors.Bg.raised)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(DS.Colors.Line.hairline, lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("\(style.displayName) icons")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     private func swatch(_ accent: AppAccent) -> some View {

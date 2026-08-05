@@ -26,10 +26,19 @@ struct MomentsGalleryView: View {
 
     @State private var preview: ShareMoment?
     @State private var pickerKind: ShareMomentKind?
+    /// Explanation shown when a locked tile is tapped.
+    @State private var lockedHint: LockedHint?
+
+    /// Identifiable so it can drive a transient toast.
+    private struct LockedHint: Identifiable, Equatable {
+        let kind: ShareMomentKind
+        let text: String
+        var id: String { kind.rawValue }
+    }
 
     private let columns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: DS.Spacing.s12),
+        GridItem(.flexible(), spacing: DS.Spacing.s12),
     ]
 
     var body: some View {
@@ -38,11 +47,12 @@ struct MomentsGalleryView: View {
                 header
                 grid
             }
-            .padding(.bottom, 120)
+            .padding(.bottom, DS.tabBarClearance + DS.Spacing.s24)
         }
         .background(DS.Colors.Bg.base)
         .scrollIndicators(.hidden)
         .navigationBarTitleDisplayMode(.inline)
+        .overlay(alignment: .bottom) { lockedToast }
         .fullScreenCover(item: $preview) { moment in
             ShareEditorView(moment: moment)
         }
@@ -51,6 +61,15 @@ struct MomentsGalleryView: View {
                 preview = built
             }
             .presentationDetents([.medium, .large])
+        }
+        .onChange(of: lockedHint) { _, hint in
+            guard hint != nil else { return }
+            // Auto-dismiss; tapping another locked tile replaces it.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) {
+                withAnimation(DS.Motion.standardSpring) {
+                    if lockedHint == hint { lockedHint = nil }
+                }
+            }
         }
         .task { await WeeklyHealthStats.shared.refresh() }
         .onAppear {
@@ -62,38 +81,49 @@ struct MomentsGalleryView: View {
 
     // MARK: - Header
 
+    /// Header lockup.
+    ///
+    /// The previous version stacked four separate accent objects — a tick rule,
+    /// an accent eyebrow, an accent XP pill and an accent CTA on every tile —
+    /// around a flat white headline. Everything around the title was shouting
+    /// and the title itself had no idea in it, which is what made it read as
+    /// generic.
+    ///
+    /// This is a weight-stack: size contrast carries the emphasis, and the
+    /// accent appears exactly once, as a rule, never as a coloured word. That
+    /// also means it holds up across all five accents instead of being tuned
+    /// for gold.
     private var header: some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
-            HStack(spacing: DS.Spacing.s8) {
-                Rectangle()
-                    .fill(DS.Colors.Gold.base)
-                    .frame(width: 22, height: 2)
-                Text("MF ELITE · MOMENTS")
-                    .style(.micro)
-                    .tracking(2.4)
-                    .foregroundStyle(DS.Colors.Gold.textLight)
-            }
+        VStack(alignment: .leading, spacing: 0) {
+            Text("SHARE")
+                .font(ShareFont.displayScaled(24, relativeTo: .title3))
+                .tracking(8)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
 
-            Text("SHARE YOUR GRIND")
-                .font(ShareFont.display(38))
+            Text("YOUR GRIND")
+                .font(ShareFont.displayScaled(52))
                 .foregroundStyle(DS.Colors.Ink.primary)
+                .padding(.top, -2)
+
+            RoundedRectangle(cornerRadius: DS.Radius.pill, style: .continuous)
+                .fill(DS.Colors.Gold.base)
+                .frame(width: 64, height: 3)
+                .padding(.top, DS.Spacing.s12)
 
             Text("Turn any accomplishment into a card built for Instagram. Every card carries a scannable code to the app.")
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, DS.Spacing.s16)
 
-            Label("+5 XP per platform when you share your Player Card or Rep The Badge — first share on each app, every day.", systemImage: "bolt.fill")
-                .font(.system(size: 11.5, weight: .semibold))
-                .foregroundStyle(DS.Colors.Gold.textLight)
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(DS.Colors.Gold.faint, in: RoundedRectangle(cornerRadius: DS.Radius.sm, style: .continuous))
-                .padding(.top, DS.Spacing.s4)
+            ShareXPBanner()
+                .padding(.top, DS.Spacing.s12)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, DS.Spacing.s20)
-        .padding(.top, DS.Spacing.s16)
+        .padding(.top, DS.Spacing.s24)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Share your grind. Turn any accomplishment into a card built for Instagram.")
     }
 
     // MARK: - Grid
@@ -109,10 +139,20 @@ struct MomentsGalleryView: View {
     }
 
     private var grid: some View {
-        LazyVGrid(columns: columns, spacing: 12) {
+        LazyVGrid(columns: columns, spacing: DS.Spacing.s12) {
             ForEach(ShareMomentKind.allCases) { kind in
                 let unlocked = isEarned(kind)
                 Button {
+                    guard unlocked else {
+                        // Locked tiles used to be `.disabled`, so tapping one
+                        // did nothing — no haptic, no explanation. Now it says
+                        // how to unlock it.
+                        UINotificationFeedbackGenerator().notificationOccurred(.warning)
+                        withAnimation(DS.Motion.standardSpring) {
+                            lockedHint = LockedHint(kind: kind, text: unlockHint(kind))
+                        }
+                        return
+                    }
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     if kind == .combineResult || kind == .combineScorecard {
                         pickerKind = kind
@@ -123,7 +163,12 @@ struct MomentsGalleryView: View {
                     tile(kind, locked: !unlocked)
                 }
                 .buttonStyle(PressableButtonStyle())
-                .disabled(!unlocked)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(
+                    unlocked
+                        ? "\(kind.label). Create card."
+                        : "\(kind.label). Locked. \(unlockHint(kind))"
+                )
             }
         }
         .padding(.horizontal, DS.Spacing.s20)
@@ -137,38 +182,77 @@ struct MomentsGalleryView: View {
                     .resizable()
                     .scaledToFit()
                     .frame(width: 44, height: 44)
+                    .opacity(locked ? 0.45 : 1)
                 if locked {
                     Image(systemName: "lock.fill")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .foregroundStyle(DS.Colors.Ink.secondary)
                         .offset(x: 10, y: -4)
+                        .accessibilityHidden(true)
                 }
             }
 
             Text(kind.label)
-                .style(.foot)
-                .fontWeight(.bold)
+                .style(.title3)
                 .foregroundStyle(DS.Colors.Ink.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
 
-            Text(locked ? unlockHint(kind) : "CREATE CARD ›")
-                .font(.system(size: 10.5, weight: .semibold))
-                .tracking(0.8)
-                .foregroundStyle(locked ? DS.Colors.Ink.tertiary : DS.Colors.Gold.textLight)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+            HStack(spacing: DS.Spacing.s4) {
+                Text(locked ? unlockHint(kind) : "CREATE CARD")
+                    .style(.micro)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                if !locked {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 8, weight: .bold))
+                }
+            }
+            // Was Ink.tertiary under a 0.55 tile opacity — about 40% white on
+            // #121212, ~3.7:1, which fails WCAG AA for text under 18pt. The
+            // tile no longer dims its own text layer.
+            .foregroundStyle(locked ? DS.Colors.Ink.secondary : DS.Colors.Gold.textLight)
         }
         .frame(maxWidth: .infinity, minHeight: 118, alignment: .topLeading)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 14)
+        .padding(.horizontal, DS.Spacing.s12)
+        .padding(.vertical, DS.Spacing.s16)
         .background(DS.Colors.Bg.card)
-        .clipShape(RoundedRectangle(cornerRadius: 18))
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.lg))
         .overlay(
-            RoundedRectangle(cornerRadius: 18)
+            RoundedRectangle(cornerRadius: DS.Radius.lg)
                 .stroke(DS.Colors.Line.hairline, lineWidth: 1)
         )
-        .opacity(locked ? 0.55 : 1)
+    }
+
+    /// Toast explaining why a locked card can't be opened yet.
+    @ViewBuilder
+    private var lockedToast: some View {
+        if let lockedHint {
+            HStack(spacing: DS.Spacing.s8) {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(DS.Colors.Gold.textLight)
+                Text(lockedHint.text)
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.horizontal, DS.Spacing.s16)
+            .padding(.vertical, DS.Spacing.s12)
+            .background(DS.Colors.Bg.raised, in: RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous)
+                    .stroke(DS.Colors.Gold.line, lineWidth: 1)
+            )
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.bottom, DS.tabBarClearance + DS.Spacing.s12)
+            .transition(.move(edge: .bottom).combined(with: .opacity))
+            .accessibilityAddTraits(.isStaticText)
+            // This toast sits in the same band as the floating search button.
+            // Attached here rather than on the screen so search only steps
+            // aside for the couple of seconds the hint is actually up.
+            .suppressesFloatingSearch()
+        }
     }
 
     /// Short hint telling the player how to unlock a locked card.
