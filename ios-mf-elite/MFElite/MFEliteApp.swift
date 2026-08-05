@@ -110,6 +110,7 @@ struct MFEliteApp: App {
                         // pre-permission sheet is shown after the first logged drill.
                         // If already authorized, keep the daily reminder scheduled.
                         NotificationService.shared.scheduleDailyReminderIfAuthorized()
+                        reconcileStreak()
                         profileStore.incrementSession()
                         KeyboardWarmup.run()
                         submitTotalXPToGameCenter()
@@ -134,12 +135,28 @@ struct MFEliteApp: App {
             if newPhase == .background {
                 scheduleStreakRiskIfNeeded()
             } else if newPhase == .active {
+                reconcileStreak()
                 SyncEngine.shared.onForeground()
                 WatchSyncBridge.shared.refreshAndPush()
                 Task { await AppConfigStore.shared.refresh() }
                 Task { await SupportAdjustments.shared.applyPending() }
             }
         }
+    }
+
+    /// Settle the streak against today's date on launch and on every return to
+    /// the foreground, spending streak freezes to cover missed days and
+    /// breaking the streak when they can't cover it. Without this the number
+    /// only ever moved upward, so a player who stopped training for a month
+    /// still saw their old streak waiting for them.
+    private func reconcileStreak() {
+        let context = container.mainContext
+        guard let player = try? context.fetch(FetchDescriptor<PlayerState>()).first else { return }
+        guard StreakEngine.reconcile(player) else { return }
+        try? context.save()
+        SyncEngine.shared.enqueuePlayerState(player)
+        WidgetBridge.refresh(context: context)
+        WatchSyncBridge.shared.refreshAndPush()
     }
 
     /// Push the player's current total XP to Game Center once authenticated, so

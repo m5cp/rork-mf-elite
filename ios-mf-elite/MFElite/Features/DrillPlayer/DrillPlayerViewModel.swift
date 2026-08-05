@@ -57,6 +57,15 @@ final class DrillPlayerViewModel {
     private(set) var levelJustMastered: Bool = false
     private(set) var categoryJustCertified: Bool = false
     private(set) var newStreak: Int = 0
+    /// True when this completion actually moved the streak counter, so the
+    /// post-session screen only shows "+1" when the streak really went up (a
+    /// second drill on the same day does not advance it).
+    private(set) var streakDidAdvance: Bool = false
+    /// XP actually credited for this completion, including the 2x weekend
+    /// booster and any level/category bonus. The post-session screens read this
+    /// instead of the flat `ProgressionRules.xpPerDrill` constant, which
+    /// under-reported every boosted session.
+    private(set) var lastAwardedXP: Int = 0
     /// True when this completion closed all three daily rings for the first time today.
     private(set) var perfectDayJustClosed: Bool = false
 
@@ -141,6 +150,13 @@ final class DrillPlayerViewModel {
     private var setStartDate: Date?
     private var pauseAccumulated: TimeInterval = 0
     private var pauseStartDate: Date?
+    /// Bumped every time the timer is invalidated. A queued tick compares the
+    /// generation it captured and does nothing if the timer moved on, so a tick
+    /// in flight can't resurrect a session the player already ended.
+    private var tickGeneration: Int = 0
+    /// One-shot guard so a session is only ever logged once, no matter which of
+    /// the several completion paths gets there first.
+    private var hasLogged = false
 
     private func playCountdownBeep() {
         guard cuesEnabled else { return }
@@ -168,6 +184,15 @@ final class DrillPlayerViewModel {
     private func invalidateTimer() {
         timer?.invalidate()
         timer = nil
+        // Retire the current tick generation. Invalidating the Timer stops
+        // future firings, but a tick that already fired hops to the main actor
+        // through a Task and will still run afterwards — which is how "Log and
+        // finish" during the last moments of a rest could kick the player into
+        // another set and log the drill a second time.
+        tickGeneration &+= 1
+        // NOTE: `setStartDate` is deliberately left intact. `logDrillEarly()`
+        // invalidates the timer and then calls `recordActiveSetIfNeeded()`,
+        // which needs it to bank the partial set's training seconds.
     }
 
     private func startTicking(from duration: TimeInterval, onZero: @escaping () -> Void) {
@@ -178,9 +203,11 @@ final class DrillPlayerViewModel {
         pauseAccumulated = 0
         pauseStartDate = nil
 
+        let generation = tickGeneration
         let t = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
             Task { @MainActor in
-                guard let self, let start = self.setStartDate else { return }
+                guard let self, self.tickGeneration == generation else { return }
+                guard let start = self.setStartDate else { return }
                 guard !self.isPaused else { return }
 
                 let elapsed = Date().timeIntervalSince(start) - self.pauseAccumulated
@@ -397,6 +424,14 @@ final class DrillPlayerViewModel {
     // MARK: - Logging
 
     func logDrill() {
+        // A session can only be logged once. Several paths can race into here —
+        // the natural end of the last set, "Log and finish", the set checklist's
+        // delayed call, and a timer tick that was already queued when the player
+        // acted — and without this guard the drill was logged twice: double XP,
+        // two history rows, and an extra mastery pass from one session.
+        guard !hasLogged else { return }
+        hasLogged = true
+
         playSessionCompleteSound()
         guard let context else { return }
 
@@ -413,6 +448,11 @@ final class DrillPlayerViewModel {
             context.insert(progress)
         }
 
+        // Whether the level/category were ALREADY complete before this log.
+        // The bonus is only for crossing the line, not for standing past it.
+        let levelWasMastered = isLevelFullyMastered(context: context)
+        let categoryWasCertified = levelWasMastered && isCategoryFullyMastered(context: context)
+
         progress.passesLogged = min(ProgressionRules.masteryPasses, progress.passesLogged + 1)
         progress.lastLoggedAt = Date()
         if progress.passesLogged >= ProgressionRules.masteryPasses && !progress.isMastered {
@@ -427,43 +467,40 @@ final class DrillPlayerViewModel {
         // EARNED drill XP at this single award point so player state, the session
         // log, and Game Center all stay consistent.
         let awardedXP = ProgressionRules.xpPerDrill * XPStoreService.shared.earnMultiplier
+        var totalAwardedXP = awardedXP
         let playerDescriptor = FetchDescriptor<PlayerState>()
         let player = try? context.fetch(playerDescriptor).first
         if let player {
             player.xp += awardedXP
 
-            if !Calendar.current.isDateInToday(player.lastTrainedDate ?? .distantPast) {
-                player.streak += 1
-            }
-            player.lastTrainedDate = Date()
-            newStreak = player.streak
+            // StreakEngine owns advancing, freeze spending, streakPB and
+            // milestone freezes, so every logging path behaves identically.
+            let outcome = StreakEngine.recordTraining(player)
+            newStreak = outcome.streak
+            streakDidAdvance = outcome.showsIncrement
 
-            // Award streak freezes at milestones.
-            if player.streak == 7 && player.freezesRemaining < 1 {
-                player.freezesRemaining += 1
-            }
-            if player.streak == 30 && player.freezesRemaining < 2 {
-                player.freezesRemaining = 2
-            }
-            if player.streak == 50 {
-                player.freezesRemaining += 1
-            }
-
-            // Fire a milestone notification if this run hit a milestone.
-            if let name = Self.milestoneName(for: player.streak) {
+            // Fire a milestone notification only when this session actually
+            // moved the streak onto the milestone (not on a repeat log).
+            if outcome.didAdvance, let name = Self.milestoneName(for: player.streak) {
                 NotificationService.shared.scheduleMilestone(days: player.streak, name: name)
             }
         }
 
-        // Bonus XP for level / category completion.
-        if isLevelFullyMastered(context: context) {
+        // Bonus XP for level / category completion — awarded ONLY on the log
+        // that completes it. Previously this fired on every subsequent log of
+        // any drill in an already-mastered level, granting the bonus again and
+        // replaying the full-screen celebration each time.
+        if !levelWasMastered, isLevelFullyMastered(context: context) {
             levelJustMastered = true
             player?.xp += ProgressionRules.xpLevelBonus
-            if isCategoryFullyMastered(context: context) {
+            totalAwardedXP += ProgressionRules.xpLevelBonus
+            if !categoryWasCertified, isCategoryFullyMastered(context: context) {
                 categoryJustCertified = true
                 player?.xp += ProgressionRules.xpCategoryCert
+                totalAwardedXP += ProgressionRules.xpCategoryCert
             }
         }
+        lastAwardedXP = totalAwardedXP
 
         // Award achievement badges.
         let totalCompleted = EngagementTracker.shared.drillsCompleted + 1

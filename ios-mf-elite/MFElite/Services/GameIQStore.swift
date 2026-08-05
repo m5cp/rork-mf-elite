@@ -41,10 +41,8 @@ enum GameIQStore {
         let player = try? context.fetch(FetchDescriptor<PlayerState>()).first
         if let player {
             player.xp += awardedXP
-            if !Calendar.current.isDateInToday(player.lastTrainedDate ?? .distantPast) {
-                player.streak += 1
-            }
-            player.lastTrainedDate = Date()
+            // Same streak rules as every other logging path (see StreakEngine).
+            StreakEngine.recordTraining(player)
         }
 
         // Write a Tactical session so today's rings credit this like one drill.
