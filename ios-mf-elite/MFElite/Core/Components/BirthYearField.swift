@@ -23,8 +23,10 @@ struct BirthYearField: View {
 
     /// Youngest age offered. Onboarding and Settings both want 4.
     var minimumAge: Int = 4
-    /// Oldest age offered. 60 covers players, parents and coaches.
-    var maximumAge: Int = 60
+    /// Oldest age offered. Matches onboarding's range (currentYear - 99) so a
+    /// year saved there can always be represented here — a narrower range made
+    /// an older parent's stored year silently vanish from the UI.
+    var maximumAge: Int = 99
     /// Shown as the unset option. Pass nil to require a value.
     var unsetLabel: String? = "Not set"
 
@@ -42,12 +44,22 @@ struct BirthYearField: View {
     }
 
     private func years(in decade: Int) -> [Int] {
-        Array(max(oldest, decade)...min(newest, decade + 9)).reversed()
+        let lower = max(oldest, decade)
+        let upper = min(newest, decade + 9)
+        // A decade outside the offered range inverts the bounds, and
+        // `Array(1966...1959)` traps at runtime. Never build an inverted range.
+        guard lower <= upper else { return [] }
+        return Array(lower...upper).reversed()
     }
 
     /// The decade to show as selected — the chosen year's, or the last tapped.
+    ///
+    /// Only derives a decade from `year` when the stored value is actually
+    /// inside the offered range. A year from outside it (onboarding used to
+    /// offer a wider span, and the server can return anything) would otherwise
+    /// produce a decade whose grid is an inverted range.
     private var activeDecade: Int? {
-        if year > 0 { return (year / 10) * 10 }
+        if year >= oldest, year <= newest { return (year / 10) * 10 }
         return decade
     }
 

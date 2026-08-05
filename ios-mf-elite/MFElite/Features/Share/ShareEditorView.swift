@@ -50,9 +50,7 @@ struct ShareEditorView: View {
                     formatRow
                     // Shared with the gallery so the two can't drift apart.
                     // Hides itself for cards that earn nothing.
-                    ShareXPBanner(kind: model.moment.kind)
-                        .padding(.horizontal, DS.Spacing.s20)
-                        .padding(.bottom, DS.Spacing.s8)
+                    ShareXPBanner(kind: model.moment.kind, insets: true)
                     previewArea
                     toolSection
                 }

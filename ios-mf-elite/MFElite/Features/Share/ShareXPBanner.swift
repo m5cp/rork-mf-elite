@@ -21,6 +21,9 @@ struct ShareXPBanner: View {
     /// for cards that earn nothing. When nil (the gallery), it names the two
     /// eligible cards instead of implying every card pays out.
     var kind: ShareMomentKind?
+    /// Applies the surrounding padding internally, so a hidden banner leaves no
+    /// dead space in a zero-spacing stack.
+    var insets: Bool = false
 
     private var isHidden: Bool {
         guard let kind else { return false }
@@ -49,6 +52,8 @@ struct ShareXPBanner: View {
                     in: RoundedRectangle(cornerRadius: DS.Radius.sm, style: .continuous)
                 )
                 .accessibilityLabel(message)
+                .padding(.horizontal, insets ? DS.Spacing.s20 : 0)
+                .padding(.bottom, insets ? DS.Spacing.s8 : 0)
         }
     }
 }
