@@ -107,7 +107,13 @@ struct TeamEventComposer: View {
                 Picker("Type", selection: $kind) {
                     ForEach(kinds, id: \.self) { Text($0.capitalized).tag($0) }
                 }
-                TextField("Title (e.g. Tuesday Training)", text: $title)
+                HStack(spacing: DS.Spacing.s8) {
+                    TextField("Title (e.g. Tuesday Training)", text: $title)
+                    // The only required field on this form — the check confirms
+                    // it, so Publish being tappable is never a surprise.
+                    ConfirmBadge(isConfirmed: !title.trimmingCharacters(in: .whitespaces).isEmpty,
+                                 label: "Set", unconfirmedLabel: "Title needed")
+                }
                 DatePicker("Starts", selection: $startsAt)
                 Stepper("Duration: \(durationMinutes) min", value: $durationMinutes, in: 30...240, step: 15)
                 TextField("Location (optional)", text: $location)

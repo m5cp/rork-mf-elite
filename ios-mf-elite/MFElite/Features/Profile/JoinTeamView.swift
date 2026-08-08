@@ -17,8 +17,13 @@ struct JoinTeamView: View {
     @State private var message: String?
     @State private var joined = false
 
+    /// Shortest code the coach admin ever hands out.
+    private var isCodeComplete: Bool {
+        code.trimmingCharacters(in: .whitespaces).count >= 4
+    }
+
     private var canJoin: Bool {
-        code.trimmingCharacters(in: .whitespaces).count >= 4 && !isWorking && !joined
+        isCodeComplete && !isWorking && !joined
     }
 
     var body: some View {
@@ -48,6 +53,18 @@ struct JoinTeamView: View {
                             RoundedRectangle(cornerRadius: DS.Radius.md)
                                 .stroke(DS.Colors.Line.hairline, lineWidth: 1)
                         )
+                        // A code read off a coach's whiteboard is typed blind in
+                        // all-caps; the only feedback used to be the Join button
+                        // silently un-greying at the bottom of the sheet. The mark
+                        // sits where the eyes already are.
+                        .overlay(alignment: .trailing) {
+                            ConfirmBadge(
+                                isConfirmed: isCodeComplete,
+                                label: joined ? "Joined" : "Ready",
+                                unconfirmedLabel: "Code incomplete"
+                            )
+                            .padding(.trailing, DS.Spacing.s12)
+                        }
 
                     if let message {
                         Text(message)

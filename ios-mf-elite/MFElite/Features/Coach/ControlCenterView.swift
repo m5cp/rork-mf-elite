@@ -699,7 +699,7 @@ private struct SupportActionSheet: View {
                                 .frame(height: 44)
                                 .background(DS.Colors.Bg.raised)
                                 .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
-                            ConfirmBadge(isConfirmed: parsedAmount != nil, label: "Set")
+                            ConfirmBadge(isConfirmed: parsedAmount != nil, label: "Set", unconfirmedLabel: "Amount needed")
                         }
                         if parsedAmount == nil && !amountText.isEmpty {
                             Text("Enter a whole number between 0 and 10,000.")

@@ -11,6 +11,15 @@ import SwiftUI
 import SwiftData
 import Charts
 
+/// One calendar month of a player's session history. Grouping turns a 500-row
+/// wall into a dozen headers a coach can actually scan.
+private struct HistoryGroup: Identifiable {
+    let title: String
+    let items: [SessionHistoryItem]
+    var id: String { title }
+    var minutes: Int { items.reduce(0) { $0 + $1.durationSec } / 60 }
+}
+
 struct CoachPlayerDetailView: View {
     let player: RosterPlayer
     @Bindable var model: CoachViewModel
@@ -34,6 +43,14 @@ struct CoachPlayerDetailView: View {
     /// server would undo exactly the edit they meant to make.
     @State private var focusEdited = false
     @State private var noteEdited = false
+    /// In-flight flags for the two per-field confirms, so the check turns into a
+    /// spinner rather than looking tappable while the write is out.
+    @State private var isSavingFocus = false
+    @State private var isSavingNote = false
+    /// Session-history browsing state. The history can run to 500 rows, so it
+    /// gets its own search and collapsed month groups.
+    @State private var historyQuery = ""
+    @State private var historyExpanded: Set<String> = []
 
     private var currentMonthKey: String {
         let formatter = DateFormatter()
@@ -254,7 +271,9 @@ struct CoachPlayerDetailView: View {
         VStack(alignment: .leading, spacing: DS.Spacing.s12) {
             Eyebrow(text: "Training Focus")
             Card(padding: DS.Spacing.s16) {
-                VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                // The confirm sits on the field it commits rather than under the
+                // card, so there is never a question of what the checkmark saves.
+                HStack(alignment: .bottom, spacing: DS.Spacing.s8) {
                     TextField("What this player is working on…", text: $focusDraft, axis: .vertical)
                         .style(.body)
                         .foregroundStyle(DS.Colors.Ink.primary)
@@ -265,28 +284,22 @@ struct CoachPlayerDetailView: View {
                         .onChange(of: focusDraft) { _, new in
                             if new != loadedFocus { focusEdited = true }
                         }
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    ConfirmButton(
+                        isEnabled: focusDraft != loadedFocus,
+                        isBusy: isSavingFocus,
+                        isConfirmed: focusSaved,
+                        label: "Save training focus"
+                    ) {
                         Task {
+                            isSavingFocus = true
                             // Only claim "Saved" when it actually saved.
                             let ok = await model.saveCoachFocus(focusDraft, for: player.id)
+                            isSavingFocus = false
                             focusSaved = ok
                             if ok { loadedFocus = focusDraft; focusEdited = false }
                             if !ok { saveError = "Couldn't save that focus. Check your connection and try again." }
                         }
-                    } label: {
-                        Label(
-                            focusSaved ? "Saved" : "Save focus",
-                            systemImage: focusSaved ? "checkmark.circle.fill" : "checkmark"
-                        )
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(DS.Colors.Ground.primary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(Color.white)
-                            .clipShape(Capsule())
                     }
-                    .buttonStyle(PressableButtonStyle())
                 }
             }
         }
@@ -302,34 +315,30 @@ struct CoachPlayerDetailView: View {
                     Text(CoachFormat.monthLabel(currentMonthKey))
                         .style(.micro)
                         .foregroundStyle(DS.Colors.Ink.quaternary)
-                    TextField("Add a note for this month…", text: $noteDraft, axis: .vertical)
-                        .style(.body)
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                        .lineLimit(3...8)
-                        .onChange(of: noteDraft) { _, new in
-                            if new != loadedNote { noteEdited = true }
+                    HStack(alignment: .bottom, spacing: DS.Spacing.s8) {
+                        TextField("Add a note for this month…", text: $noteDraft, axis: .vertical)
+                            .style(.body)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                            .lineLimit(3...8)
+                            .onChange(of: noteDraft) { _, new in
+                                if new != loadedNote { noteEdited = true }
+                            }
+                        ConfirmButton(
+                            isEnabled: noteDraft != loadedNote,
+                            isBusy: isSavingNote,
+                            isConfirmed: noteSaved,
+                            label: "Save this month's note"
+                        ) {
+                            Task {
+                                isSavingNote = true
+                                let ok = await model.saveNote(month: currentMonthKey, text: noteDraft, for: player.id)
+                                isSavingNote = false
+                                noteSaved = ok
+                                if ok { loadedNote = noteDraft; noteEdited = false }
+                                if !ok { saveError = "Couldn't save that note. Check your connection and try again." }
+                            }
                         }
-                    Button {
-                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                        Task {
-                            let ok = await model.saveNote(month: currentMonthKey, text: noteDraft, for: player.id)
-                            noteSaved = ok
-                            if ok { loadedNote = noteDraft; noteEdited = false }
-                            if !ok { saveError = "Couldn't save that note. Check your connection and try again." }
-                        }
-                    } label: {
-                        Label(
-                            noteSaved ? "Saved" : "Save note",
-                            systemImage: noteSaved ? "checkmark.circle.fill" : "checkmark"
-                        )
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundStyle(DS.Colors.Ground.primary)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 44)
-                            .background(Color.white)
-                            .clipShape(Capsule())
                     }
-                    .buttonStyle(PressableButtonStyle())
                 }
             }
 
@@ -683,45 +692,217 @@ struct CoachPlayerDetailView: View {
 
     // MARK: - History
 
+    /// Up to 500 sessions. This used to be a plain `ForEach` inside a non-lazy
+    /// stack, so every row was built on appear and the whole history sat on
+    /// screen with no way to narrow it.
     private func historySection(_ detail: CoachPlayerDetail) -> some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+        // Bound once per body pass. The filter and the month bucketing walk the
+        // same 500 items, and the hero counts, the match line and the ForEach
+        // would otherwise each redo that walk.
+        let query = historyQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let isSearching = !query.isEmpty
+        let matches = isSearching
+            ? detail.history.filter { $0.drillTitle.lowercased().contains(query) }
+            : detail.history
+        let groups = historyGroups(matches)
+        let totalMinutes = detail.history.reduce(0) { $0 + $1.durationSec } / 60
+
+        return VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            // Unlike the rename browser this collapsing was modelled on, this is
+            // read-only data the coach opened the screen to see. Collapsing all
+            // of it would show them a stack of headers and nothing else, so the
+            // newest month starts open and the rest stay tucked away.
+            Color.clear.frame(height: 0).onAppear {
+                if historyExpanded.isEmpty, let newest = groups.first {
+                    historyExpanded.insert(newest.id)
+                }
+            }
             Eyebrow(text: "Session History")
+
             if detail.history.isEmpty {
                 emptyLine("No sessions logged yet.")
             } else {
-                VStack(spacing: DS.Spacing.s8) {
-                    ForEach(detail.history) { item in
-                        HStack(spacing: DS.Spacing.s12) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(item.drillTitle)
-                                    .style(.callout)
-                                    .foregroundStyle(DS.Colors.Ink.primary)
-                                    .lineLimit(1)
-                                Text(CoachFormat.shortDate(item.date))
-                                    .style(.cap)
-                                    .foregroundStyle(DS.Colors.Ink.quaternary)
-                            }
-                            Spacer(minLength: DS.Spacing.s8)
-                            if let rating = item.feltRating {
-                                Text("\(rating)/5")
-                                    .style(.cap)
-                                    .foregroundStyle(DS.Colors.Ink.tertiary)
-                            }
-                            Text(CoachFormat.duration(item.durationSec))
-                                .style(.foot)
-                                .foregroundStyle(DS.Colors.Ink.secondary)
-                        }
-                        .padding(.vertical, DS.Spacing.s12)
-                        .padding(.horizontal, DS.Spacing.s16)
-                        .background(DS.Colors.Bg.card)
-                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: DS.Radius.md)
-                                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
-                        )
+                historyHero(sessions: detail.history.count, minutes: totalMinutes)
+                historySearchField
+
+                if isSearching {
+                    Text("\(matches.count) match\(matches.count == 1 ? "" : "es")")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+
+                if groups.isEmpty {
+                    Text("Nothing matches “\(historyQuery)”.")
+                        .style(.callout)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                        .padding(.vertical, DS.Spacing.s16)
+                }
+
+                LazyVStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                    ForEach(groups) { group in
+                        historyGroupBlock(group, isSearching: isSearching)
                     }
                 }
             }
+        }
+    }
+
+    /// Counts before rows — a coach opening a two-year history should get the
+    /// shape of it first, the way the rename browser does.
+    private func historyHero(sessions: Int, minutes: Int) -> some View {
+        Card(padding: DS.Spacing.s16) {
+            HStack(spacing: DS.Spacing.s12) {
+                SectionIcon(systemName: "clock.arrow.circlepath")
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(sessions) session\(sessions == 1 ? "" : "s")")
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text("\(CoachFormat.minutes(minutes)) logged · open a month to browse")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private var historySearchField: some View {
+        HStack(spacing: DS.Spacing.s8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+            TextField("", text: $historyQuery, prompt: Text("Search sessions by drill")
+                .foregroundColor(DS.Colors.Ink.quaternary))
+                .style(.body)
+                .foregroundStyle(DS.Colors.Ink.primary)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+            if !historyQuery.isEmpty {
+                Button { historyQuery = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 15))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+                .accessibilityLabel("Clear session search")
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s16)
+        .frame(height: 48)
+        .background(DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.md)
+                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+        )
+    }
+
+    @ViewBuilder
+    private func historyGroupBlock(_ group: HistoryGroup, isSearching: Bool) -> some View {
+        // While searching every month is open — hiding a match behind a
+        // collapsed header would defeat the search.
+        let isOpen = isSearching || historyExpanded.contains(group.id)
+
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                withAnimation(DS.Motion.standardSpring) {
+                    if historyExpanded.contains(group.id) { historyExpanded.remove(group.id) }
+                    else { historyExpanded.insert(group.id) }
+                }
+            } label: {
+                HStack(spacing: DS.Spacing.s12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(group.title)
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text("\(group.items.count) session\(group.items.count == 1 ? "" : "s") · \(CoachFormat.minutes(group.minutes))")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                    }
+                    Spacer(minLength: DS.Spacing.s8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                        .rotationEffect(.degrees(isOpen ? 90 : 0))
+                }
+                .padding(DS.Spacing.s16)
+                .frame(maxWidth: .infinity)
+                .background(DS.Colors.Bg.card)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                .overlay(
+                    RoundedRectangle(cornerRadius: DS.Radius.md)
+                        .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
+            .disabled(isSearching)
+            .accessibilityLabel("\(group.title), \(group.items.count) sessions")
+            .accessibilityHint(isOpen ? "Collapse" : "Expand")
+
+            if isOpen {
+                ForEach(group.items) { item in
+                    historyRow(item)
+                }
+            }
+        }
+    }
+
+    private func historyRow(_ item: SessionHistoryItem) -> some View {
+        HStack(spacing: DS.Spacing.s12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.drillTitle)
+                    .style(.callout)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .lineLimit(1)
+                Text(CoachFormat.shortDate(item.date))
+                    .style(.cap)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+            }
+            Spacer(minLength: DS.Spacing.s8)
+            if let rating = item.feltRating {
+                Text("\(rating)/5")
+                    .style(.cap)
+                    .foregroundStyle(DS.Colors.Ink.tertiary)
+            }
+            Text(CoachFormat.duration(item.durationSec))
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.secondary)
+        }
+        .padding(.vertical, DS.Spacing.s12)
+        .padding(.horizontal, DS.Spacing.s16)
+        .background(DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.md)
+                .stroke(DS.Colors.Line.hairline, lineWidth: 1)
+        )
+    }
+
+    /// Sessions bucketed by calendar month. The rows arrive ordered
+    /// `completed_at desc`, so preserving encounter order keeps the newest month
+    /// first without paying for a second sort of 500 items.
+    private func historyGroups(_ items: [SessionHistoryItem]) -> [HistoryGroup] {
+        // Bucketed on year+month components, then formatted once per bucket.
+        // Formatting per item meant 500 `DateFormatter.string` calls on every
+        // body pass — including every keystroke in the focus field, the note
+        // field and the search box directly above this.
+        let calendar = Calendar.current
+        var order: [DateComponents] = []
+        var buckets: [DateComponents: [SessionHistoryItem]] = [:]
+        for item in items {
+            let key = calendar.dateComponents([.year, .month], from: item.date)
+            if buckets[key] == nil {
+                order.append(key)
+                buckets[key] = []
+            }
+            buckets[key]?.append(item)
+        }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return order.map { key in
+            let title = calendar.date(from: key).map(formatter.string(from:)) ?? "Earlier"
+            return HistoryGroup(title: title, items: buckets[key] ?? [])
         }
     }
 

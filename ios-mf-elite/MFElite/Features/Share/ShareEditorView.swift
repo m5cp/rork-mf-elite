@@ -4,9 +4,9 @@
 //
 //  The share editor: pick a format, theme and backdrop, toggle private details,
 //  add a caption chip, and place / resize / delete stickers on the card before
-//  sharing. The live preview always mirrors the exported image. The preview
-//  area keeps a constant size — trays and transient UI overlay it, never resize
-//  it.
+//  sharing. The live preview always mirrors the exported image, and takes
+//  whatever height the current tool's tray doesn't need — the card rescales to
+//  fit, so it is never cropped by the swap.
 //
 
 import SwiftUI
@@ -240,14 +240,29 @@ struct ShareEditorView: View {
         }
     }
 
-    // MARK: - Tool section (fixed height)
+    // MARK: - Tool section
 
     private var toolSection: some View {
         VStack(spacing: 0) {
             Rectangle().fill(DS.Colors.Line.hairline).frame(height: 1)
             tray
-                .frame(height: 150)
                 .frame(maxWidth: .infinity)
+                // The tray was pinned to the height of its tallest tool
+                // (Details), which left the other four floating in 75–115pt of
+                // empty band. Each tray now carries its own padding and the
+                // band takes only what that tool needs; the preview above
+                // absorbs the difference.
+                //
+                // fixedSize on the vertical axis is load-bearing: three of the
+                // five trays are horizontal ScrollViews, and without it the
+                // band's height would depend on how greedily a ScrollView
+                // answers a height proposal rather than on its content.
+                .fixedSize(horizontal: false, vertical: true)
+                .clipped()
+                // Deliberately NOT animated. The preview above is a GeometryReader,
+                // so every frame of a height spring rebuilds the whole card at a
+                // new scale — about two dozen full recompositions per tool tap.
+                // Snapping costs one.
             tabBar
         }
         .background(DS.Colors.Bg.elevated)
@@ -291,7 +306,7 @@ struct ShareEditorView: View {
                 }
             }
             .padding(.horizontal, DS.Spacing.s20)
-            .frame(maxHeight: .infinity)
+            .padding(.vertical, DS.Spacing.s16)
         }
     }
 
@@ -305,13 +320,17 @@ struct ShareEditorView: View {
                 }
             }
             .padding(.horizontal, DS.Spacing.s20)
-            .frame(maxHeight: .infinity)
+            .padding(.vertical, DS.Spacing.s16)
         }
     }
 
     private func styleChip(_ backdrop: ShareBackdrop) -> some View {
         let active = model.backdrop == backdrop && !(backdrop.isGated && !model.photoAllowed)
         let locked = backdrop.isGated && !model.photoAllowed
+        // My Photo is the one chip whose result depends on an upload, and the
+        // picker dismisses without saying anything landed — the chip looked
+        // identical before and after choosing an image.
+        let picked = backdrop.isGated && model.photo != nil
         return Button {
             if backdrop.isGated {
                 handlePhotoTap()
@@ -325,6 +344,9 @@ struct ShareEditorView: View {
                 }
                 Text(backdrop.name)
                     .font(.system(size: 13, weight: .semibold))
+                if picked {
+                    ConfirmBadge(isConfirmed: true, label: "Added")
+                }
             }
             .foregroundStyle(active ? accentText : DS.Colors.Ink.tertiary)
             .padding(.horizontal, 16)
@@ -429,6 +451,7 @@ struct ShareEditorView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, DS.Spacing.s20)
+        .padding(.vertical, DS.Spacing.s16)
     }
 
     // MARK: - Stickers tray
@@ -446,7 +469,7 @@ struct ShareEditorView: View {
                 }
             }
             .padding(.horizontal, DS.Spacing.s20)
-            .frame(maxHeight: .infinity)
+            .padding(.vertical, DS.Spacing.s16)
         }
     }
 
@@ -512,7 +535,10 @@ struct ShareEditorView: View {
             ForEach(ShareEditorTool.allCases) { tool in
                 let active = model.activeTool == tool
                 Button {
-                    withAnimation(.easeOut(duration: 0.18)) { model.activeTool = tool }
+                    // A tool switch now resizes the tray, so it rides the
+                    // standard spring rather than the flat 0.18s used for the
+                    // in-place chip highlights.
+                    withAnimation(DS.Motion.standardSpring) { model.activeTool = tool }
                 } label: {
                     VStack(spacing: 5) {
                         Image(systemName: tool.icon).font(.system(size: 16, weight: .semibold))
@@ -537,23 +563,36 @@ struct ShareEditorView: View {
     private var captionSheet: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-                TextField("Say something…", text: $captionDraft, axis: .vertical)
-                    .font(.system(size: 17, weight: .semibold))
-                    .textInputAutocapitalization(.characters)
-                    .lineLimit(2, reservesSpace: true)
-                    .padding(DS.Spacing.s16)
-                    .background(DS.Colors.Bg.card)
-                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: DS.Radius.md)
-                            .stroke(captionError == nil ? Color.clear : DS.Colors.Status.bad, lineWidth: 1)
-                    )
-                    .onChange(of: captionDraft) { _, newValue in
-                        if newValue.count > CaptionModerator.maxLength {
-                            captionDraft = String(newValue.prefix(CaptionModerator.maxLength))
+                HStack(spacing: DS.Spacing.s12) {
+                    TextField("Say something…", text: $captionDraft, axis: .vertical)
+                        .font(.system(size: 17, weight: .semibold))
+                        .textInputAutocapitalization(.characters)
+                        .lineLimit(2, reservesSpace: true)
+                        .padding(DS.Spacing.s16)
+                        .background(DS.Colors.Bg.card)
+                        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DS.Radius.md)
+                                .stroke(captionError == nil ? Color.clear : DS.Colors.Status.bad, lineWidth: 1)
+                        )
+                        .onChange(of: captionDraft) { _, newValue in
+                            if newValue.count > CaptionModerator.maxLength {
+                                captionDraft = String(newValue.prefix(CaptionModerator.maxLength))
+                            }
+                            if captionError != nil { captionError = nil }
                         }
-                        if captionError != nil { captionError = nil }
+
+                    // Replaces the old "Add to card" bar button: the commit now
+                    // sits beside the words being committed, and shows settled
+                    // once the draft matches what's already on the card.
+                    ConfirmButton(
+                        isEnabled: captionIsNew,
+                        isConfirmed: captionMatchesCard,
+                        label: "Add caption to card"
+                    ) {
+                        submitCaption()
                     }
+                }
 
                 HStack {
                     if let captionError {
@@ -588,16 +627,26 @@ struct ShareEditorView: View {
                     Button("Cancel") { model.showCaptionSheet = false }
                         .foregroundStyle(DS.Colors.Ink.secondary)
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Add to card") { submitCaption() }
-                        .fontWeight(.bold)
-                        .foregroundStyle(accentText)
-                        .disabled(captionDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
             }
             .preferredColorScheme(.dark)
         }
         .presentationDetents([.height(320)])
+    }
+
+    /// The caption as it would actually land on the card.
+    private var captionTrimmed: String {
+        captionDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// There is something new to commit — an empty draft is a no-op, and so is
+    /// re-submitting the caption already sitting on the card.
+    private var captionIsNew: Bool {
+        !captionTrimmed.isEmpty && captionTrimmed != model.caption?.text
+    }
+
+    /// What's typed is exactly what the card is showing.
+    private var captionMatchesCard: Bool {
+        captionTrimmed == model.caption?.text
     }
 
     /// Runs local moderation and either places the caption or shows the inline error.

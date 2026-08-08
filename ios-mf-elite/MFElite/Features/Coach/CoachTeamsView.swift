@@ -132,8 +132,15 @@ struct TeamEditorSheet: View {
             Eyebrow(text: team == nil ? "New team" : "Edit team")
 
             field("Team name") {
-                TextField("e.g. U16 Boys", text: $name)
-                    .textInputAutocapitalization(.words)
+                HStack(spacing: DS.Spacing.s8) {
+                    TextField("e.g. U16 Boys", text: $name)
+                        .textInputAutocapitalization(.words)
+                    // The one field that gates the button below it. The check
+                    // says the requirement is met without the coach having to
+                    // infer it from a greyed-out CTA.
+                    ConfirmBadge(isConfirmed: !name.trimmingCharacters(in: .whitespaces).isEmpty,
+                                 label: "Set", unconfirmedLabel: "Team name needed")
+                }
             }
             field("Age group / label (optional)") {
                 TextField("e.g. U16 · Personal", text: $label)
@@ -334,7 +341,9 @@ struct CoachTeamDetailView: View {
                 .foregroundStyle(DS.Colors.Ink.tertiary)
                 .padding(.top, DS.Spacing.s16)
         } else {
-            VStack(spacing: DS.Spacing.s8) {
+            // A club team can carry a hundred players; only build the rows the
+            // coach has actually scrolled to.
+            LazyVStack(spacing: DS.Spacing.s8) {
                 ForEach(members) { athlete in
                     HStack(spacing: DS.Spacing.s12) {
                         Monogram(size: 40, initials: CoachFormat.initials(athlete.displayName), kit: nil)
@@ -393,11 +402,23 @@ struct AddAthletesSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
+        // Bound once per pass. `filtered` scans every app user, and both the
+        // empty state and the list need the same answer.
+        let athletes = filtered
+        return NavigationStack {
             ScrollView {
-                VStack(spacing: DS.Spacing.s8) {
-                    ForEach(filtered) { athlete in
-                        row(athlete)
+                LazyVStack(spacing: DS.Spacing.s8) {
+                    if athletes.isEmpty {
+                        Text(store.athletes.isEmpty
+                             ? "Loading athletes\u{2026}"
+                             : "No one matches that search.")
+                            .style(.foot)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                            .padding(.vertical, DS.Spacing.s32)
+                    } else {
+                        ForEach(athletes) { athlete in
+                            row(athlete)
+                        }
                     }
                 }
                 .padding(.horizontal, DS.Spacing.s20)

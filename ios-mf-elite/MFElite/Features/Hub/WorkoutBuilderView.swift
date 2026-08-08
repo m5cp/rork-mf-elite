@@ -105,8 +105,13 @@ struct WorkoutBuilderView: View {
         }
     }
 
+    /// The workout has a usable name — one of the two things Save/Publish needs.
+    private var hasName: Bool {
+        !title.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     private var canSave: Bool {
-        guard items.count >= 2, !title.trimmingCharacters(in: .whitespaces).isEmpty else { return false }
+        guard items.count >= 2, hasName else { return false }
         if isPublishing { return items.count <= coachMaxDrills && audience.isValid }
         return true
     }
@@ -162,15 +167,22 @@ struct WorkoutBuilderView: View {
 
     private var nameSection: some View {
         Section {
-            TextField(isPublishing ? "e.g. First Touch Friday" : "Name your workout", text: $title)
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundStyle(DS.Colors.Ink.primary)
-                .onChange(of: title) { _, newValue in
-                    if newValue.count > titleLimit {
-                        title = String(newValue.prefix(titleLimit))
+            HStack(spacing: DS.Spacing.s12) {
+                TextField(isPublishing ? "e.g. First Touch Friday" : "Name your workout", text: $title)
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .onChange(of: title) { _, newValue in
+                        if newValue.count > titleLimit {
+                            title = String(newValue.prefix(titleLimit))
+                        }
                     }
-                }
-                .listRowBackground(DS.Colors.Bg.card)
+
+                // A badge, not a button: the name is one input of a form that
+                // Save/Publish commits as a whole, so there is nothing here for
+                // a tap to do — only a required box to tick.
+                ConfirmBadge(isConfirmed: hasName, label: "Set", unconfirmedLabel: "Name needed")
+            }
+            .listRowBackground(DS.Colors.Bg.card)
         } header: {
             Text("Name")
                 .foregroundStyle(DS.Colors.Ink.tertiary)

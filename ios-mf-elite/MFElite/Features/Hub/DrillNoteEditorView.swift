@@ -16,6 +16,7 @@ struct DrillNoteEditorView: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var text: String
+    @State private var didSave = false
     @FocusState private var isFocused: Bool
 
     private let charLimit = 300
@@ -25,6 +26,10 @@ struct DrillNoteEditorView: View {
         self.onSave = onSave
         _text = State(initialValue: existing)
     }
+
+    /// Clearing the note is a real edit — it deletes it — so "changed" is the
+    /// test here, not "non-empty".
+    private var isChanged: Bool { text != existing }
 
     var body: some View {
         NavigationStack {
@@ -46,12 +51,27 @@ struct DrillNoteEditorView: View {
                     if newValue.count > charLimit {
                         text = String(newValue.prefix(charLimit))
                     }
+                    // Typing again after saving reopens the edit.
+                    if didSave { didSave = false }
                 }
 
-                Text("\(text.count)/\(charLimit)")
-                    .style(.micro)
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
-                    .frame(maxWidth: .infinity, alignment: .trailing)
+                HStack(spacing: DS.Spacing.s12) {
+                    Text("\(text.count)/\(charLimit)")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+
+                    // Sits under the field rather than beside it — the field is
+                    // six lines tall, so a disc pinned to its trailing edge
+                    // would float in the middle of nowhere.
+                    ConfirmButton(
+                        isEnabled: isChanged,
+                        isConfirmed: didSave,
+                        label: "Save note"
+                    ) {
+                        save()
+                    }
+                }
 
                 Spacer()
             }
@@ -64,17 +84,22 @@ struct DrillNoteEditorView: View {
                     Button("Cancel") { dismiss() }
                         .foregroundStyle(DS.Colors.Ink.secondary)
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        onSave(text)
-                        dismiss()
-                    }
-                    .fontWeight(.semibold)
-                    .foregroundStyle(DS.Colors.Ink.primary)
-                }
             }
             .onAppear { isFocused = true }
         }
         .preferredColorScheme(.dark)
+    }
+
+    /// Saves, then holds the settled checkmark long enough to be read before
+    /// the sheet closes — otherwise the confirmation is never seen.
+    private func save() {
+        isFocused = false
+        didSave = true
+        onSave(text)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Task {
+            try? await Task.sleep(for: .seconds(0.45))
+            dismiss()
+        }
     }
 }

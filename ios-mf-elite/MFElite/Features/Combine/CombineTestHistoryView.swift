@@ -261,13 +261,21 @@ private struct CombineEditSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var text: String
+    @State private var didSave = false
     @FocusState private var focused: Bool
+
+    /// What the field was seeded with. Compared as text, so re-typing the same
+    /// number in a different form still counts as an edit — it saves the same
+    /// value, so that is harmless.
+    private let initialText: String
 
     init(test: CombineTest, result: CombineResult, onSave: @escaping (Double) -> Void) {
         self.test = test
         self.result = result
         self.onSave = onSave
-        _text = State(initialValue: CombineFormat.value(result.value, unit: test.unit))
+        let seed = CombineFormat.value(result.value, unit: test.unit)
+        self.initialText = seed
+        _text = State(initialValue: seed)
     }
 
     private var parsed: Double? {
@@ -275,6 +283,11 @@ private struct CombineEditSheet: View {
         guard let value = Double(trimmed), value > 0 else { return nil }
         return value
     }
+
+    /// A usable number that differs from the text the sheet opened with.
+    /// Compared as text, so re-typing the same number in a different form
+    /// still counts as an edit — it saves the same value, so that is harmless.
+    private var isCorrection: Bool { parsed != nil && text != initialText }
 
     var body: some View {
         NavigationStack {
@@ -284,19 +297,31 @@ private struct CombineEditSheet: View {
                     .foregroundStyle(DS.Colors.Ink.tertiary)
 
                 HStack(spacing: DS.Spacing.s12) {
-                    TextField("0", text: $text)
-                        .keyboardType(.decimalPad)
-                        .focused($focused)
-                        .font(DS.Typography.num(size: 40))
-                        .foregroundStyle(DS.Colors.Ink.primary)
-                    Text(test.unit)
-                        .style(.title3)
-                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                    HStack(spacing: DS.Spacing.s12) {
+                        TextField("0", text: $text)
+                            .keyboardType(.decimalPad)
+                            .focused($focused)
+                            .font(DS.Typography.num(size: 40))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                        Text(test.unit)
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    .padding(DS.Spacing.s16)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(DS.Colors.Bg.elevated)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+
+                    // Replaces the "Save" bar button. The decimal pad has no
+                    // return key, so the commit needs to be next to the number.
+                    ConfirmButton(
+                        isEnabled: isCorrection,
+                        isConfirmed: didSave,
+                        label: "Save corrected score"
+                    ) {
+                        commit()
+                    }
                 }
-                .padding(DS.Spacing.s16)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(DS.Colors.Bg.elevated)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
 
                 Spacer(minLength: 0)
             }
@@ -309,21 +334,25 @@ private struct CombineEditSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
-                        if let parsed {
-                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                            onSave(parsed)
-                            dismiss()
-                        }
-                    }
-                    .disabled(parsed == nil)
-                }
             }
             .onAppear { focused = true }
         }
         .presentationDetents([.height(260)])
         .preferredColorScheme(.dark)
+    }
+
+    /// Saves, then holds the settled checkmark long enough to be read before
+    /// the sheet closes — otherwise the confirmation is never seen.
+    private func commit() {
+        guard let parsed else { return }
+        focused = false
+        didSave = true
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        onSave(parsed)
+        Task {
+            try? await Task.sleep(for: .milliseconds(420))
+            dismiss()
+        }
     }
 }
 
