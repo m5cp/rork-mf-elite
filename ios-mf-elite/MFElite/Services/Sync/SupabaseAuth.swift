@@ -300,6 +300,14 @@ final class SupabaseAuth {
         Keychain.write(.expiresAt, String(expiresAt?.timeIntervalSince1970 ?? 0))
         defaults.set(email, forKey: DefaultsKeys.email)
         isSignedIn = true
+
+        // Before `syncProfilesAfterSignIn()` and before any flush can fire on
+        // the new credentials. If this is a different account than last time,
+        // everything local belongs to someone else — and the very next thing
+        // that happens is a push of the local profile to the new account's
+        // roster row, which would publish the previous player's real name,
+        // position and kit number under this account.
+        SyncEngine.shared.wipeIfDifferentAccount()
     }
 
     /// Clear the Supabase session. ALL local training data is preserved.
@@ -358,8 +366,7 @@ final class SupabaseAuth {
         }
 
         // 2) Wipe local history + reset on-device identity, then clear the session.
-        SyncEngine.shared.wipeLocalData(context: context)
-        PlayerProfileStore.shared.reset()
+        AccountReset.everythingLocal(context: context)
         signOut()
         return deleted
     }

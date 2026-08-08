@@ -329,6 +329,11 @@ final class PlayerProfileStore {
         trainingLevel = ""
         onboardingSkipped = false
         profilePromptDismissed = false
+        // Both are `didSet`-persisted, so clearing their UserDefaults keys from
+        // outside wouldn't stick — the next write puts the old value back.
+        // `gender` in particular sets the combine benchmark scale.
+        gender = ""
+        sessionCount = 0
         clearAvatar()
     }
 }

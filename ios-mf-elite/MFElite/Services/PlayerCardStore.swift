@@ -81,4 +81,13 @@ final class PlayerCardStore {
         backgroundPhoto = nil
         try? FileManager.default.removeItem(at: Self.photoURL)
     }
+
+    /// Throw away the saved card entirely — design, background photo and the
+    /// "has saved a design" flag. Account deletion only; without this the next
+    /// account signed in on this device opened the previous player's card.
+    func reset() {
+        design = CardDesign()
+        defaults.removeObject(forKey: Keys.design)
+        clearBackgroundPhoto()
+    }
 }

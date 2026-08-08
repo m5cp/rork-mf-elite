@@ -34,6 +34,16 @@ final class FavoritesStore {
         workoutIDs = Set(defaults.stringArray(forKey: Keys.workouts) ?? [])
     }
 
+    /// Forget every favorite. Account deletion only.
+    func reset() {
+        drillIDs = []
+        routineIDs = []
+        workoutIDs = []
+        defaults.removeObject(forKey: Keys.drills)
+        defaults.removeObject(forKey: Keys.routines)
+        defaults.removeObject(forKey: Keys.workouts)
+    }
+
     // MARK: - Drills
 
     func isFavoriteDrill(_ id: String) -> Bool { drillIDs.contains(id) }
