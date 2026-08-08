@@ -880,6 +880,7 @@ private struct AccountEditSheet: View {
     @State private var text: String = ""
     @State private var selectedPosition: String = ""
     @State private var selectedBirthYear: Int = 0
+    @State private var didConfirm = false
     @FocusState private var inputFocused: Bool
 
 
@@ -891,18 +892,24 @@ private struct AccountEditSheet: View {
                 switch field {
                 case .name:
                     field(title: "Player name") {
-                        TextField("Your name", text: $text)
-                            .textInputAutocapitalization(.words)
-                            .focused($inputFocused)
-                            .submitLabel(.done)
-                            .styledInput()
+                        HStack(spacing: DS.Spacing.s12) {
+                            TextField("Your name", text: $text)
+                                .textInputAutocapitalization(.words)
+                                .focused($inputFocused)
+                                .submitLabel(.done)
+                                .styledInput()
+                            confirmButton(label: "Save player name")
+                        }
                     }
                 case .kit:
                     field(title: "Kit number") {
-                        TextField("Number", text: $text)
-                            .keyboardType(.numberPad)
-                            .focused($inputFocused)
-                            .styledInput()
+                        HStack(spacing: DS.Spacing.s12) {
+                            TextField("Number", text: $text)
+                                .keyboardType(.numberPad)
+                                .focused($inputFocused)
+                                .styledInput()
+                            confirmButton(label: "Save kit number")
+                        }
                     }
                 case .position:
                     field(title: "Position") {
@@ -954,6 +961,33 @@ private struct AccountEditSheet: View {
         }
     }
 
+    /// This sheet edits exactly one value, so the check beside the field *is*
+    /// that field's commit rather than a "done typing" marker — it saves and
+    /// closes, the same thing the toolbar Save does.
+    private func confirmButton(label: String) -> some View {
+        ConfirmButton(
+            isEnabled: canSave && isChanged,
+            isConfirmed: didConfirm,
+            label: label
+        ) {
+            commitAndClose()
+        }
+    }
+
+    /// Nothing to confirm when the field still holds the value it opened with.
+    private var isChanged: Bool {
+        switch field {
+        case .name:
+            return text.trimmingCharacters(in: .whitespacesAndNewlines) != profile.displayName
+        case .kit:
+            return text.filter(\.isNumber) != profile.kitNumber
+        case .position:
+            return selectedPosition != profile.position
+        case .birthYear:
+            return selectedBirthYear != profile.birthYear
+        }
+    }
+
     private func positionRow(_ pos: String) -> some View {
         let isSelected = selectedPosition == pos
         return Button {
@@ -1001,6 +1035,24 @@ private struct AccountEditSheet: View {
     }
 
     private func save() {
+        persist()
+        dismiss()
+    }
+
+    /// Save, but hold the sheet open long enough for the check to be seen —
+    /// dismissing on the same frame throws away the confirmation the button
+    /// exists to give.
+    private func commitAndClose() {
+        persist()
+        didConfirm = true
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        Task {
+            try? await Task.sleep(for: .milliseconds(420))
+            dismiss()
+        }
+    }
+
+    private func persist() {
         switch field {
         case .name:
             profile.displayName = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1012,7 +1064,6 @@ private struct AccountEditSheet: View {
         case .birthYear:
             profile.birthYear = selectedBirthYear
         }
-        dismiss()
     }
 }
 

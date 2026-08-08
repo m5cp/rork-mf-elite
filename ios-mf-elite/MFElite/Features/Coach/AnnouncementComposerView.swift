@@ -29,7 +29,8 @@ struct AnnouncementComposerView: View {
                         label: "Title",
                         prompt: "Practice moved",
                         text: $title,
-                        axis: .horizontal
+                        axis: .horizontal,
+                        showsConfirm: true
                     )
 
                     VStack(alignment: .leading, spacing: DS.Spacing.s8) {
@@ -81,17 +82,35 @@ struct AnnouncementComposerView: View {
         }
     }
 
-    private func field(label: String, prompt: String, text: Binding<String>, axis: Axis) -> some View {
+    /// `showsConfirm` is for the field that gates Send — the check marks the
+    /// requirement as met, rather than leaving the coach to work that out from
+    /// a dimmed button further down the sheet.
+    private func field(
+        label: String,
+        prompt: String,
+        text: Binding<String>,
+        axis: Axis,
+        showsConfirm: Bool = false
+    ) -> some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s8) {
             Eyebrow(text: label)
-            TextField("", text: text, prompt: Text(prompt).foregroundColor(DS.Colors.Ink.quaternary))
-                .style(.body)
-                .foregroundStyle(DS.Colors.Ink.primary)
-                .padding(DS.Spacing.s16)
-                .frame(height: 52)
-                .background(DS.Colors.Bg.card)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
-                .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+            HStack(spacing: DS.Spacing.s8) {
+                TextField("", text: text, prompt: Text(prompt).foregroundColor(DS.Colors.Ink.quaternary))
+                    .style(.body)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                if showsConfirm {
+                    ConfirmBadge(
+                        isConfirmed: !text.wrappedValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                        label: "Set",
+                        unconfirmedLabel: "Required"
+                    )
+                }
+            }
+            .padding(DS.Spacing.s16)
+            .frame(height: 52)
+            .background(DS.Colors.Bg.card)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+            .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
         }
     }
 }

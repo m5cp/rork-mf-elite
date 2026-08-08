@@ -89,20 +89,26 @@ struct AddAthleteSheet: View {
     private var nameField: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s8) {
             Eyebrow(text: "Name")
-            TextField("", text: $name,
-                      prompt: Text("Athlete's name").foregroundColor(DS.Colors.Ink.quaternary))
-                .focused($focusedField, equals: .name)
-                .font(DS.Typography.title3)
-                .foregroundStyle(DS.Colors.Ink.primary)
-                .tint(.white)
-                .submitLabel(.next)
-                .onSubmit { focusedField = .username }
-                .padding(.horizontal, DS.Spacing.s16)
-                .frame(height: 52)
-                .background(DS.Colors.Bg.elevated)
-                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
-                .overlay(RoundedRectangle(cornerRadius: DS.Radius.md)
-                    .stroke(DS.Colors.Line.hairline, lineWidth: 1))
+            HStack(spacing: DS.Spacing.s12) {
+                TextField("", text: $name,
+                          prompt: Text("Athlete's name").foregroundColor(DS.Colors.Ink.quaternary))
+                    .focused($focusedField, equals: .name)
+                    .font(DS.Typography.title3)
+                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .tint(.white)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .username }
+                // Name and username both gate the Add button, but only the
+                // username says so out loud. Without this, a parent whose Add
+                // button stays dim can't tell which of the two is at fault.
+                ConfirmBadge(isConfirmed: ProfileValidation.isNameValid(name), label: "Set", unconfirmedLabel: "Name needed")
+            }
+            .padding(.horizontal, DS.Spacing.s16)
+            .frame(height: 52)
+            .background(DS.Colors.Bg.elevated)
+            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+            .overlay(RoundedRectangle(cornerRadius: DS.Radius.md)
+                .stroke(DS.Colors.Line.hairline, lineWidth: 1))
         }
     }
 

@@ -271,9 +271,12 @@ struct CoachView: View {
     /// Players inactive 7+ days (or never active). Tapping a row opens the same
     /// player detail the roster uses.
     private var needsAttentionSection: some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+        // Same reason as the roster: `needsAttention` re-filters the whole
+        // roster on every read, and a dormant team puts everyone in here.
+        let players = model.needsAttention
+        return VStack(alignment: .leading, spacing: DS.Spacing.s12) {
             Eyebrow(text: "Needs Attention")
-            if model.needsAttention.isEmpty {
+            if players.isEmpty {
                 Text("Everyone has trained this week.")
                     .style(.foot)
                     .foregroundStyle(DS.Colors.Ink.tertiary)
@@ -283,8 +286,8 @@ struct CoachView: View {
                     .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
                     .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
             } else {
-                VStack(spacing: DS.Spacing.s8) {
-                    ForEach(model.needsAttention) { player in
+                LazyVStack(spacing: DS.Spacing.s8) {
+                    ForEach(players) { player in
                         NavigationLink(value: player) {
                             needsAttentionRow(player)
                         }
@@ -812,7 +815,11 @@ struct CoachView: View {
     // MARK: - Roster
 
     private var rosterSection: some View {
-        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+        // Bound once per body pass. `filteredRoster` lowercases and filters the
+        // whole roster and then sorts it; the empty check and the ForEach used
+        // to each run that from scratch.
+        let players = model.filteredRoster
+        return VStack(alignment: .leading, spacing: DS.Spacing.s12) {
             HStack(spacing: DS.Spacing.s12) {
                 Eyebrow(text: "Roster")
                 Spacer()
@@ -841,14 +848,16 @@ struct CoachView: View {
 
             searchField
 
-            if model.filteredRoster.isEmpty {
+            if players.isEmpty {
                 Text(model.roster.isEmpty ? "No players yet." : "No players match your search.")
                     .style(.callout)
                     .foregroundStyle(DS.Colors.Ink.tertiary)
                     .padding(.vertical, DS.Spacing.s24)
             } else {
-                VStack(spacing: DS.Spacing.s8) {
-                    ForEach(model.filteredRoster) { player in
+                // A big academy roster is the last section on a long scroll —
+                // no reason to build every row before the coach reaches it.
+                LazyVStack(spacing: DS.Spacing.s8) {
+                    ForEach(players) { player in
                         NavigationLink(value: player) {
                             CoachRosterRow(player: player)
                         }

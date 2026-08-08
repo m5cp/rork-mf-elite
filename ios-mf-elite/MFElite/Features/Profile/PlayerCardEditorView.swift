@@ -65,6 +65,18 @@ struct PlayerCardEditorView: View {
 
     private var isDrawing: Bool { panel == .draw }
 
+    /// True once a library photo is the card's portrait — the picker writes
+    /// through to the shared profile, so this is the same source of truth the
+    /// canvas renders from.
+    private var hasUploadedPhoto: Bool { profile.avatar == .photo }
+
+    /// True only when the photo arrived during this editing session, measured
+    /// against the snapshot Cancel restores from.
+    private var photoAddedThisSession: Bool {
+        guard hasUploadedPhoto, let avatarBackup else { return false }
+        return avatarBackup.selection != .photo || avatarBackup.photo !== profile.avatarPhoto
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -293,7 +305,20 @@ struct PlayerCardEditorView: View {
 
     private var themePanel: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s12) {
-            Eyebrow(text: "Theme")
+            HStack {
+                Eyebrow(text: "Theme")
+                Spacer(minLength: DS.Spacing.s12)
+                // Picking a photo swaps the card background silently, and the
+                // only other sign it took is the "Remove photo" chip appearing
+                // below — which reads as an offer, not a confirmation.
+                //
+                // Only for a photo added in THIS editing session: a badge that
+                // greets a player who set their avatar weeks ago is confirming
+                // something they didn't just do.
+                if photoAddedThisSession {
+                    ConfirmBadge(isConfirmed: true, label: "Photo added")
+                }
+            }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: DS.Spacing.s12) {
                     ForEach(CardTheme.allCases) { theme in
@@ -308,7 +333,7 @@ struct PlayerCardEditorView: View {
                 ) {
                     design.showStatPlate.toggle()
                 }
-                if profile.avatar == .photo {
+                if hasUploadedPhoto {
                     panelChip(icon: "photo.badge.minus", label: "Remove photo", tint: Color(hex: "FF453A")) {
                         profile.clearAvatar()
                     }

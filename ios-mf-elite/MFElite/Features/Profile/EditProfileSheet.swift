@@ -33,12 +33,21 @@ struct EditProfileSheet: View {
 
                     VStack(spacing: DS.Spacing.s16) {
                         field(label: "Name") {
-                            TextField("Your name", text: $name)
-                                .textInputAutocapitalization(.words)
-                                .submitLabel(.done)
-                                .onChange(of: name) { _, newValue in
-                                    if newValue.count > 28 { name = String(newValue.prefix(28)) }
-                                }
+                            HStack(spacing: DS.Spacing.s12) {
+                                TextField("Your name", text: $name)
+                                    .textInputAutocapitalization(.words)
+                                    .submitLabel(.done)
+                                    .onChange(of: name) { _, newValue in
+                                        if newValue.count > 28 { name = String(newValue.prefix(28)) }
+                                    }
+                                // Save commits all four fields at once and Cancel
+                                // throws them away, so a tappable check here would
+                                // have to either lie or quietly write behind
+                                // Cancel's back. The badge only reports what the
+                                // Save button is already deciding on: the name is
+                                // good enough to keep.
+                                ConfirmBadge(isConfirmed: canSave, label: "Set", unconfirmedLabel: "Name needed")
+                            }
                         }
                         field(label: "Kit number") {
                             TextField("e.g. 10", text: $kit)

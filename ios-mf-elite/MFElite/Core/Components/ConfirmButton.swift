@@ -87,6 +87,10 @@ struct ConfirmButton: View {
 struct ConfirmBadge: View {
     var isConfirmed: Bool
     var label: String = "Selected"
+    /// What VoiceOver says before the condition is met. The default suits a
+    /// picker; beside a half-typed text field "Not selected" is nonsense, so
+    /// those call sites pass something that describes the field instead.
+    var unconfirmedLabel: String = "Not selected"
 
     var body: some View {
         HStack(spacing: DS.Spacing.s4) {
@@ -100,7 +104,7 @@ struct ConfirmBadge: View {
             }
         }
         .animation(DS.Motion.standardSpring, value: isConfirmed)
-        .accessibilityLabel(isConfirmed ? label : "Not selected")
+        .accessibilityLabel(isConfirmed ? label : unconfirmedLabel)
     }
 }
 

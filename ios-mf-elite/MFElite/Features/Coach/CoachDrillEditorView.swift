@@ -565,7 +565,15 @@ private struct DrillFieldForm<Extra: View>: View {
     var body: some View {
         List {
             Section {
-                textField("Title", text: $fields.title)
+                HStack(spacing: DS.Spacing.s8) {
+                    TextField("Title", text: $fields.title)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    // Title is what gates Save / Publish on both sheets that use
+                    // this form; the check says so where the coach is typing.
+                    ConfirmBadge(isConfirmed: !fields.title.trimmingCharacters(in: .whitespaces).isEmpty,
+                                 label: "Set", unconfirmedLabel: "Title needed")
+                }
+                .listRowBackground(DS.Colors.Bg.card)
                 textField("Focus", text: $fields.focus)
                 TextField("How / purpose", text: $fields.how, axis: .vertical)
                     .lineLimit(2...5)
@@ -724,7 +732,7 @@ struct CoachDrillMediaSection: View {
             // Standard confirmation affordance: a checkmark that says "yes,
             // that one is attached", rather than the label quietly changing.
             if state != .uploading, state != .failed {
-                ConfirmBadge(isConfirmed: hasMedia || state == .done, label: "Attached")
+                ConfirmBadge(isConfirmed: hasMedia || state == .done, label: "Attached", unconfirmedLabel: "Nothing attached")
             }
             if hasMedia {
                 Button("Remove", action: onRemove)
