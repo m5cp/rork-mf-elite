@@ -1,9 +1,14 @@
 -- =============================================================================
 --  2026-08-05  Scope coach reads to the coach's own roster
 --
---  STATUS: NOT APPLIED. Reviewed and staged only. Read the whole file, run it
---  against a branch/copy first, and confirm the verification queries at the
---  bottom before touching production.
+--  STATUS: SUPERSEDED — DO NOT RUN. Replaced by
+--  2026-08-08-coach-roster-scoping-APPLIED.sql.
+--
+--  Two assumptions in this file are false against the live database: it
+--  backfills from `roster_invites`, which is empty (0 rows, ever), so it would
+--  link nobody and cut every non-head coach off from every player; and it keys
+--  the link table on `profiles(id)`, which 8 of the 11 coaches do not have
+--  because they have never signed in. Kept for the reasoning in the header.
 --
 --  WHY
 --  ---

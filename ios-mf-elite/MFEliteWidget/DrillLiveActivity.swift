@@ -16,14 +16,30 @@ private extension Color {
 private struct CountdownText: View {
     let state: DrillActivityAttributes.ContentState
     var font: Font
+    /// True once the system considers this content out of date, i.e. the app has
+    /// stopped feeding the timer. Showing a clock at all then would be a claim we
+    /// can't back up, so the card says nothing rather than something wrong.
+    var isStale: Bool = false
 
     var body: some View {
-        Group {
-            if state.isPaused {
+        // One reading of the clock for both the comparison and the range. Read
+        // twice, an end date landing in the gap passes the check and then traps
+        // building the ClosedRange.
+        let now = Date.now
+        return Group {
+            if isStale {
+                Text("—")
+            } else if state.isPaused {
                 Text(timeString(state.pausedRemaining))
-            } else {
-                Text(timerInterval: Date.now...state.endDate, countsDown: true)
+            } else if state.endDate > now {
+                Text(timerInterval: now...state.endDate, countsDown: true)
                     .monospacedDigit()
+            } else {
+                // The countdown ran out and no update followed. This has to be
+                // handled explicitly: `Date.now...state.endDate` traps when the
+                // end date is in the past, which is precisely the state a session
+                // killed mid-drill leaves on the lock screen.
+                Text(timeString(0))
             }
         }
         .font(font)
@@ -92,7 +108,11 @@ private struct LockScreenView: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                CountdownText(state: state, font: .system(size: 34, weight: .heavy, design: .rounded))
+                CountdownText(
+                    state: state,
+                    font: .system(size: 34, weight: .heavy, design: .rounded),
+                    isStale: context.isStale
+                )
             }
             HStack {
                 SetDots(state: state)
@@ -127,7 +147,11 @@ struct DrillLiveActivity: Widget {
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) {
-                    CountdownText(state: state, font: .system(size: 26, weight: .heavy, design: .rounded))
+                    CountdownText(
+                        state: state,
+                        font: .system(size: 26, weight: .heavy, design: .rounded),
+                        isStale: context.isStale
+                    )
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
@@ -140,7 +164,11 @@ struct DrillLiveActivity: Widget {
                 Image(systemName: state.isResting ? "pause.circle.fill" : "figure.run")
                     .foregroundStyle(Color.laInk)
             } compactTrailing: {
-                CountdownText(state: state, font: .system(size: 14, weight: .bold, design: .rounded))
+                CountdownText(
+                    state: state,
+                    font: .system(size: 14, weight: .bold, design: .rounded),
+                    isStale: context.isStale
+                )
             } minimal: {
                 Image(systemName: "figure.run")
                     .foregroundStyle(Color.laInk)

@@ -27,6 +27,7 @@ final class WatchWorkoutManager: NSObject {
 
     private var hrSum = 0
     private var hrCount = 0
+    private var didFinalize = false
 
     private(set) var status: Status = .idle
     private(set) var mode: WorkoutModeID = .outdoorRun
@@ -77,6 +78,12 @@ final class WatchWorkoutManager: NSObject {
     // MARK: - Controls
 
     func start(_ mode: WorkoutModeID) async {
+        // One live session per manager. Without this a second tap while a workout is
+        // already up would build a second HKWorkoutSession and a second route
+        // builder, and the first pair would become unreachable — nothing left to
+        // hold them would ever be able to stop them.
+        guard status == .idle else { return }
+
         self.mode = mode
         await requestAuthorization()
 
@@ -98,6 +105,10 @@ final class WatchWorkoutManager: NSObject {
                 if locationManager.authorizationStatus == .notDetermined {
                     locationManager.requestWhenInUseAuthorization()
                 }
+                // Accuracy is re-armed here, not just in `init`, because teardown
+                // deliberately drops it. A second workout in the same launch has to
+                // put the receiver back into navigation mode itself.
+                locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
                 locationManager.startUpdatingLocation()
             }
 
@@ -108,6 +119,14 @@ final class WatchWorkoutManager: NSObject {
             status = .running
             startTicker()
         } catch {
+            // The throw comes from the session initialiser, so nothing is running
+            // yet — but routing the failure through the same teardown as every
+            // other end path is what keeps "did we clean up?" a question with one
+            // answer instead of one per call site.
+            stopTracking()
+            self.session = nil
+            self.builder = nil
+            self.routeBuilder = nil
             status = .idle
         }
     }
@@ -116,16 +135,34 @@ final class WatchWorkoutManager: NSObject {
     func resume() { session?.resume() }
 
     func end() {
-        locationManager.stopUpdatingLocation()
-        ticker?.cancel()
+        // Stop the hardware before asking HealthKit to end. `session.end()` is
+        // asynchronous and the `.ended` callback can be a second or more away; there
+        // is no reason to burn navigation-grade GPS through it.
+        stopTracking()
         session?.end()
     }
 
+    /// Teardown for the workout UI going away — dismissing the cover, swiping back
+    /// out of a live workout, or tapping Done on the summary. The manager is owned
+    /// by that view and dies with it, so anything still live here loses its last
+    /// reference and could never be stopped again.
+    func endIfActive() {
+        guard status == .running || status == .paused else {
+            // Already finished or never started: the session needs nothing, but make
+            // one last pass over the battery-expensive parts anyway. This is the
+            // cheap belt to `stopTracking`'s braces.
+            stopTracking()
+            return
+        }
+        end()
+    }
+
     func reset() {
-        ticker?.cancel()
+        stopTracking()
         session = nil
         builder = nil
         routeBuilder = nil
+        didFinalize = false
         status = .idle
         elapsed = 0
         distanceMeters = 0
@@ -139,20 +176,68 @@ final class WatchWorkoutManager: NSObject {
     }
 
     private func startTicker() {
-        ticker?.cancel()
-        ticker = Task { [weak self] in
+        // Cancel-then-replace, never append. `ticker` is the one and only handle to
+        // the loop, so a second one created without going through here would be
+        // invisible and unstoppable.
+        stopTicker()
+        ticker = Task { @MainActor [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
-                await MainActor.run {
-                    guard let self, self.status == .running else { return }
-                    self.elapsed = self.builder?.elapsedTime ?? self.elapsed
-                }
+                // Leaving the loop when the owner is gone is not belt-and-braces, it
+                // is the exit condition that was missing. The task holds `self`
+                // weakly and the concurrency runtime keeps it alive on its own, so
+                // once the manager deallocates the handle that could cancel it dies
+                // with it — a loop that only tested `Task.isCancelled` would wake the
+                // watch every second for the rest of the process's life.
+                guard let self else { return }
+                guard self.status == .running else { continue }
+                self.elapsed = self.builder?.elapsedTime ?? self.elapsed
             }
         }
     }
 
+    /// The single teardown point for everything a workout leaves powered on: the GPS
+    /// fix and the 1 Hz ticker. Every way a workout can end funnels through here —
+    /// the End button, HealthKit ending or stopping the session on its own, a session
+    /// error, a failed start, and the UI being dismissed — because a cleanup that was
+    /// spelled out at each call site was a cleanup that half the call sites forgot.
+    /// Idempotent and safe to call when nothing ever started.
+    ///
+    /// Backgrounding is deliberately *not* one of those paths. The watch target runs
+    /// under `workout-processing`, so a live workout is meant to keep collecting when
+    /// the athlete drops their wrist or switches apps; stopping GPS there would punch
+    /// holes in the route. Process termination needs no path of its own — the ticker
+    /// and the location fix die with the process.
+    private func stopTracking() {
+        stopTicker()
+        locationManager.stopUpdatingLocation()
+        // Stopping updates is not the same as powering the receiver down. Drop back
+        // to the cheapest accuracy so that if anything re-arms location later —
+        // an authorization callback, a future caller — it starts coarse instead of
+        // silently resuming a navigation-grade fix. `start` puts it back.
+        locationManager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+        // The watch target ships `workout-processing`, not the location background
+        // mode, so this should never have been on; assert that rather than trust it.
+        locationManager.allowsBackgroundLocationUpdates = false
+    }
+
+    /// Kills the 1 Hz loop and forgets it. Separate from `stopTracking` only because
+    /// `startTicker` needs the "there can be at most one" half without tearing down
+    /// the GPS fix the workout is still using.
+    private func stopTicker() {
+        ticker?.cancel()
+        // Clearing the handle matters as much as cancelling it: a stale reference is
+        // how you end up cancelling last workout's task and leaking this one's.
+        ticker = nil
+    }
+
     private func finalizeWorkout() {
-        guard let builder else { return }
+        // HealthKit can hand us more than one terminal signal for the same workout
+        // (a `.stopped` followed by an `.ended`, an error alongside an end). Ending
+        // collection twice fails the second call and would overwrite a good result
+        // with an empty one.
+        guard !didFinalize, let builder else { return }
+        didFinalize = true
         let end = Date()
         builder.endCollection(withEnd: end) { [weak self] _, _ in
             builder.finishWorkout { [weak self] workout, _ in
@@ -167,8 +252,18 @@ final class WatchWorkoutManager: NSObject {
         }
     }
 
+    /// Called the moment a result exists, with the result.
+    ///
+    /// Sending it used to be the Done button's job, which meant a workout ended
+    /// any other way — the cover swiped away, the system dismissing it, the
+    /// watch-side end gesture — was written to Health and then silently lost to
+    /// MF Elite, because the manager is `@State` on a view that is already
+    /// gone. The phone de-dupes on the result's id, so Done sending it again is
+    /// harmless.
+    var onResult: ((WatchWorkoutResult) -> Void)?
+
     private func buildResult() {
-        result = WatchWorkoutResult(
+        let built = WatchWorkoutResult(
             id: UUID().uuidString,
             modeRaw: mode.rawValue,
             startedAt: startedAt,
@@ -179,7 +274,9 @@ final class WatchWorkoutManager: NSObject {
             maxHeartRate: maxHeartRate,
             route: route.map { WatchRoutePoint(lat: $0.latitude, lng: $0.longitude) }
         )
+        result = built
         status = .ended
+        onResult?(built)
     }
 
     private static func activityType(for mode: WorkoutModeID) -> HKWorkoutActivityType {
@@ -203,15 +300,58 @@ extension WatchWorkoutManager: HKWorkoutSessionDelegate {
     nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didChangeTo toState: HKWorkoutSessionState, from fromState: HKWorkoutSessionState, date: Date) {
         Task { @MainActor in
             switch toState {
-            case .running: self.status = .running
-            case .paused: self.status = .paused
-            case .ended: self.finalizeWorkout()
-            default: break
+            case .running:
+                self.status = .running
+                // HealthKit can put a session back into `running` without anyone
+                // touching `resume()` — Siri, the system workout controls, a
+                // mirrored phone session. Re-arm the ticker from the state change
+                // rather than from the button so every route to "running" ends up
+                // with exactly one loop.
+                self.startTicker()
+            case .paused:
+                self.status = .paused
+                // A paused workout has nothing to count. Leaving the loop alive just
+                // to have it fall through a status check wakes the watch once a
+                // second for as long as the athlete stays paused, which can be the
+                // rest of the afternoon if they forget about it. `.running` above
+                // brings it back.
+                self.stopTicker()
+            case .stopped:
+                // watchOS can stop a session without ending it (`stopActivity`, a
+                // mirrored session handing over). No more samples are coming, and an
+                // `.ended` may never follow — and when it doesn't, leaving
+                // `status` at .running stranded the athlete on the live screen
+                // with a frozen timer and no result to send. Finalize here too;
+                // `didFinalize` makes the later `.ended` a no-op.
+                self.stopTracking()
+                self.finalizeWorkout()
+            case .ended:
+                // Every end that isn't the in-app button lands here: the system
+                // workout-end gesture, Siri, HealthKit ending the session itself,
+                // another workout app taking over. This case used to go straight to
+                // finalize, which is how a finished workout left GPS at navigation
+                // accuracy and the ticker running.
+                self.stopTracking()
+                self.finalizeWorkout()
+            default:
+                break
             }
         }
     }
 
-    nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {}
+    nonisolated func workoutSession(_ workoutSession: HKWorkoutSession, didFailWithError error: Error) {
+        Task { @MainActor in
+            // A failed session never transitions to `.ended`, so this is the only
+            // place the GPS fix and the ticker can be released on this path.
+            self.stopTracking()
+            guard self.status == .running || self.status == .paused else { return }
+            // Salvage whatever was collected and move to the summary. The builder may
+            // never call back after a failure, and stranding the athlete on a live
+            // screen whose timer has stopped is worse than a partial summary.
+            self.finalizeWorkout()
+            self.buildResult()
+        }
+    }
 }
 
 // MARK: - HKLiveWorkoutBuilderDelegate
