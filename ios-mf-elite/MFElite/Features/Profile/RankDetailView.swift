@@ -15,7 +15,10 @@ struct RankDetailRoute: Hashable {}
 struct RankDetailView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var players: [PlayerState]
-    @Query private var progress: [DrillProgress]
+    // The breakdown is reconciled against real records rather than mastery
+    // state, so this screen reads the session log and the watch workouts.
+    @Query private var sessions: [SessionLogEntry]
+    @Query private var workouts: [WorkoutRecord]
     @Environment(SubscriptionService.self) private var subscription
 
     private var profile = PlayerProfileStore.shared
@@ -23,8 +26,10 @@ struct RankDetailView: View {
     private var viewModel: RankDetailViewModel {
         RankDetailViewModel(
             disciplines: disciplines,
-            xp: players.first?.rankXP ?? 0,
-            masteredDrillIDs: Set(progress.filter { $0.isMastered }.map { $0.drillID })
+            earnedXP: players.first?.xp ?? 0,
+            purchasedXP: players.first?.purchasedXP ?? 0,
+            sessions: sessions,
+            workouts: workouts
         )
     }
 
@@ -61,7 +66,7 @@ struct RankDetailView: View {
                 .padding(.top, DS.Spacing.s4)
 
             HStack(alignment: .firstTextBaseline, spacing: DS.Spacing.s4) {
-                Text(vm.xp.formatted())
+                Text(vm.rankXP.formatted())
                     .font(DS.Typography.num(size: 40))
                     .foregroundStyle(DS.Colors.Ink.primary)
                 Text("XP")
@@ -152,11 +157,16 @@ struct RankDetailView: View {
     // MARK: - 3. XP breakdown
 
     private func breakdownSection(_ vm: RankDetailViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        // Bound once. `breakdownRows` filters and reduces the whole session log
+        // and workout table, and the total used to re-run all of it a second
+        // time on every render.
+        let rows = vm.breakdownRows
+        let total = rows.reduce(0) { $0 + $1.total }
+        return VStack(alignment: .leading, spacing: 0) {
             Eyebrow(text: "How You Earned Them")
 
             VStack(spacing: 0) {
-                ForEach(vm.breakdownRows) { row in
+                ForEach(rows) { row in
                     VStack(spacing: 0) {
                         HStack(alignment: .firstTextBaseline) {
                             VStack(alignment: .leading, spacing: 2) {
@@ -187,7 +197,7 @@ struct RankDetailView: View {
                         .style(.title3)
                         .foregroundStyle(DS.Colors.Ink.primary)
                     Spacer()
-                    Text(vm.breakdownTotal.formatted())
+                    Text(total.formatted())
                         .font(DS.Typography.num(size: 20))
                         .foregroundStyle(DS.Colors.Ink.primary)
                 }
@@ -204,6 +214,14 @@ struct RankDetailView: View {
     private func byDisciplineSection(_ vm: RankDetailViewModel) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Eyebrow(text: "By Discipline")
+
+            // Says out loud why these rows don't reach the headline: only
+            // training sits under a discipline — workouts, store XP and the
+            // remainder above don't belong to any of them.
+            Text("Training XP only — workouts and store XP aren't tied to a discipline.")
+                .style(.micro)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .padding(.top, DS.Spacing.s8)
 
             VStack(spacing: 0) {
                 ForEach(Array(vm.disciplines.enumerated()), id: \.element.id) { index, discipline in
@@ -239,7 +257,8 @@ struct RankDetailView: View {
             .preferredColorScheme(.dark)
             .modelContainer(for: [
                 Discipline.self, Category.self, MasteryLevel.self,
-                Drill.self, DrillProgress.self, PlayerState.self
+                Drill.self, DrillProgress.self, PlayerState.self,
+                SessionLogEntry.self, WorkoutRecord.self
             ])
     }
 }

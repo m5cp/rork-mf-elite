@@ -27,12 +27,23 @@ final class RunTracker: NSObject, CLLocationManagerDelegate {
     private var startedAt: Date?
     private var accumulated: TimeInterval = 0
     private var lastLocation: CLLocation?
+    /// BPM readings taken while actually running, for the finished run's
+    /// average and peak. Empty when no strap was ever connected.
+    private var heartSamples: [Int] = []
 
     private(set) var phase: Phase = .idle
     private(set) var distanceMeters: Double = 0
     private(set) var elapsed: TimeInterval = 0
     private(set) var route: [CLLocationCoordinate2D] = []
     private(set) var authDenied = false
+
+    /// Identity of the run in flight, minted once at `start()`. The screen can be
+    /// left several ways (Finish, close, a back swipe) and each of them tries to
+    /// save; a stable id is what lets the store recognise those as one run.
+    private(set) var runID = UUID().uuidString
+    /// Wall-clock start of the whole run, as opposed to `startedAt` which is the
+    /// start of the current un-paused segment.
+    private(set) var runStartedAt: Date?
 
     override init() {
         super.init()
@@ -59,6 +70,9 @@ final class RunTracker: NSObject, CLLocationManagerDelegate {
         accumulated = 0
         route = []
         lastLocation = nil
+        heartSamples = []
+        runID = UUID().uuidString
+        runStartedAt = Date()
         startedAt = Date()
         phase = .running
         manager.startUpdatingLocation()
@@ -100,7 +114,19 @@ final class RunTracker: NSObject, CLLocationManagerDelegate {
         accumulated = 0
         route = []
         lastLocation = nil
+        heartSamples = []
         startedAt = nil
+        runStartedAt = nil
+    }
+
+    // MARK: - Heart rate
+
+    /// Feed the run a live reading from the optional chest strap. Only sampled
+    /// while running, so a long pause at a water fountain can't drag the
+    /// average down with resting beats.
+    func recordHeartRate(_ bpm: Int) {
+        guard phase == .running, bpm > 0 else { return }
+        heartSamples.append(bpm)
     }
 
     // MARK: - Derived
@@ -109,6 +135,44 @@ final class RunTracker: NSObject, CLLocationManagerDelegate {
     var paceSecondsPerKm: Double {
         guard distanceMeters > 20, elapsed > 0 else { return 0 }
         return elapsed / (distanceMeters / 1000)
+    }
+
+    var averageHeartRate: Int {
+        guard !heartSamples.isEmpty else { return 0 }
+        return Int((Double(heartSamples.reduce(0, +)) / Double(heartSamples.count)).rounded())
+    }
+
+    var peakHeartRate: Int { heartSamples.max() ?? 0 }
+
+    /// The finished run expressed in the same shape a watch workout arrives in,
+    /// so both devices persist through the one `WorkoutStore` path. Nil while a
+    /// run is still in flight, and nil for anything too small to be a run.
+    ///
+    /// The floors matter more than they look: `WorkoutRecord.xpEarned` is
+    /// `max(1, minutes / 10) * xpPerDrill`, so it pays a full drill's XP at the
+    /// bottom end. Without these, start → walk a few metres → close is 25 XP
+    /// and a junk calendar entry, repeatable forever.
+    private static let minimumDuration: TimeInterval = 60
+    private static let minimumDistance: Double = 100
+
+    func finishedResult() -> WatchWorkoutResult? {
+        guard phase == .finished, let runStartedAt,
+              elapsed >= Self.minimumDuration,
+              distanceMeters >= Self.minimumDistance else { return nil }
+        return WatchWorkoutResult(
+            id: runID,
+            modeRaw: WorkoutModeID.outdoorRun.rawValue,
+            startedAt: runStartedAt,
+            durationSec: Int(elapsed.rounded()),
+            distanceMeters: distanceMeters,
+            // The phone has no HealthKit workout session behind it, so there is
+            // no measured burn here. Zero is honest; an estimate would render
+            // next to the watch's real numbers as if it were one of them.
+            activeCalories: 0,
+            avgHeartRate: averageHeartRate,
+            maxHeartRate: peakHeartRate,
+            route: route.map { WatchRoutePoint(lat: $0.latitude, lng: $0.longitude) }
+        )
     }
 
     private func startTicker() {

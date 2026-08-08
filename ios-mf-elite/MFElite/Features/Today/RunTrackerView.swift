@@ -5,15 +5,20 @@
 //  Athlete GPS run / on-field session tracker. Live distance (miles or km),
 //  duration and pace with a live route map. Location is used only while this
 //  screen is open. Fails soft with a clear message when permission is denied.
+//  A finished run is banked through `WorkoutStore` — the same path an Apple
+//  Watch workout takes — so it lands in the calendar and Progress tab, keeps its
+//  route map, and earns XP exactly as a wrist-recorded run does.
 //
 
 import SwiftUI
 import MapKit
+import SwiftData
 
 struct RunTrackerRoute: Hashable {}
 
 struct RunTrackerView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @State private var tracker = RunTracker()
     @State private var heart = HeartRateMonitor()
     @State private var camera: MapCameraPosition = .userLocation(fallback: .automatic)
@@ -47,11 +52,40 @@ struct RunTrackerView: View {
             UIScreen.main.brightness = 1.0
             UIApplication.shared.isIdleTimerDisabled = true
         }
+        .onChange(of: heart.bpm) { _, bpm in
+            tracker.recordHeartRate(bpm)
+        }
         .onDisappear {
             UIScreen.main.brightness = previousBrightness
             UIApplication.shared.isIdleTimerDisabled = false
+            // The screen can also be left without touching Finish — a back swipe
+            // out of the pushed version, or the system tearing it down. Bank the
+            // run rather than losing the trace.
+            finish()
             heart.stop()
         }
+    }
+
+    // MARK: - Finishing
+
+    /// Stop the run (if one is still in flight) and store it the same way a
+    /// finished Apple Watch workout is stored: a `WorkoutRecord` with the route
+    /// map, XP awarded, and both queued for the cloud. Deliberately safe to call
+    /// more than once — every exit from this screen routes here, and
+    /// `WorkoutStore` de-dupes on the run's id so only the first one lands.
+    @MainActor
+    private func finish() {
+        if tracker.phase == .running || tracker.phase == .paused { tracker.stop() }
+        guard let result = tracker.finishedResult() else { return }
+        // Read the environment NOW, not inside the Task. This runs from
+        // `onDisappear`, and by the time an escaping closure gets to it the
+        // view is out of the hierarchy and its `@Environment` box has been
+        // invalidated — which is exactly the back-swipe path this fix exists
+        // to cover.
+        let context = modelContext
+        // Unstructured on purpose: the caller is usually on its way out of this
+        // view, and the map render must outlive the dismissal to be saved.
+        Task { await WorkoutStore.save(result, context: context) }
     }
 
     // MARK: - Map
@@ -74,9 +108,7 @@ struct RunTrackerView: View {
     private var topBar: some View {
         HStack {
             Button {
-                if tracker.phase == .running || tracker.phase == .paused {
-                    tracker.stop()
-                }
+                finish()
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
@@ -188,7 +220,7 @@ struct RunTrackerView: View {
             HStack(spacing: DS.Spacing.s12) {
                 bigButton(title: "Resume", tint: DS.Colors.Gold.base, fg: .black) { tracker.resume() }
                 bigButton(title: "Finish", tint: Color(hex: "#FF453A"), fg: .white) {
-                    tracker.stop()
+                    finish()
                 }
             }
         case .finished:

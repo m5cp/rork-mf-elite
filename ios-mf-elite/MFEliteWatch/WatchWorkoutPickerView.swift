@@ -16,7 +16,13 @@ struct WatchWorkoutPickerView: View {
     @State private var pendingMode: WorkoutModeID?
 
     var body: some View {
-        Group {
+        // A ZStack rather than a Group so the teardown below hangs off a real
+        // container. Group is transparent and hands its modifiers down to whatever
+        // the switch currently produces, which would make `onDisappear` fire on every
+        // status change — and firing it on the countdown-to-running change would end
+        // the workout the instant it started. The ZStack node survives the branch
+        // swaps, so it only disappears when this screen really goes away.
+        ZStack {
             switch manager.status {
             case .idle:
                 if let mode = pendingMode {
@@ -35,6 +41,20 @@ struct WatchWorkoutPickerView: View {
                 }
             }
         }
+        // Hand the result off as soon as it exists rather than waiting for Done.
+        // `connectivity` is an environment object that outlives this view, so the
+        // send still happens if the cover is already on its way out.
+        .onAppear {
+            manager.onResult = { [connectivity] result in
+                connectivity.sendWorkout(result)
+            }
+        }
+        // The manager is @State on this view, so it dies when the cover goes away and
+        // takes with it the only handle that can stop the GPS fix and the 1 Hz ticker.
+        // The cover can leave mid-workout — swiped away, or dismissed by the system —
+        // not just by tapping through to Done, so end whatever is still live here
+        // instead of assuming the athlete used the button.
+        .onDisappear { manager.endIfActive() }
     }
 
     private var modeList: some View {

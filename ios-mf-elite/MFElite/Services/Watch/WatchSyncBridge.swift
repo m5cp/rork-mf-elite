@@ -179,51 +179,14 @@ final class WatchSyncBridge: NSObject {
 
     // MARK: - Applying a wrist workout
 
-    /// Store a finished Apple Watch workout: render its GPS route into a map image
-    /// and persist a `WorkoutRecord` for the calendar and Progress tab. Idempotent
-    /// on the workout id so a re-delivered transfer never duplicates.
+    /// Store a finished Apple Watch workout. The persistence itself — record,
+    /// route map, XP, cloud enqueue, glance refresh — lives in `WorkoutStore`,
+    /// which the phone's own run tracker also writes through, so neither device
+    /// can quietly grow its own version of what "saving a workout" means. Still
+    /// idempotent on the workout id, so a re-delivered transfer never duplicates.
     func applyWorkout(_ result: WatchWorkoutResult) async {
         guard let context else { return }
-        let id = result.id
-        let existing = try? context.fetch(FetchDescriptor<WorkoutRecord>(
-            predicate: #Predicate { $0.id == id }
-        ))
-        guard (existing?.isEmpty ?? true) else { return }
-
-        let routeData = try? JSONEncoder().encode(result.route)
-        var imageName: String? = nil
-        if result.mode.isOutdoor, result.route.count > 1 {
-            imageName = await WorkoutRouteRenderer.renderAndSave(
-                points: result.route, accentHex: result.mode.accentHex, id: id
-            )
-        }
-
-        let record = WorkoutRecord(
-            id: id,
-            modeRaw: result.modeRaw,
-            startedAt: result.startedAt,
-            durationSec: result.durationSec,
-            distanceMeters: result.distanceMeters,
-            activeCalories: result.activeCalories,
-            avgHeartRate: result.avgHeartRate,
-            maxHeartRate: result.maxHeartRate,
-            routeData: routeData,
-            routeImageName: imageName
-        )
-        context.insert(record)
-
-        // Fold the workout's XP into the player's running total. Safe to do here
-        // because this path is guarded against duplicate ids above.
-        if let player = try? context.fetch(FetchDescriptor<PlayerState>()).first {
-            player.xp += record.xpEarned
-            // Push the XP change AND the workout summary to the cloud — without
-            // these, Watch-earned XP and workouts never left the device.
-            SyncEngine.shared.enqueuePlayerState(player)
-        }
-        SyncEngine.shared.enqueueWorkoutRecord(record)
-
-        try? context.save()
-        refreshAndPush()
+        await WorkoutStore.save(result, context: context)
     }
 }
 

@@ -141,6 +141,11 @@ struct MFEliteApp: App {
                         WatchSyncBridge.shared.refreshAndPush()
                         Task { await AppConfigStore.shared.refresh() }
                         Task { await SupportAdjustments.shared.applyPending() }
+                        // A Live Activity survives the process that started it, so
+                        // a crash mid-drill leaves a timer on the lock screen that
+                        // no longer belongs to anything. Settle up before the
+                        // player ever sees it.
+                        Task { await LiveActivityController.shared.reconcileOrphans() }
                     }
 
                 if !openingDone {
@@ -163,6 +168,10 @@ struct MFEliteApp: App {
                 WatchSyncBridge.shared.refreshAndPush()
                 Task { await AppConfigStore.shared.refresh() }
                 Task { await SupportAdjustments.shared.applyPending() }
+                // Also on every return to the foreground: the app can be killed
+                // in the background without ever relaunching cold, and this is
+                // the first moment we can see what the lock screen still holds.
+                Task { await LiveActivityController.shared.reconcileOrphans() }
             }
         }
     }

@@ -2,8 +2,9 @@
 //  RankDetailViewModel.swift
 //  MFElite
 //
-//  Derives the full XP breakdown for the current rank from the curriculum
-//  and the player's mastery progress.
+//  Reconciles the player's rank XP against the records that actually produced
+//  it — the session log, watch workouts, and the purchased-XP ledger — instead
+//  of re-estimating it from mastery state.
 //
 
 import Foundation
@@ -13,118 +14,187 @@ import Observation
 struct XPBreakdownRow: Identifiable {
     let id = UUID()
     let label: String
-    let count: Int
-    let unitValue: Int
-    var total: Int { count * unitValue }
-    /// e.g. "12 × 25 = 300"
-    var detail: String { "\(count) × \(unitValue.formatted()) = \(total.formatted())" }
+    /// Plain-language basis for the figure, e.g. "142 sessions logged".
+    let detail: String
+    let total: Int
 }
 
 @MainActor
 @Observable
 final class RankDetailViewModel {
     let disciplines: [Discipline]
-    let xp: Int
-    private let masteredDrillIDs: Set<String>
+    /// `PlayerState.xp` — everything the player earned: training, watch
+    /// workouts, share bonuses, coach credits.
+    let earnedXP: Int
+    /// `PlayerState.purchasedXP` — store XP. Counts toward rank only, which is
+    /// why it belongs in this screen's total but never on a leaderboard.
+    let purchasedXP: Int
+    private let sessions: [SessionLogEntry]
+    private let workouts: [WorkoutRecord]
 
-    init(disciplines: [Discipline], xp: Int, masteredDrillIDs: Set<String>) {
+    init(
+        disciplines: [Discipline],
+        earnedXP: Int,
+        purchasedXP: Int,
+        sessions: [SessionLogEntry],
+        workouts: [WorkoutRecord]
+    ) {
         self.disciplines = disciplines.sorted { $0.sortIndex < $1.sortIndex }
-        self.xp = xp
-        self.masteredDrillIDs = masteredDrillIDs
+        self.earnedXP = earnedXP
+        self.purchasedXP = purchasedXP
+        self.sessions = sessions
+        self.workouts = workouts
     }
+
+    /// The headline figure, and the only number the breakdown is allowed to sum
+    /// to. Identical to `PlayerState.rankXP`, which every other rank surface reads.
+    var rankXP: Int { earnedXP + purchasedXP }
 
     // MARK: - Rank
 
     private var hasFullAccess: Bool { SubscriptionService.shared.hasFullAccess }
 
-    var currentRank: AcademyRank { AcademyRank.unlockedRank(for: xp, hasFullAccess: hasFullAccess) }
-    var nextRank: AcademyRank? { AcademyRank.nextRank(for: xp, hasFullAccess: hasFullAccess) }
-    var xpToNext: Int? { AcademyRank.xpToNext(for: xp, hasFullAccess: hasFullAccess) }
-    var hasLockedEarnedRank: Bool { AcademyRank.hasLockedEarnedRank(for: xp, hasFullAccess: hasFullAccess) }
+    var currentRank: AcademyRank { AcademyRank.unlockedRank(for: rankXP, hasFullAccess: hasFullAccess) }
+    var nextRank: AcademyRank? { AcademyRank.nextRank(for: rankXP, hasFullAccess: hasFullAccess) }
+    var xpToNext: Int? { AcademyRank.xpToNext(for: rankXP, hasFullAccess: hasFullAccess) }
+    var hasLockedEarnedRank: Bool { AcademyRank.hasLockedEarnedRank(for: rankXP, hasFullAccess: hasFullAccess) }
 
     var progressToNext: Double {
         guard let next = nextRank else { return 1 }
         let floorXP = currentRank.rawValue
         let span = next.rawValue - floorXP
         guard span > 0 else { return 1 }
-        return min(1, max(0, Double(xp - floorXP) / Double(span)))
-    }
-
-    // MARK: - Counts
-
-    private var allDrills: [Drill] {
-        disciplines.flatMap { $0.categories.flatMap { $0.levels.flatMap { $0.drills } } }
-    }
-
-    var masteredDrillCount: Int {
-        allDrills.filter { masteredDrillIDs.contains($0.id) }.count
-    }
-
-    /// Levels where every drill is mastered.
-    var masteredLevelCount: Int {
-        disciplines.reduce(0) { partial, discipline in
-            partial + discipline.categories.reduce(0) { sub, category in
-                sub + category.levels.filter { isLevelMastered($0) }.count
-            }
-        }
-    }
-
-    /// Categories where every drill is mastered.
-    var certCount: Int {
-        disciplines.reduce(0) { $0 + $1.categories.filter { isCategoryCertified($0) }.count }
-    }
-
-    /// Disciplines where every category is certified.
-    var diplomaCount: Int {
-        disciplines.filter { isDisciplineComplete($0) }.count
+        return min(1, max(0, Double(rankXP - floorXP) / Double(span)))
     }
 
     // MARK: - Breakdown
+    //
+    // Each row is read back from a record the device actually holds — one
+    // `SessionLogEntry` per completed drill or lesson (with the weekend booster
+    // already applied to `xpEarned`), one `WorkoutRecord` per wrist workout, and
+    // the running purchased-XP balance. Counting mastered drills instead, as this
+    // screen used to, contradicted the headline in both directions: it charged
+    // 25 XP for the two logged passes that never earned it, invented discipline
+    // diplomas the app has never awarded, and ignored workouts and store XP
+    // entirely.
+    //
+    // Milestone bonuses, share XP and coach credits leave no local record — they
+    // are folded straight into `PlayerState.xp` — so they are reported as one
+    // named remainder rather than smeared across the rows above.
+
+    /// Game IQ lessons are logged as sessions under a synthetic drill id
+    /// (see `GameIQStore`); that prefix is the only thing separating them from
+    /// drill sessions.
+    private static let gameIQPrefix = "gameiq-"
+
+    private var drillSessions: [SessionLogEntry] {
+        sessions.filter { !$0.drillID.hasPrefix(Self.gameIQPrefix) }
+    }
+
+    private var lessonSessions: [SessionLogEntry] {
+        sessions.filter { $0.drillID.hasPrefix(Self.gameIQPrefix) }
+    }
+
+    private var drillXP: Int { drillSessions.reduce(0) { $0 + $1.xpEarned } }
+    private var lessonXP: Int { lessonSessions.reduce(0) { $0 + $1.xpEarned } }
+    private var workoutXP: Int { workouts.reduce(0) { $0 + $1.xpEarned } }
+
+    /// The part of the headline no record on this device explains: level and
+    /// certification bonuses (awarded straight to `PlayerState.xp` at the moment
+    /// of crossing), share XP, coach adjustments, and anything earned before
+    /// this device had history to merge.
+    ///
+    /// It can legitimately come out negative — a coach correction can lower the
+    /// total below what the local log adds up to, and session history merged
+    /// from another device arrives without the XP that went with it. Showing the
+    /// shortfall is better than clamping it and printing a total that lies.
+    private var unattributedXP: Int {
+        rankXP - (drillXP + lessonXP + workoutXP + purchasedXP)
+    }
 
     var breakdownRows: [XPBreakdownRow] {
-        [
-            XPBreakdownRow(label: "Drills completed", count: masteredDrillCount, unitValue: ProgressionRules.xpPerDrill),
-            XPBreakdownRow(label: "Level bonuses", count: masteredLevelCount, unitValue: ProgressionRules.xpLevelBonus),
-            XPBreakdownRow(label: "Certifications", count: certCount, unitValue: ProgressionRules.xpCategoryCert),
-            XPBreakdownRow(label: "Discipline diplomas", count: diplomaCount, unitValue: ProgressionRules.xpDisciplineDiploma)
+        // The drills row always shows, even at zero, so a new player still sees
+        // where XP is going to come from.
+        var rows = [
+            XPBreakdownRow(
+                label: "Drills logged",
+                detail: Self.sessionCountDetail(drillSessions.count),
+                total: drillXP
+            )
         ]
+
+        if lessonXP != 0 {
+            rows.append(XPBreakdownRow(
+                label: "Game IQ lessons",
+                detail: Self.lessonCountDetail(lessonSessions.count),
+                total: lessonXP
+            ))
+        }
+
+        if workoutXP != 0 {
+            rows.append(XPBreakdownRow(
+                label: "Runs & workouts",
+                detail: Self.workoutCountDetail(workouts.count),
+                total: workoutXP
+            ))
+        }
+
+        if purchasedXP != 0 {
+            rows.append(XPBreakdownRow(
+                label: "Store XP",
+                detail: "XP packs and coach credits · rank only",
+                total: purchasedXP
+            ))
+        }
+
+        let remainder = unattributedXP
+        if remainder > 0 {
+            rows.append(XPBreakdownRow(
+                label: "Milestones & other",
+                detail: "Level and certification bonuses, share and coach XP",
+                total: remainder
+            ))
+        } else if remainder < 0 {
+            rows.append(XPBreakdownRow(
+                label: "Adjustments",
+                detail: "Coach corrections and history synced from other devices",
+                total: remainder
+            ))
+        }
+
+        return rows
     }
 
-    var breakdownTotal: Int {
-        breakdownRows.reduce(0) { $0 + $1.total }
-    }
+    // The total shown under the rows is summed from the rows themselves, in the
+    // view, rather than read from `rankXP`. If the reconciliation above ever
+    // breaks, the discrepancy shows on screen instead of being papered over.
 
     // MARK: - XP by discipline
 
+    /// Training XP logged against one discipline. Watch workouts, store XP and
+    /// the unattributed remainder belong to no discipline, so these rows add up
+    /// to the training rows of the breakdown — not to the headline.
     func xp(for discipline: Discipline) -> Int {
-        let drills = discipline.categories.flatMap { $0.levels.flatMap { $0.drills } }
-        let masteredDrills = drills.filter { masteredDrillIDs.contains($0.id) }.count
-        let levels = discipline.categories.reduce(0) { $0 + $1.levels.filter { isLevelMastered($0) }.count }
-        let certs = discipline.categories.filter { isCategoryCertified($0) }.count
-        let diploma = isDisciplineComplete(discipline) ? 1 : 0
-
-        return masteredDrills * ProgressionRules.xpPerDrill
-            + levels * ProgressionRules.xpLevelBonus
-            + certs * ProgressionRules.xpCategoryCert
-            + diploma * ProgressionRules.xpDisciplineDiploma
+        let disciplineID = discipline.id
+        return sessions
+            .filter { $0.disciplineID == disciplineID }
+            .reduce(0) { $0 + $1.xpEarned }
     }
 
-    // MARK: - Helpers
+    // MARK: - Detail lines
 
-    private func isLevelMastered(_ level: MasteryLevel) -> Bool {
-        let drills = level.drills
-        guard !drills.isEmpty else { return false }
-        return drills.allSatisfy { masteredDrillIDs.contains($0.id) }
+    private static func sessionCountDetail(_ count: Int) -> String {
+        "\(count.formatted()) \(count == 1 ? "session" : "sessions") logged"
     }
 
-    private func isCategoryCertified(_ category: Category) -> Bool {
-        let drills = category.levels.flatMap { $0.drills }
-        guard !drills.isEmpty else { return false }
-        return drills.allSatisfy { masteredDrillIDs.contains($0.id) }
+    private static func lessonCountDetail(_ count: Int) -> String {
+        "\(count.formatted()) \(count == 1 ? "lesson" : "lessons") completed"
     }
 
-    private func isDisciplineComplete(_ discipline: Discipline) -> Bool {
-        guard !discipline.categories.isEmpty else { return false }
-        return discipline.categories.allSatisfy { isCategoryCertified($0) }
+    /// Deliberately device-agnostic: `WorkoutRecord` is now written by the
+    /// phone's run tracker as well as the watch, so "from Apple Watch" would be
+    /// wrong for a player who has never owned one.
+    private static func workoutCountDetail(_ count: Int) -> String {
+        "\(count.formatted()) \(count == 1 ? "workout" : "workouts") recorded"
     }
 }
