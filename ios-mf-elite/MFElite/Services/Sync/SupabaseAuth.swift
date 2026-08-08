@@ -315,6 +315,11 @@ final class SupabaseAuth {
         // Ballon d'Or approval is account-specific server state — reset it so it
         // is re-pulled fresh on the next sign-in (never inherited across accounts).
         BallonDorStore.shared.reset()
+        // Team memberships decide which targeted announcements, coach workouts
+        // and team events this account sees. They are cached for ten minutes,
+        // so without this the next account signed in on this device inherits
+        // them and reads broadcasts meant for someone else's teams.
+        MyTeamsStore.shared.reset()
         SyncEngine.shared.handleSignOut()
         Keychain.delete(.accessToken)
         Keychain.delete(.refreshToken)
