@@ -66,6 +66,26 @@ final class SupabaseClient {
         return await mutate(request, label: "DELETE \(table)")
     }
 
+    /// Delete rows and report how many actually went.
+    ///
+    /// `delete` can only tell you the request was accepted. PostgREST answers a
+    /// DELETE that an RLS policy filtered down to nothing with 204 No Content —
+    /// indistinguishable from a real delete — so "not allowed" reads as
+    /// success. Asking for the deleted rows back makes the difference visible.
+    /// Returns nil when the request itself failed.
+    func deleteCounting(table: String, match: [String: String]) async -> Int? {
+        let query = match.map { URLQueryItem(name: $0.key, value: "eq.\($0.value)") }
+        guard var request = await makeRequest(table: table, method: "DELETE", query: query) else { return nil }
+        request.setValue("return=representation", forHTTPHeaderField: "Prefer")
+        guard let (data, http) = await send(request) else { return nil }
+        guard (200..<300).contains(http.statusCode) else {
+            print("[SupabaseClient] DELETE \(table) failed: HTTP \(http.statusCode)")
+            return nil
+        }
+        let rows = (try? JSONSerialization.jsonObject(with: data)) as? [[String: Any]]
+        return rows?.count ?? 0
+    }
+
     /// Call a Postgres function (RPC). Returns true on success. Used for
     /// privileged server-side operations a client cannot do directly (e.g. a
     /// SECURITY DEFINER `delete_account` that removes the auth user). Safe no-op

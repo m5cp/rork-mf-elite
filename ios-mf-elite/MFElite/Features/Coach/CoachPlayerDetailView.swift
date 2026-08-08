@@ -819,8 +819,11 @@ enum CoachFormat {
     }
 
     static func combineValue(_ value: Double, unit: String) -> String {
+        guard value.isFinite else { return unit.isEmpty ? "—" : "— \(unit)" }
+        // Not `String(Int(value))` — that traps above Int.max, and this renders
+        // whatever a player managed to type into an unbounded score field.
         let isWhole = value.rounded() == value
-        let number = isWhole ? String(Int(value)) : String(format: "%.1f", value)
+        let number = isWhole ? String(format: "%.0f", value) : String(format: "%.1f", value)
         return unit.isEmpty ? number : "\(number) \(unit)"
     }
 

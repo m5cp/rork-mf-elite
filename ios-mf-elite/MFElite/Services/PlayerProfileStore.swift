@@ -20,6 +20,17 @@ enum AvatarSelection: Equatable {
     case photo
 }
 
+/// An undoable capture of the avatar, including the photo itself.
+///
+/// Avatar changes are applied to the shared store the instant they are made so
+/// the card preview updates live. That means a screen offering Cancel has to be
+/// able to put the old one back — and because `clearAvatar()` deletes the file
+/// on disk, remembering the selection alone isn't enough.
+struct AvatarSnapshot {
+    let selection: AvatarSelection
+    let photo: UIImage?
+}
+
 @Observable
 @MainActor
 final class PlayerProfileStore {
@@ -192,6 +203,32 @@ final class PlayerProfileStore {
         avatarPhoto = resized
         avatar = .photo
         defaults.set("photo", forKey: Keys.avatarKind)
+    }
+
+    /// Capture the current avatar so it can be restored if the user cancels.
+    func avatarSnapshot() -> AvatarSnapshot {
+        AvatarSnapshot(selection: avatar, photo: avatarPhoto)
+    }
+
+    /// Put back an avatar captured with `avatarSnapshot()`, rewriting the photo
+    /// file if it was removed in the meantime. No-op when nothing changed.
+    func restoreAvatar(_ snapshot: AvatarSnapshot) {
+        // Compared by identity as well as by case: `AvatarSelection` carries no
+        // photo identity, so `.photo != .photo` is false even when the player
+        // swapped one photo for another — which is the common way into this.
+        guard snapshot.selection != avatar || snapshot.photo !== avatarPhoto else { return }
+        switch snapshot.selection {
+        case .photo:
+            if let photo = snapshot.photo {
+                setPhotoAvatar(photo)
+            } else {
+                clearAvatar()
+            }
+        case .builtin(let id):
+            setBuiltinAvatar(id)
+        case .none:
+            clearAvatar()
+        }
     }
 
     /// Clear any chosen avatar, reverting to the initials monogram.

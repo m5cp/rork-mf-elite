@@ -645,6 +645,10 @@ private struct SupportActionSheet: View {
     var showsAmount: Bool = true
     var amountLabel: String = "Amount"
     var defaultAmount: Int = 0
+    /// Whether to open with `defaultAmount` already typed in. Off for actions
+    /// that overwrite rather than add — a coach who never touches the field
+    /// shouldn't be able to set someone's streak to 1 by reflex.
+    var prefillsAmount: Bool = true
     let onConfirm: (Int, String) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -652,7 +656,22 @@ private struct SupportActionSheet: View {
     @State private var reason: String = ""
 
     private var reasonValid: Bool { reason.trimmingCharacters(in: .whitespacesAndNewlines).count >= 5 }
-    private var amount: Int { Int(amountText) ?? defaultAmount }
+
+    /// The typed amount, or nil when the field isn't a usable number.
+    ///
+    /// This used to fall back to `defaultAmount` when the field was empty or
+    /// unparseable, so clearing it and hitting Confirm silently granted 100 XP,
+    /// 48 booster hours, or — worst of the three — *set* the player's streak to
+    /// 1, overwriting a real one. A grant this consequential should never have
+    /// an implied value.
+    private var parsedAmount: Int? {
+        guard showsAmount else { return 0 }
+        let trimmed = amountText.trimmingCharacters(in: .whitespaces)
+        guard let value = Int(trimmed), value >= 0, value <= 10_000 else { return nil }
+        return value
+    }
+
+    private var canConfirm: Bool { reasonValid && parsedAmount != nil }
 
     var body: some View {
         NavigationStack {
@@ -671,14 +690,22 @@ private struct SupportActionSheet: View {
                         Text(amountLabel.uppercased())
                             .style(.micro)
                             .foregroundStyle(DS.Colors.Ink.quaternary)
-                        TextField("", text: $amountText, prompt: Text("\(defaultAmount)").foregroundColor(DS.Colors.Ink.quaternary))
-                            .keyboardType(.numberPad)
-                            .style(.body)
-                            .foregroundStyle(DS.Colors.Ink.primary)
-                            .padding(.horizontal, DS.Spacing.s12)
-                            .frame(height: 44)
-                            .background(DS.Colors.Bg.raised)
-                            .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
+                        HStack(spacing: DS.Spacing.s8) {
+                            TextField("", text: $amountText, prompt: Text("Required").foregroundColor(DS.Colors.Ink.quaternary))
+                                .keyboardType(.numberPad)
+                                .style(.body)
+                                .foregroundStyle(DS.Colors.Ink.primary)
+                                .padding(.horizontal, DS.Spacing.s12)
+                                .frame(height: 44)
+                                .background(DS.Colors.Bg.raised)
+                                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
+                            ConfirmBadge(isConfirmed: parsedAmount != nil, label: "Set")
+                        }
+                        if parsedAmount == nil && !amountText.isEmpty {
+                            Text("Enter a whole number between 0 and 10,000.")
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Status.bad)
+                        }
                     }
                 }
 
@@ -698,11 +725,12 @@ private struct SupportActionSheet: View {
                 Spacer(minLength: 0)
 
                 FloatingButton(label: "Confirm grant", hint: nil) {
-                    onConfirm(amount, reason.trimmingCharacters(in: .whitespacesAndNewlines))
+                    guard let value = parsedAmount else { return }
+                    onConfirm(value, reason.trimmingCharacters(in: .whitespacesAndNewlines))
                     dismiss()
                 }
-                .disabled(!reasonValid)
-                .opacity(reasonValid ? 1 : 0.5)
+                .disabled(!canConfirm)
+                .opacity(canConfirm ? 1 : 0.5)
             }
             .padding(DS.Spacing.s20)
             .background(DS.Colors.Bg.base)
@@ -715,7 +743,12 @@ private struct SupportActionSheet: View {
             }
         }
         .preferredColorScheme(.dark)
-        .onAppear { amountText = "\(defaultAmount)" }
+        .onAppear {
+            // Only on first appearance — this fires again when the sheet comes
+            // back from the background, and clobbering a half-typed amount is
+            // exactly the kind of surprise this screen can't afford.
+            if prefillsAmount && amountText.isEmpty { amountText = "\(defaultAmount)" }
+        }
     }
 }
 
@@ -914,7 +947,7 @@ struct PlayerSupportView: View {
                 Task { await grant(kind: "streak_freeze", amount: amount, reason: reason) }
             }
         case .streak:
-            SupportActionSheet(title: "Restore streak", detail: "Sets the player's current streak to this exact day count.", amountLabel: "Streak days", defaultAmount: 1) { amount, reason in
+            SupportActionSheet(title: "Restore streak", detail: "Sets the player's current streak to this exact day count.", amountLabel: "Streak days", defaultAmount: 1, prefillsAmount: false) { amount, reason in
                 Task { await grant(kind: "streak_set", amount: amount, reason: reason) }
             }
         case .booster:

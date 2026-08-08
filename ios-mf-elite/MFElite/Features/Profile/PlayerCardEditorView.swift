@@ -53,6 +53,16 @@ struct PlayerCardEditorView: View {
 
     @State private var shareImage: ShareableImage?
 
+    /// The avatar as it was when this editor opened.
+    ///
+    /// Picking a photo and hitting "Remove photo" both write straight through
+    /// to the shared profile store — the remove even deletes the file — so
+    /// Cancel used to leave the change in place everywhere in the app. Captured
+    /// on appear, put back on Cancel.
+    @State private var avatarBackup: AvatarSnapshot?
+    /// Set by Cancel so a photo still being decoded can't land afterwards.
+    @State private var isCancelled = false
+
     private var isDrawing: Bool { panel == .draw }
 
     var body: some View {
@@ -67,7 +77,7 @@ struct PlayerCardEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { cancel() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Save") { save() }
@@ -84,11 +94,17 @@ struct PlayerCardEditorView: View {
                 ShareSheet(items: [item.image])
                     .presentationDetents([.medium, .large])
             }
+            .onAppear {
+                if avatarBackup == nil { avatarBackup = profile.avatarSnapshot() }
+            }
             .onChange(of: photoItem) { _, newItem in
                 guard let newItem else { return }
                 Task {
+                    // Not `.task(id:)` — this Task outlives the view, so a
+                    // decode still in flight when Cancel is tapped would
+                    // re-apply the photo the user just discarded.
                     if let data = try? await newItem.loadTransferable(type: Data.self),
-                       let image = UIImage(data: data) {
+                       let image = UIImage(data: data), !isCancelled {
                         profile.setPhotoAvatar(image)
                         UISelectionFeedbackGenerator().selectionChanged()
                     }
@@ -531,6 +547,14 @@ struct PlayerCardEditorView: View {
     private func save() {
         cardStore.save(design)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        dismiss()
+    }
+
+    /// Discard everything this editor changed — including the avatar, which is
+    /// written through to the shared profile store as soon as it's picked.
+    private func cancel() {
+        isCancelled = true
+        if let avatarBackup { profile.restoreAvatar(avatarBackup) }
         dismiss()
     }
 

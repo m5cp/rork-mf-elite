@@ -102,9 +102,12 @@ struct DrillScoreSection: View {
     }
 
     private func format(_ value: Double?) -> String {
-        guard let value else { return "—" }
+        guard let value, value.isFinite else { return "—" }
+        // `String(Int(value))` traps above Int.max. The score pad has no upper
+        // bound and the value is saved before anything formats it, so a long
+        // enough entry crashed here on every launch afterwards.
         let text = value.truncatingRemainder(dividingBy: 1) == 0
-            ? String(Int(value))
+            ? String(format: "%.0f", value)
             : String(format: "%.1f", value)
         return unit.isEmpty ? text : "\(text) \(unit)"
     }
@@ -164,7 +167,7 @@ struct DrillScoreEntrySheet: View {
             }
 
             PrimaryButton(label: "Save score") { save() }
-                .disabled(Double(valueText) == nil)
+                .disabled(parsedValue == nil)
         }
         .padding(DS.Spacing.s20)
         .background(DS.Colors.Bg.base)
@@ -174,8 +177,20 @@ struct DrillScoreEntrySheet: View {
         }
     }
 
+    /// The typed score, or nil if it isn't a usable number.
+    ///
+    /// Bounded on the way in as well as on the way out: the pad is a decimal
+    /// keyboard with no ceiling, and an absurd value used to be stored first
+    /// and only blow up later, when something tried to render it.
+    private var parsedValue: Double? {
+        let trimmed = valueText.trimmingCharacters(in: .whitespaces)
+        guard let value = Double(trimmed), value.isFinite else { return nil }
+        guard value >= 0, value < 1_000_000 else { return nil }
+        return value
+    }
+
     private func save() {
-        guard let value = Double(valueText) else { return }
+        guard let value = parsedValue else { return }
         let result = DrillResult(drillID: drillID, value: value, unit: unit)
         modelContext.insert(result)
         try? modelContext.save()

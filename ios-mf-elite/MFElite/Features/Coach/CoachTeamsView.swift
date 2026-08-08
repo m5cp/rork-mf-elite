@@ -204,6 +204,7 @@ struct CoachTeamDetailView: View {
     @State private var showAddAthletes = false
     @State private var showEdit = false
     @State private var showDeleteConfirm = false
+    @State private var deleteFailed = false
 
     private var team: CoachTeam? { store.teams.first { $0.id == teamID } }
 
@@ -291,14 +292,23 @@ struct CoachTeamDetailView: View {
             Button("Delete", role: .destructive) {
                 if let team {
                     Task {
-                        await store.deleteTeam(team)
-                        dismiss()
+                        // Only leave the screen if the team actually went away.
+                        if await store.deleteTeam(team) {
+                            dismiss()
+                        } else {
+                            deleteFailed = true
+                        }
                     }
                 }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("Athletes stay in the app — they're only removed from this team. Broadcasts already sent are unaffected.")
+        }
+        .alert("Couldn't delete this team", isPresented: $deleteFailed) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("The team is still here and its athletes are unchanged. Check your connection and try again.")
         }
     }
 
