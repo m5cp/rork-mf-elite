@@ -1,561 +1,826 @@
 -- =============================================================================
--- MF Elite — Supabase schema + Row Level Security
+--  MF Elite — public schema, dumped from production 2026-08-08
+--
+--  This file is generated from the live database (project twzukrzcfquxfmrnffze),
+--  not hand-maintained. Regenerate it rather than editing it by hand.
+--
+--  The version this replaces declared 17 tables. The app reads or writes 41.
+--  That gap was not cosmetic: the sync engine treats a 4xx as a PERMANENT
+--  failure and quarantines the operation, so a write to a column that does not
+--  exist never crashes, never retries, and never arrives — the player's data
+--  just silently stops syncing. Anyone provisioning a new project from the old
+--  file got an app that looked fine and lost most of what a player did.
+--
+--  Ordering note: this is emitted table-by-table (columns, constraints,
+--  indexes, RLS, policies), alphabetically, so foreign keys can reference a
+--  table defined later in the file. It is a faithful record of what is live,
+--  not a script that will run top-to-bottom on an empty database. To rebuild
+--  from scratch, create all the tables first, then apply the constraints.
+--
+--  Auth: `profiles.id` mirrors `auth.users.id`. `user_id()` reads the JWT
+--  `sub` claim; `my_coach_role()` resolves a coach by JWT email OR user_id,
+--  which is why several policies exist in both a legacy and a `_v2` form —
+--  8 of the 11 coach rows have no `user_id` because those people have never
+--  signed in.
 -- =============================================================================
--- Source of truth for the remote curriculum + player progress.
---
--- Auth model: this project uses **Rork Auth** (Sign in with Apple) — NOT native
--- Supabase Auth. Supabase's auth.users table is therefore empty. Use the
--- installed user_id() function (reads the Rork JWT `sub` claim) in every RLS
--- policy. **Do NOT use auth.uid().**
---
--- Run these statements in the Supabase SQL editor (or via Rork migrations) in
--- order. Every statement uses IF NOT EXISTS so re-running is safe. All changes
--- are additive.
--- =============================================================================
 
-
--- -----------------------------------------------------------------------------
--- user_id() — resolves the current user's Rork id from the verified JWT.
---
--- On Rork's hosted Supabase this is installed automatically during
--- provisioning. When pointing the app at a SELF-OWNED Supabase project you MUST
--- create it yourself (this block), otherwise every RLS policy below errors and
--- all reads/writes fail.
---
--- It reads the `sub` claim that PostgREST puts into `request.jwt.claims` after
--- it verifies the bearer token. For that verification to populate the claims,
--- your Supabase project must be configured to TRUST Rork's JWTs (see the
--- "JWT trust" note at the bottom of this file).
--- -----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION user_id()
-RETURNS text
-LANGUAGE sql
-STABLE
-AS $
-  SELECT COALESCE(
-    nullif(current_setting('request.jwt.claims', true)::json ->> 'sub', ''),
-    nullif(current_setting('request.jwt.claim.sub', true), '')
-  );
-$;
-
-
--- -----------------------------------------------------------------------------
--- profiles — canonical user table (referenced by all player-owned tables)
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS profiles (
-  id          text PRIMARY KEY,            -- Rork user id (usr_xxx)
-  email       text,
-  name        text,
-  avatar_url  text,
-  created_at  timestamptz DEFAULT now(),
-  updated_at  timestamptz DEFAULT now()
+create table if not exists admin_audit (
+  id uuid default gen_random_uuid() not null,
+  actor text not null,
+  action text not null,
+  detail jsonb default '{}'::jsonb not null,
+  created_at timestamp with time zone default now() not null
 );
+alter table admin_audit add constraint admin_audit_pkey PRIMARY KEY (id);
+alter table admin_audit enable row level security;
+create policy admin_audit_head_all on admin_audit for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE ((coaches.is_active = true) AND (coaches.role = 'head_coach'::text))))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE ((coaches.is_active = true) AND (coaches.role = 'head_coach'::text)))));
+create policy admin_audit_head_all_v2 on admin_audit for all to authenticated using (is_head_coach()) with check (is_head_coach());
 
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+create table if not exists announcements (
+  id uuid default gen_random_uuid() not null,
+  title text not null,
+  body text,
+  active boolean default true not null,
+  created_at timestamp with time zone default now(),
+  audience text default 'everyone'::text not null,
+  target_team_ids text[] default '{}'::text[] not null,
+  target_player_ids text[] default '{}'::text[] not null
+);
+alter table announcements add constraint announcements_pkey PRIMARY KEY (id);
+alter table announcements enable row level security;
+create policy announcements_coach_write on announcements for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy announcements_coach_write_v2 on announcements for all to authenticated using (is_active_coach()) with check (is_active_coach());
+create policy announcements_select_auth on announcements for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
--- PRIVACY: `profiles` holds PII (email, sign-in identity). It is OWNER-ONLY.
--- Coaches must NEVER read this table — they read `player_profiles` (the
--- shareable roster layer) instead. The old permissive "USING (true)" policy
--- leaked every user's email to every authenticated user, so we drop it.
-DROP POLICY IF EXISTS "profiles_select_all" ON profiles;
-DROP POLICY IF EXISTS "profiles_select_own" ON profiles;
-CREATE POLICY "profiles_select_own" ON profiles FOR SELECT USING (user_id() = id);
-CREATE POLICY "profiles_insert_own" ON profiles FOR INSERT WITH CHECK (user_id() = id);
-CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (user_id() = id) WITH CHECK (user_id() = id);
+create table if not exists app_config (
+  key text not null,
+  value jsonb not null,
+  updated_by text,
+  updated_at timestamp with time zone default now() not null
+);
+alter table app_config add constraint app_config_pkey PRIMARY KEY (key);
+alter table app_config enable row level security;
+create policy app_config_head_write on app_config for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE ((coaches.is_active = true) AND (coaches.role = 'head_coach'::text))))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE ((coaches.is_active = true) AND (coaches.role = 'head_coach'::text)))));
+create policy app_config_head_write_v2 on app_config for all to authenticated using (is_head_coach()) with check (is_head_coach());
+create policy app_config_read on app_config for select to public using (true);
 
+create table if not exists categories (
+  id uuid default gen_random_uuid() not null,
+  discipline_id uuid not null,
+  letter text not null,
+  name text not null,
+  focus text,
+  cert_name text,
+  sort_index integer default 0 not null
+);
+alter table categories add constraint categories_discipline_id_fkey FOREIGN KEY (discipline_id) REFERENCES disciplines(id) ON DELETE CASCADE;
+alter table categories add constraint categories_pkey PRIMARY KEY (id);
+alter table categories enable row level security;
+create policy categories_coach_write on categories for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy categories_select_auth on categories for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
--- -----------------------------------------------------------------------------
--- coaches — allow-list of users with curriculum write access.
---
--- A coach is identified by EMAIL up-front (seeded by an admin). On the coach's
--- first Sign in with Apple, the app matches their email to a row here and
--- stamps `user_id` so every later RLS check resolves by `user_id` (works even
--- if the coach later hides their email). `is_active` revokes access without
--- deleting the file. `role` distinguishes head coaches (who manage the team).
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS coaches (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  email        text UNIQUE NOT NULL,
+create table if not exists certifications (
+  id uuid default gen_random_uuid() not null,
+  player_id text not null,
+  category_id uuid not null,
+  earned_at timestamp with time zone default now(),
+  coach_signed boolean default false not null
+);
+alter table certifications add constraint certifications_category_id_fkey FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE;
+alter table certifications add constraint certifications_pkey PRIMARY KEY (id);
+alter table certifications add constraint certifications_player_id_category_id_key UNIQUE (player_id, category_id);
+alter table certifications add constraint certifications_player_id_fkey FOREIGN KEY (player_id) REFERENCES profiles(id);
+alter table certifications enable row level security;
+create policy certifications_delete_own on certifications for delete to public using ((user_id() = player_id));
+create policy certifications_insert_own on certifications for insert to public with check ((user_id() = player_id));
+create policy certifications_select on certifications for select to public using (((user_id() = player_id) OR (user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))));
+
+create table if not exists coach_evaluations (
+  id uuid default gen_random_uuid() not null,
+  player_id text not null,
+  coach_id text not null,
+  coach_name text,
+  eval_date date default CURRENT_DATE not null,
+  setting text default 'in_person'::text not null,
+  position_played text,
+  ratings jsonb default '{}'::jsonb not null,
+  strengths text,
+  improvements text,
+  focus_drill_ids jsonb default '[]'::jsonb not null,
+  notes text,
+  shared_with_player boolean default false not null,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+alter table coach_evaluations add constraint coach_evaluations_pkey PRIMARY KEY (id);
+CREATE INDEX coach_evaluations_player ON public.coach_evaluations USING btree (player_id, eval_date DESC);
+alter table coach_evaluations enable row level security;
+create policy coach_evaluations_coach_all on coach_evaluations for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy coach_evaluations_coach_all_v2 on coach_evaluations for all to authenticated using (is_active_coach()) with check (is_active_coach());
+create policy coach_evaluations_player_read on coach_evaluations for select to public using (((shared_with_player = true) AND (player_id IN ( SELECT player_profiles.id
+   FROM player_profiles
+  WHERE (player_profiles.account_id = user_id())))));
+
+create table if not exists coach_notes (
+  id uuid default gen_random_uuid() not null,
+  month text not null,
+  body text default ''::text not null,
+  updated_at timestamp with time zone default now()
+);
+alter table coach_notes add constraint coach_notes_month_key UNIQUE (month);
+alter table coach_notes add constraint coach_notes_pkey PRIMARY KEY (id);
+alter table coach_notes enable row level security;
+create policy coach_notes_coach_write on coach_notes for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy coach_notes_coach_write_v2 on coach_notes for all to authenticated using (is_active_coach()) with check (is_active_coach());
+create policy coach_notes_select_auth on coach_notes for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
+
+create table if not exists coach_players (
+  id uuid default gen_random_uuid() not null,
+  coach_email text not null,
+  player_id text not null,
+  created_at timestamp with time zone default now() not null
+);
+alter table coach_players add constraint coach_players_coach_email_player_id_key UNIQUE (coach_email, player_id);
+alter table coach_players add constraint coach_players_pkey PRIMARY KEY (id);
+CREATE INDEX coach_players_email_idx ON public.coach_players USING btree (lower(coach_email));
+CREATE INDEX coach_players_player_idx ON public.coach_players USING btree (player_id);
+alter table coach_players enable row level security;
+create policy coach_players_select on coach_players for select to public using (((user_id() = player_id) OR (lower(coach_email) = lower(COALESCE(NULLIF(((current_setting('request.jwt.claims'::text, true))::json ->> 'email'::text), ''::text), ''::text))) OR is_head_coach()));
+create policy coach_players_write on coach_players for all to public using (is_head_coach()) with check (is_head_coach());
+
+create table if not exists coach_workouts (
+  id uuid default gen_random_uuid() not null,
+  title text not null,
+  coach_name text default 'Coach Finazzi'::text not null,
+  note text,
+  drill_ids jsonb default '[]'::jsonb not null,
+  posted_at timestamp with time zone default now() not null,
+  active boolean default true not null,
+  created_by text,
+  created_at timestamp with time zone default now() not null,
+  audience text default 'everyone'::text not null,
+  target_team_ids text[] default '{}'::text[] not null,
+  target_player_ids text[] default '{}'::text[] not null
+);
+alter table coach_workouts add constraint coach_workouts_pkey PRIMARY KEY (id);
+CREATE INDEX coach_workouts_recent ON public.coach_workouts USING btree (active, posted_at DESC);
+alter table coach_workouts enable row level security;
+create policy coach_workouts_coach_write on coach_workouts for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy coach_workouts_coach_write_v2 on coach_workouts for all to authenticated using (is_active_coach()) with check (is_active_coach());
+create policy coach_workouts_select_auth on coach_workouts for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
+
+create table if not exists coaches (
+  id uuid default gen_random_uuid() not null,
+  email text not null,
   display_name text,
-  role         text NOT NULL DEFAULT 'coach',   -- 'coach' | 'head_coach'
-  user_id      text REFERENCES profiles(id),    -- populated after first sign-in
-  is_active    boolean NOT NULL DEFAULT true,
-  created_at   timestamptz DEFAULT now()
+  role text default 'coach'::text not null,
+  user_id text,
+  is_active boolean default true not null,
+  created_at timestamp with time zone default now()
 );
+alter table coaches add constraint coaches_email_key UNIQUE (email);
+alter table coaches add constraint coaches_pkey PRIMARY KEY (id);
+alter table coaches add constraint coaches_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id);
+alter table coaches enable row level security;
+create policy coaches_head_manage on coaches for all to authenticated using (is_head_coach()) with check (is_head_coach());
+create policy coaches_select_authenticated on coaches for select to authenticated using (true);
+create policy coaches_self_link on coaches for update to public using ((lower(email) = lower((auth.jwt() ->> 'email'::text)))) with check ((lower(email) = lower((auth.jwt() ->> 'email'::text))));
 
--- Migrate any legacy coaches table (PK was user_id, no email/role columns).
-ALTER TABLE coaches ADD COLUMN IF NOT EXISTS id           uuid DEFAULT gen_random_uuid();
-ALTER TABLE coaches ADD COLUMN IF NOT EXISTS email        text;
-ALTER TABLE coaches ADD COLUMN IF NOT EXISTS display_name text;
-ALTER TABLE coaches ADD COLUMN IF NOT EXISTS role         text NOT NULL DEFAULT 'coach';
-ALTER TABLE coaches ADD COLUMN IF NOT EXISTS is_active    boolean NOT NULL DEFAULT true;
-
-ALTER TABLE coaches ENABLE ROW LEVEL SECURITY;
-
--- Seed the two head coaches. Emails are stored lower-cased so the app can match
--- case-insensitively with a plain equality check.
-INSERT INTO coaches (email, display_name, role)
-VALUES
-  ('mf.elitetraining@gmail.com', 'Coach Matteo Finazzi', 'head_coach'),
-  ('josephmcgee36@gmail.com',    'Joe McGee',            'head_coach')
-ON CONFLICT (email) DO UPDATE
-  SET display_name = EXCLUDED.display_name,
-      role         = EXCLUDED.role,
-      is_active    = true;
-
--- Any authenticated user can read the coach list (so the app can check its own role).
-DROP POLICY IF EXISTS "coaches_select_all" ON coaches;
-CREATE POLICY "coaches_select_all" ON coaches FOR SELECT USING (true);
-
--- Self-link: on first sign-in a user may stamp their own `user_id` onto the row
--- whose email matches their JWT email. They cannot change email/role/is_active.
-DROP POLICY IF EXISTS "coaches_self_link" ON coaches;
-CREATE POLICY "coaches_self_link" ON coaches
-  FOR UPDATE USING (lower(email) = lower(auth.jwt() ->> 'email'))
-  WITH CHECK (lower(email) = lower(auth.jwt() ->> 'email'));
-
--- Head coaches manage the team (add / deactivate other coaches).
-DROP POLICY IF EXISTS "coaches_head_manage" ON coaches;
-CREATE POLICY "coaches_head_manage" ON coaches
-  FOR ALL USING (
-    user_id() IN (SELECT user_id FROM coaches WHERE role = 'head_coach' AND is_active = true)
-  ) WITH CHECK (
-    user_id() IN (SELECT user_id FROM coaches WHERE role = 'head_coach' AND is_active = true)
-  );
-
-
--- =============================================================================
--- CURRICULUM TABLES (coach-owned, read by all authenticated users)
--- =============================================================================
-
--- -----------------------------------------------------------------------------
--- disciplines
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS disciplines (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  number      text NOT NULL,               -- "01".."04"
-  name        text NOT NULL,
-  mark        text NOT NULL,               -- square|triangle|diamond|circle
-  tagline     text,
-  blurb       text,
-  media       text,                        -- drill|video
-  sort_index  int  NOT NULL DEFAULT 0,
-  created_at  timestamptz DEFAULT now()
+create table if not exists combine_results (
+  id uuid not null,
+  user_id text not null,
+  test_id text not null,
+  value double precision not null,
+  recorded_at timestamp with time zone not null,
+  created_at timestamp with time zone default now()
 );
+alter table combine_results add constraint combine_results_pkey PRIMARY KEY (id);
+CREATE INDEX combine_results_user_test ON public.combine_results USING btree (user_id, test_id, recorded_at DESC);
+alter table combine_results enable row level security;
+create policy combine_results_own on combine_results for all to public using ((user_id() = user_id)) with check ((user_id() = user_id));
+create policy combine_results_select_coach on combine_results for select to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
 
-ALTER TABLE disciplines ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "disciplines_select_auth" ON disciplines
-  FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
-CREATE POLICY "disciplines_coach_write" ON disciplines
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
-
-
--- -----------------------------------------------------------------------------
--- categories
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS categories (
-  id            uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  discipline_id uuid NOT NULL REFERENCES disciplines(id) ON DELETE CASCADE,
-  letter        text NOT NULL,             -- "A".."E"
-  name          text NOT NULL,
-  focus         text,
-  cert_name     text,
-  sort_index    int NOT NULL DEFAULT 0
+create table if not exists content_overrides (
+  kind text not null,
+  target_id text not null,
+  name text not null,
+  updated_by text,
+  updated_at timestamp with time zone default now() not null
 );
+alter table content_overrides add constraint content_overrides_kind_check CHECK ((kind = ANY (ARRAY['discipline'::text, 'category'::text, 'level'::text, 'drill'::text, 'rank'::text, 'certification'::text, 'combine_test'::text])));
+alter table content_overrides add constraint content_overrides_pkey PRIMARY KEY (kind, target_id);
+alter table content_overrides enable row level security;
+create policy content_overrides_head_write on content_overrides for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE ((coaches.is_active = true) AND (coaches.role = 'head_coach'::text))))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE ((coaches.is_active = true) AND (coaches.role = 'head_coach'::text)))));
+create policy content_overrides_head_write_v2 on content_overrides for all to authenticated using (is_head_coach()) with check (is_head_coach());
+create policy content_overrides_read on content_overrides for select to public using (true);
 
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "categories_select_auth" ON categories
-  FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
-CREATE POLICY "categories_coach_write" ON categories
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
-
-
--- -----------------------------------------------------------------------------
--- levels
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS levels (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  category_id  uuid NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-  number       int NOT NULL,
-  name         text NOT NULL,
-  theme        text,
-  sort_index   int NOT NULL DEFAULT 0
+create table if not exists curriculum_edits (
+  drill_id text not null,
+  kind text default 'edit'::text not null,
+  payload jsonb default '{}'::jsonb not null,
+  category_id text,
+  level_number integer,
+  active boolean default true not null,
+  updated_at timestamp with time zone default now() not null,
+  updated_by text
 );
+alter table curriculum_edits add constraint curriculum_edits_pkey PRIMARY KEY (drill_id);
+alter table curriculum_edits enable row level security;
+create policy curriculum_edits_coach_write on curriculum_edits for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy curriculum_edits_coach_write_v2 on curriculum_edits for all to authenticated using (is_active_coach()) with check (is_active_coach());
+create policy curriculum_edits_select_auth on curriculum_edits for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
-ALTER TABLE levels ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "levels_select_auth" ON levels
-  FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
-CREATE POLICY "levels_coach_write" ON levels
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
-
-
--- -----------------------------------------------------------------------------
--- drills
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS drills (
-  id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  level_id         uuid NOT NULL REFERENCES levels(id) ON DELETE CASCADE,
-  title            text NOT NULL,
-  focus            text,
-  how              text,
-  video_url        text,
-  duration_sec     int NOT NULL DEFAULT 0,
-  sets             int NOT NULL DEFAULT 1,
-  coaching_points  jsonb NOT NULL DEFAULT '[]'::jsonb,   -- string array
-  sort_index       int NOT NULL DEFAULT 0
+create table if not exists custom_workouts (
+  id uuid not null,
+  user_id text not null,
+  name text not null,
+  drill_ids jsonb default '[]'::jsonb not null,
+  is_shared_import boolean default false not null,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
 );
+alter table custom_workouts add constraint custom_workouts_pkey PRIMARY KEY (id);
+alter table custom_workouts enable row level security;
+create policy custom_workouts_own on custom_workouts for all to public using ((user_id() = user_id)) with check ((user_id() = user_id));
 
-ALTER TABLE drills ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "drills_select_auth" ON drills
-  FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
-CREATE POLICY "drills_coach_write" ON drills
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
-
-
--- -----------------------------------------------------------------------------
--- progression_rules (single row, coach-editable)
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS progression_rules (
-  id                     uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  xp_per_drill           int NOT NULL DEFAULT 25,
-  xp_level_bonus         int NOT NULL DEFAULT 120,
-  xp_category_cert       int NOT NULL DEFAULT 400,
-  xp_discipline_diploma  int NOT NULL DEFAULT 1500,
-  free_levels            int NOT NULL DEFAULT 1,
-  mastery_passes         int NOT NULL DEFAULT 3
+create table if not exists daily_quotes (
+  id uuid default gen_random_uuid() not null,
+  quote text not null,
+  sort_index integer default 0 not null,
+  active boolean default true not null
 );
+alter table daily_quotes add constraint daily_quotes_pkey PRIMARY KEY (id);
+alter table daily_quotes enable row level security;
+create policy quotes_coach_write on daily_quotes for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy quotes_select_auth on daily_quotes for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
-ALTER TABLE progression_rules ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "rules_select_auth" ON progression_rules
-  FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
-CREATE POLICY "rules_coach_write" ON progression_rules
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
-
-
--- -----------------------------------------------------------------------------
--- daily_quotes
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS daily_quotes (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  quote       text NOT NULL,
-  sort_index  int NOT NULL DEFAULT 0,
-  active      bool NOT NULL DEFAULT true
+create table if not exists disciplines (
+  id uuid default gen_random_uuid() not null,
+  number text not null,
+  name text not null,
+  mark text not null,
+  tagline text,
+  blurb text,
+  media text,
+  sort_index integer default 0 not null,
+  created_at timestamp with time zone default now()
 );
+alter table disciplines add constraint disciplines_pkey PRIMARY KEY (id);
+alter table disciplines enable row level security;
+create policy disciplines_coach_write on disciplines for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy disciplines_select_auth on disciplines for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
-ALTER TABLE daily_quotes ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "quotes_select_auth" ON daily_quotes
-  FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
-CREATE POLICY "quotes_coach_write" ON daily_quotes
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
-
-
--- -----------------------------------------------------------------------------
--- announcements
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS announcements (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  title       text NOT NULL,
-  body        text,
-  active      bool NOT NULL DEFAULT true,
-  created_at  timestamptz DEFAULT now()
+create table if not exists drill_notes (
+  user_id text not null,
+  drill_id text not null,
+  text text not null,
+  updated_at timestamp with time zone not null
 );
+alter table drill_notes add constraint drill_notes_pkey PRIMARY KEY (user_id, drill_id);
+alter table drill_notes enable row level security;
+create policy drill_notes_own on drill_notes for all to public using ((user_id() = user_id)) with check ((user_id() = user_id));
 
-ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "announcements_select_auth" ON announcements
-  FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
-CREATE POLICY "announcements_coach_write" ON announcements
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
-
-
--- -----------------------------------------------------------------------------
--- coach_notes — monthly coach note surfaced on the parent report. One row per
--- calendar month ("2026-06"); coach edits update the same row.
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS coach_notes (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  month       text NOT NULL UNIQUE,        -- "YYYY-MM"
-  body        text NOT NULL DEFAULT '',
-  updated_at  timestamptz DEFAULT now()
+create table if not exists drill_results (
+  id uuid not null,
+  user_id text not null,
+  drill_id text not null,
+  value double precision not null,
+  unit text default ''::text not null,
+  recorded_at timestamp with time zone default now() not null
 );
+alter table drill_results add constraint drill_results_pkey PRIMARY KEY (id);
+CREATE INDEX drill_results_user_drill ON public.drill_results USING btree (user_id, drill_id);
+alter table drill_results enable row level security;
+create policy drill_results_own on drill_results for all to public using ((user_id = user_id())) with check ((user_id = user_id()));
 
-ALTER TABLE coach_notes ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "coach_notes_select_auth" ON coach_notes
-  FOR SELECT USING (auth.jwt() ->> 'role' = 'authenticated');
-CREATE POLICY "coach_notes_coach_write" ON coach_notes
-  FOR ALL USING (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
-  WITH CHECK (user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
-
-
--- =============================================================================
--- PLAYER TABLES (player-owned)
--- =============================================================================
-
--- -----------------------------------------------------------------------------
--- player_profiles
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS player_profiles (
-  id            text PRIMARY KEY,             -- player record id (= account id for self-managed players, random uuid for managed athletes)
-  display_name  text,
-  initials      text,
-  kit_number    text,
-  position      text,
-  created_at    timestamptz DEFAULT now()
+create table if not exists drills (
+  id uuid default gen_random_uuid() not null,
+  level_id uuid not null,
+  title text not null,
+  focus text,
+  how text,
+  video_url text,
+  duration_sec integer default 0 not null,
+  sets integer default 1 not null,
+  coaching_points jsonb default '[]'::jsonb not null,
+  sort_index integer default 0 not null
 );
+alter table drills add constraint drills_level_id_fkey FOREIGN KEY (level_id) REFERENCES levels(id) ON DELETE CASCADE;
+alter table drills add constraint drills_pkey PRIMARY KEY (id);
+alter table drills enable row level security;
+create policy drills_coach_write on drills for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy drills_select_auth on drills for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
--- --- Additive columns (safe to re-run) -------------------------------------
--- username     : unique, case-insensitive handle. The ONLY uniqueness-enforced
---                field. Kit numbers / fun identifiers may overlap.
--- account_id   : the controlling login (parent or self). Multiple athletes that
---                share one account_id form a family/household.
--- managed      : true when this athlete has no own login (managed by a parent).
--- is_example   : coach-only placeholder rows. Hidden from the player app and
---                excluded from username uniqueness + any real reports.
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS username    text;
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS account_id  text REFERENCES profiles(id);
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS managed     boolean NOT NULL DEFAULT false;
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS is_example  boolean NOT NULL DEFAULT false;
-
--- Onboarding identity captured during the cinematic admission flow. All
--- shareable (coach-visible) — none of it is private/billing data.
--- pledge_tier   : 'recovery' | 'standard' | 'elite' commitment tier.
--- foot          : 'Right' | 'Left' dominant foot.
--- member_number : auto-generated member id shown on the passport (not unique).
--- class_year    : high-school graduation year.
--- training_level: starting skill level chosen at onboarding (new/developing/experienced).
--- gender        : optional self-reported gender; drives which combine benchmark
---                 scale grades the player ('female' uses the female scale).
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS pledge_tier    text;
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS foot           text;
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS member_number  integer;
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS class_year     integer;
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS training_level text;
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS gender         text;
-
--- Backfill account_id for existing self-managed rows (id == account).
-UPDATE player_profiles SET account_id = id WHERE account_id IS NULL;
-
--- Case-insensitive uniqueness on real (non-example) usernames.
-CREATE UNIQUE INDEX IF NOT EXISTS player_profiles_username_unique
-  ON player_profiles (lower(username))
-  WHERE is_example = false AND username IS NOT NULL;
-
-ALTER TABLE player_profiles ENABLE ROW LEVEL SECURITY;
-
--- Owner (account holder) + any coach can read; owner writes their own + their
--- managed athletes. Coaches may also UPDATE roster fields (edit / reset) but a
--- trigger (below) prevents them from touching the username.
-DROP POLICY IF EXISTS "player_profiles_select" ON player_profiles;
-DROP POLICY IF EXISTS "player_profiles_insert_own" ON player_profiles;
-DROP POLICY IF EXISTS "player_profiles_update_own" ON player_profiles;
-CREATE POLICY "player_profiles_select" ON player_profiles
-  FOR SELECT USING (
-    user_id() = account_id
-    OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true)
-  );
-CREATE POLICY "player_profiles_insert_own" ON player_profiles
-  FOR INSERT WITH CHECK (
-    user_id() = account_id
-    OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true)
-  );
-CREATE POLICY "player_profiles_update" ON player_profiles
-  FOR UPDATE USING (
-    user_id() = account_id
-    OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true)
-  ) WITH CHECK (
-    user_id() = account_id
-    OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true)
-  );
-CREATE POLICY "player_profiles_delete_own" ON player_profiles
-  FOR DELETE USING (user_id() = account_id);
-
-
--- -----------------------------------------------------------------------------
--- player_state
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS player_state (
-  id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  player_id          text NOT NULL REFERENCES profiles(id),
-  xp                 int NOT NULL DEFAULT 0,
-  streak             int NOT NULL DEFAULT 0,
-  freezes_remaining  int NOT NULL DEFAULT 0,
-  last_trained_date  date,
-  streak_pb          int NOT NULL DEFAULT 0,
-  UNIQUE (player_id)
+create table if not exists families (
+  id uuid default gen_random_uuid() not null,
+  owner_id text not null,
+  name text,
+  created_at timestamp with time zone default now()
 );
+alter table families add constraint families_owner_id_fkey FOREIGN KEY (owner_id) REFERENCES profiles(id);
+alter table families add constraint families_pkey PRIMARY KEY (id);
+alter table families enable row level security;
+create policy families_delete_own on families for delete to public using ((user_id() = owner_id));
+create policy families_insert_own on families for insert to public with check ((user_id() = owner_id));
+create policy families_select_own on families for select to public using ((user_id() = owner_id));
+create policy families_update_own on families for update to public using ((user_id() = owner_id)) with check ((user_id() = owner_id));
 
-ALTER TABLE player_state ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "player_state_select" ON player_state
-  FOR SELECT USING (user_id() = player_id OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
-CREATE POLICY "player_state_insert_own" ON player_state
-  FOR INSERT WITH CHECK (user_id() = player_id);
-CREATE POLICY "player_state_update_own" ON player_state
-  FOR UPDATE USING (user_id() = player_id) WITH CHECK (user_id() = player_id);
-CREATE POLICY "player_state_delete_own" ON player_state
-  FOR DELETE USING (user_id() = player_id);
-
-
--- -----------------------------------------------------------------------------
--- player_progress (one row per drill per player)
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS player_progress (
-  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  player_id      text NOT NULL REFERENCES profiles(id),
-  drill_id       uuid NOT NULL REFERENCES drills(id) ON DELETE CASCADE,
-  passes_logged  int NOT NULL DEFAULT 0,
-  is_mastered    bool NOT NULL DEFAULT false,
-  last_logged_at timestamptz,
-  UNIQUE (player_id, drill_id)
+create table if not exists game_entries (
+  id uuid not null,
+  user_id text not null,
+  game_date timestamp with time zone not null,
+  opponent text default ''::text not null,
+  created_at timestamp with time zone default now() not null
 );
+alter table game_entries add constraint game_entries_pkey PRIMARY KEY (id);
+alter table game_entries enable row level security;
+create policy game_entries_own on game_entries for all to public using ((user_id = user_id())) with check ((user_id = user_id()));
 
-ALTER TABLE player_progress ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "player_progress_select" ON player_progress
-  FOR SELECT USING (user_id() = player_id OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
-CREATE POLICY "player_progress_insert_own" ON player_progress
-  FOR INSERT WITH CHECK (user_id() = player_id);
-CREATE POLICY "player_progress_update_own" ON player_progress
-  FOR UPDATE USING (user_id() = player_id) WITH CHECK (user_id() = player_id);
-CREATE POLICY "player_progress_delete_own" ON player_progress
-  FOR DELETE USING (user_id() = player_id);
-
-
--- -----------------------------------------------------------------------------
--- certifications (earned certs)
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS certifications (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  player_id    text NOT NULL REFERENCES profiles(id),
-  category_id  uuid NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-  earned_at    timestamptz DEFAULT now(),
-  coach_signed bool NOT NULL DEFAULT false,
-  UNIQUE (player_id, category_id)
+create table if not exists gameiq_completions (
+  user_id text not null,
+  lesson_id text not null,
+  completed_at timestamp with time zone not null
 );
+alter table gameiq_completions add constraint gameiq_completions_pkey PRIMARY KEY (user_id, lesson_id);
+alter table gameiq_completions enable row level security;
+create policy gameiq_completions_own on gameiq_completions for all to public using ((user_id() = user_id)) with check ((user_id() = user_id));
+create policy gameiq_completions_select_coach on gameiq_completions for select to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
 
-ALTER TABLE certifications ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "certifications_select" ON certifications
-  FOR SELECT USING (user_id() = player_id OR user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
-CREATE POLICY "certifications_insert_own" ON certifications
-  FOR INSERT WITH CHECK (user_id() = player_id);
-CREATE POLICY "certifications_delete_own" ON certifications
-  FOR DELETE USING (user_id() = player_id);
-
-
--- =============================================================================
--- FAMILIES + ROSTER INVITES + PROFILE INTEGRITY
--- =============================================================================
-
--- -----------------------------------------------------------------------------
--- families — a household. Multiple player_profiles sharing account_id belong to
--- one family; this row just gives the household a name + owner.
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS families (
-  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  owner_id    text NOT NULL REFERENCES profiles(id),   -- the parent/primary login
-  name        text,
-  created_at  timestamptz DEFAULT now()
+create table if not exists levels (
+  id uuid default gen_random_uuid() not null,
+  category_id uuid not null,
+  number integer not null,
+  name text not null,
+  theme text,
+  sort_index integer default 0 not null
 );
+alter table levels add constraint levels_category_id_fkey FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE;
+alter table levels add constraint levels_pkey PRIMARY KEY (id);
+alter table levels enable row level security;
+create policy levels_coach_write on levels for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy levels_select_auth on levels for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
-ALTER TABLE families ENABLE ROW LEVEL SECURITY;
+create table if not exists member_counter (
+  id boolean default true not null,
+  value integer default 0 not null
+);
+alter table member_counter add constraint member_counter_pkey PRIMARY KEY (id);
+alter table member_counter add constraint member_counter_singleton CHECK (id);
+alter table member_counter enable row level security;
 
--- Owner-only. Coaches do NOT need household grouping; they see each athlete
--- individually on the roster.
-CREATE POLICY "families_select_own" ON families
-  FOR SELECT USING (user_id() = owner_id);
-CREATE POLICY "families_insert_own" ON families
-  FOR INSERT WITH CHECK (user_id() = owner_id);
-CREATE POLICY "families_update_own" ON families
-  FOR UPDATE USING (user_id() = owner_id) WITH CHECK (user_id() = owner_id);
-CREATE POLICY "families_delete_own" ON families
-  FOR DELETE USING (user_id() = owner_id);
-
--- Optional link from a player to a family (kept nullable + additive).
-ALTER TABLE player_profiles ADD COLUMN IF NOT EXISTS family_id uuid REFERENCES families(id) ON DELETE SET NULL;
-
-
--- -----------------------------------------------------------------------------
--- roster_invites — coach-issued one-time codes that pre-fill a player profile.
--- A coach creates these in the admin; a subscribed/trial player redeems the
--- code on first sign-in and the fields merge into their profile.
---
--- Subscription rule: redemption requires an active subscription or trial. After
--- a trial lapses the invite + player_profile + progress ROWS are retained (the
--- coach keeps the file in case the player resubscribes), but the player loses
--- *access* to paid content — that gate is enforced client-side by the
--- subscription entitlement, not by deleting data.
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS roster_invites (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  code         text NOT NULL UNIQUE,            -- 6-char A–Z0–9, matches app format
-  coach_id     text NOT NULL REFERENCES profiles(id),
+create table if not exists player_profiles (
+  id text not null,
   display_name text,
-  kit_number   text,
-  position     text,
-  status       text NOT NULL DEFAULT 'pending', -- pending | claimed | revoked
-  claimed_by   text REFERENCES profiles(id),    -- account that redeemed
-  player_id    text,                            -- resulting player_profiles.id
-  created_at   timestamptz DEFAULT now(),
-  claimed_at   timestamptz
+  initials text,
+  kit_number text,
+  "position" text,
+  created_at timestamp with time zone default now(),
+  username text,
+  account_id text,
+  managed boolean default false not null,
+  is_example boolean default false not null,
+  pledge_tier text,
+  foot text,
+  member_number integer,
+  class_year integer,
+  family_id uuid,
+  ballon_dor_requested_at timestamp with time zone,
+  ballon_dor_approved boolean default false not null,
+  ballon_dor_approved_at timestamp with time zone,
+  ballon_dor_approved_by text,
+  training_level text,
+  gender text,
+  position_code text,
+  birth_year integer,
+  avatar_kind text,
+  avatar_builtin text,
+  avatar_url text,
+  card_design jsonb,
+  card_bg_url text,
+  coach_focus text
 );
+alter table player_profiles add constraint player_profiles_account_id_fkey FOREIGN KEY (account_id) REFERENCES profiles(id);
+alter table player_profiles add constraint player_profiles_family_id_fkey FOREIGN KEY (family_id) REFERENCES families(id) ON DELETE SET NULL;
+alter table player_profiles add constraint player_profiles_pkey PRIMARY KEY (id);
+CREATE UNIQUE INDEX player_profiles_username_unique ON public.player_profiles USING btree (lower(username)) WHERE ((is_example = false) AND (username IS NOT NULL));
+alter table player_profiles enable row level security;
+create policy player_profiles_delete_own on player_profiles for delete to public using ((user_id() = account_id));
+create policy player_profiles_insert_own on player_profiles for insert to public with check (((user_id() = account_id) OR (user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))));
+create policy player_profiles_select on player_profiles for select to public using (can_read_player(account_id));
+create policy player_profiles_update on player_profiles for update to public using (can_read_player(account_id)) with check (can_read_player(account_id));
 
-ALTER TABLE roster_invites ENABLE ROW LEVEL SECURITY;
+create table if not exists player_progress (
+  id uuid default gen_random_uuid() not null,
+  player_id text not null,
+  drill_id uuid not null,
+  passes_logged integer default 0 not null,
+  is_mastered boolean default false not null,
+  last_logged_at timestamp with time zone
+);
+alter table player_progress add constraint player_progress_pkey PRIMARY KEY (id);
+alter table player_progress add constraint player_progress_player_id_drill_id_key UNIQUE (player_id, drill_id);
+alter table player_progress add constraint player_progress_player_id_fkey FOREIGN KEY (player_id) REFERENCES profiles(id);
+alter table player_progress enable row level security;
+create policy player_progress_delete_own on player_progress for delete to public using ((user_id() = player_id));
+create policy player_progress_insert_own on player_progress for insert to public with check ((user_id() = player_id));
+create policy player_progress_select on player_progress for select to public using (can_read_player(player_id));
+create policy player_progress_update_own on player_progress for update to public using ((user_id() = player_id)) with check ((user_id() = player_id));
 
--- Coaches manage their own invites. Players never read this table directly —
--- they redeem via the SECURITY DEFINER function below (so coach data is not
--- exposed). The claimer can read their own claimed invite for confirmation.
-CREATE POLICY "roster_invites_coach_all" ON roster_invites
-  FOR ALL USING (user_id() = coach_id AND user_id() IN (SELECT user_id FROM coaches WHERE is_active = true))
-  WITH CHECK (user_id() = coach_id AND user_id() IN (SELECT user_id FROM coaches WHERE is_active = true));
-CREATE POLICY "roster_invites_select_claimer" ON roster_invites
-  FOR SELECT USING (user_id() = claimed_by);
+create table if not exists player_state (
+  id uuid default gen_random_uuid() not null,
+  player_id text not null,
+  xp integer default 0 not null,
+  streak integer default 0 not null,
+  freezes_remaining integer default 0 not null,
+  last_trained_date date,
+  streak_pb integer default 0 not null,
+  purchased_xp bigint default 0 not null,
+  drills_completed integer default 0 not null
+);
+alter table player_state add constraint player_state_pkey PRIMARY KEY (id);
+alter table player_state add constraint player_state_player_id_fkey FOREIGN KEY (player_id) REFERENCES profiles(id);
+alter table player_state add constraint player_state_player_id_key UNIQUE (player_id);
+alter table player_state enable row level security;
+create policy player_state_delete_own on player_state for delete to public using ((user_id() = player_id));
+create policy player_state_insert_own on player_state for insert to public with check ((user_id() = player_id));
+create policy player_state_select on player_state for select to public using (can_read_player(player_id));
+create policy player_state_update_own on player_state for update to public using ((user_id() = player_id)) with check ((user_id() = player_id));
 
+create table if not exists profiles (
+  id text not null,
+  email text,
+  name text,
+  avatar_url text,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+alter table profiles add constraint profiles_pkey PRIMARY KEY (id);
+alter table profiles enable row level security;
+create policy profiles_insert_own on profiles for insert to public with check ((user_id() = id));
+create policy profiles_select_coach on profiles for select to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy profiles_select_own on profiles for select to public using ((user_id() = id));
+create policy profiles_update_own on profiles for update to public using ((user_id() = id)) with check ((user_id() = id));
 
--- -----------------------------------------------------------------------------
--- username_available(candidate) — SECURITY DEFINER so clients can check a name
--- without being able to read other players' rows. Returns true if free.
--- -----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION username_available(candidate text)
-RETURNS boolean
-LANGUAGE sql
-SECURITY DEFINER
-SET search_path = public
-AS $
-  SELECT NOT EXISTS (
-    SELECT 1 FROM player_profiles
-    WHERE is_example = false
-      AND lower(username) = lower(trim(candidate))
-  );
-$;
+create table if not exists progress_reports (
+  id uuid default gen_random_uuid() not null,
+  player_user_id text not null,
+  coach_user_id text not null,
+  period text not null,
+  status text default 'draft'::text not null,
+  sections jsonb default '[]'::jsonb not null,
+  updated_at timestamp with time zone default now() not null,
+  created_at timestamp with time zone default now() not null
+);
+alter table progress_reports add constraint progress_reports_pkey PRIMARY KEY (id);
+alter table progress_reports add constraint progress_reports_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'final'::text])));
+alter table progress_reports enable row level security;
+create policy progress_reports_coach_all on progress_reports for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy progress_reports_coach_all_v2 on progress_reports for all to authenticated using (is_active_coach()) with check (is_active_coach());
+create policy progress_reports_player_read on progress_reports for select to public using (((player_user_id = user_id()) AND (status = 'final'::text)));
 
+create table if not exists progression_rules (
+  id uuid default gen_random_uuid() not null,
+  xp_per_drill integer default 25 not null,
+  xp_level_bonus integer default 120 not null,
+  xp_category_cert integer default 400 not null,
+  xp_discipline_diploma integer default 1500 not null,
+  free_levels integer default 1 not null,
+  mastery_passes integer default 3 not null
+);
+alter table progression_rules add constraint progression_rules_pkey PRIMARY KEY (id);
+alter table progression_rules enable row level security;
+create policy rules_coach_write on progression_rules for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy rules_select_auth on progression_rules for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
--- -----------------------------------------------------------------------------
--- claim_roster_invite(invite_code, p_username) — redeem a coach invite for the
--- calling user. Creates/updates the caller's player_profile with the coach's
--- pre-filled fields + the chosen unique username, and marks the invite claimed.
--- Runs as SECURITY DEFINER so the player never reads the coach's invite table.
--- -----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION claim_roster_invite(invite_code text, p_username text)
-RETURNS player_profiles
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $
+create table if not exists roster_invites (
+  id uuid default gen_random_uuid() not null,
+  code text not null,
+  coach_id text not null,
+  display_name text,
+  kit_number text,
+  "position" text,
+  status text default 'pending'::text not null,
+  claimed_by text,
+  player_id text,
+  created_at timestamp with time zone default now(),
+  claimed_at timestamp with time zone
+);
+alter table roster_invites add constraint roster_invites_claimed_by_fkey FOREIGN KEY (claimed_by) REFERENCES profiles(id);
+alter table roster_invites add constraint roster_invites_coach_id_fkey FOREIGN KEY (coach_id) REFERENCES profiles(id);
+alter table roster_invites add constraint roster_invites_code_key UNIQUE (code);
+alter table roster_invites add constraint roster_invites_pkey PRIMARY KEY (id);
+alter table roster_invites enable row level security;
+create policy roster_invites_coach_all on roster_invites for all to public using (((user_id() = coach_id) AND (user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))))) with check (((user_id() = coach_id) AND (user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))));
+create policy roster_invites_select_claimer on roster_invites for select to public using ((user_id() = claimed_by));
+
+create table if not exists session_logs (
+  id uuid not null,
+  user_id text not null,
+  completed_at timestamp with time zone not null,
+  drill_id text not null,
+  drill_title text not null,
+  discipline_id text not null,
+  discipline_name text not null,
+  category_id text not null,
+  category_name text not null,
+  level_number integer not null,
+  duration_sec integer not null,
+  sets_completed integer not null,
+  sets_skipped integer default 0 not null,
+  completed_fully boolean default true not null,
+  source text default 'single'::text not null,
+  source_name text,
+  xp_earned integer default 0 not null,
+  felt_rating integer,
+  reflection text,
+  journal_response text,
+  created_at timestamp with time zone default now(),
+  steps integer,
+  movement_intensity double precision
+);
+alter table session_logs add constraint session_logs_pkey PRIMARY KEY (id);
+CREATE INDEX session_logs_user_time ON public.session_logs USING btree (user_id, completed_at DESC);
+alter table session_logs enable row level security;
+create policy session_logs_own on session_logs for all to public using ((user_id() = user_id)) with check ((user_id() = user_id));
+create policy session_logs_select_coach on session_logs for select to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+
+create table if not exists share_xp_events (
+  user_id text not null,
+  day date not null,
+  platform text not null,
+  card_kind text not null,
+  xp integer default 5 not null,
+  created_at timestamp with time zone default now() not null
+);
+alter table share_xp_events add constraint share_xp_events_pkey PRIMARY KEY (user_id, day, platform);
+alter table share_xp_events enable row level security;
+create policy share_xp_events_own on share_xp_events for all to public using ((user_id = user_id())) with check ((user_id = user_id()));
+
+create table if not exists support_adjustments (
+  id uuid default gen_random_uuid() not null,
+  user_id text not null,
+  kind text not null,
+  amount integer default 0 not null,
+  badge_id text,
+  note text not null,
+  created_by text not null,
+  created_at timestamp with time zone default now() not null,
+  consumed_at timestamp with time zone
+);
+alter table support_adjustments add constraint support_adjustments_kind_check CHECK ((kind = ANY (ARRAY['xp'::text, 'purchased_xp'::text, 'streak_freeze'::text, 'streak_set'::text, 'booster_hours'::text, 'badge'::text, 'force_resync'::text])));
+alter table support_adjustments add constraint support_adjustments_pkey PRIMARY KEY (id);
+CREATE INDEX support_adjustments_user ON public.support_adjustments USING btree (user_id, consumed_at);
+alter table support_adjustments enable row level security;
+create policy support_adjustments_head_all on support_adjustments for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE ((coaches.is_active = true) AND (coaches.role = 'head_coach'::text))))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE ((coaches.is_active = true) AND (coaches.role = 'head_coach'::text)))));
+create policy support_adjustments_head_all_v2 on support_adjustments for all to authenticated using (is_head_coach()) with check (is_head_coach());
+create policy support_adjustments_player_consume on support_adjustments for update to public using ((user_id = user_id())) with check ((user_id = user_id()));
+create policy support_adjustments_player_read on support_adjustments for select to public using ((user_id = user_id()));
+
+create table if not exists team_events (
+  id uuid default gen_random_uuid() not null,
+  kind text not null,
+  title text not null,
+  starts_at timestamp with time zone not null,
+  ends_at timestamp with time zone,
+  location text,
+  notes text,
+  team_id text,
+  active boolean default true not null,
+  created_by text,
+  created_at timestamp with time zone default now() not null,
+  audience text default 'everyone'::text not null,
+  target_team_ids text[] default '{}'::text[] not null,
+  target_player_ids text[] default '{}'::text[] not null
+);
+alter table team_events add constraint team_events_kind_check CHECK ((kind = ANY (ARRAY['practice'::text, 'game'::text, 'session'::text, 'other'::text])));
+alter table team_events add constraint team_events_pkey PRIMARY KEY (id);
+alter table team_events enable row level security;
+create policy team_events_coach_write on team_events for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy team_events_coach_write_v2 on team_events for all to authenticated using (is_active_coach()) with check (is_active_coach());
+create policy team_events_read on team_events for select to public using ((active = true));
+
+create table if not exists team_members (
+  team_id uuid not null,
+  player_id text not null,
+  added_at timestamp with time zone default now() not null
+);
+alter table team_members add constraint team_members_pkey PRIMARY KEY (team_id, player_id);
+alter table team_members enable row level security;
+create policy team_members_coach_all on team_members for all to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy team_members_coach_all_v2 on team_members for all to authenticated using (is_active_coach()) with check (is_active_coach());
+create policy team_members_player_read_own on team_members for select to public using ((player_id = user_id()));
+
+create table if not exists teams (
+  id uuid default gen_random_uuid() not null,
+  name text not null,
+  label text default ''::text not null,
+  created_by text,
+  created_at timestamp with time zone default now() not null
+);
+alter table teams add constraint teams_pkey PRIMARY KEY (id);
+alter table teams enable row level security;
+create policy teams_coach_insert on teams for insert to public with check (((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))) AND (created_by = user_id())));
+create policy teams_coach_insert_v2 on teams for insert to authenticated with check ((is_active_coach() AND (created_by = user_id())));
+create policy teams_coach_select on teams for select to public using ((user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE (coaches.is_active = true))));
+create policy teams_coach_select_v2 on teams for select to authenticated using (is_active_coach());
+create policy teams_owner_or_head_delete on teams for delete to public using (((created_by = user_id()) OR (user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE ((coaches.is_active = true) AND (coaches.role = 'head_coach'::text))))));
+create policy teams_owner_or_head_delete_v2 on teams for delete to authenticated using (((created_by = user_id()) OR is_head_coach()));
+create policy teams_owner_or_head_update on teams for update to public using (((created_by = user_id()) OR (user_id() IN ( SELECT coaches.user_id
+   FROM coaches
+  WHERE ((coaches.is_active = true) AND (coaches.role = 'head_coach'::text))))));
+create policy teams_owner_or_head_update_v2 on teams for update to authenticated using (((created_by = user_id()) OR is_head_coach())) with check (((created_by = user_id()) OR is_head_coach()));
+
+create table if not exists user_badges (
+  user_id text not null,
+  badge_id text not null,
+  earned_at timestamp with time zone default now() not null
+);
+alter table user_badges add constraint user_badges_pkey PRIMARY KEY (user_id, badge_id);
+alter table user_badges enable row level security;
+create policy user_badges_own on user_badges for all to public using ((user_id = user_id())) with check ((user_id = user_id()));
+
+create table if not exists user_favorites (
+  user_id text not null,
+  kind text not null,
+  item_id text not null,
+  created_at timestamp with time zone default now() not null
+);
+alter table user_favorites add constraint user_favorites_kind_check CHECK ((kind = ANY (ARRAY['drill'::text, 'routine'::text, 'workout'::text])));
+alter table user_favorites add constraint user_favorites_pkey PRIMARY KEY (user_id, kind, item_id);
+alter table user_favorites enable row level security;
+create policy user_favorites_own on user_favorites for all to public using ((user_id = user_id())) with check ((user_id = user_id()));
+
+create table if not exists workout_records (
+  id text not null,
+  user_id text not null,
+  mode text default ''::text not null,
+  started_at timestamp with time zone not null,
+  duration_sec integer default 0 not null,
+  distance_meters double precision default 0 not null,
+  active_calories double precision default 0 not null,
+  avg_heart_rate integer default 0 not null,
+  max_heart_rate integer default 0 not null,
+  created_at timestamp with time zone default now() not null
+);
+alter table workout_records add constraint workout_records_pkey PRIMARY KEY (id);
+CREATE INDEX workout_records_user ON public.workout_records USING btree (user_id, started_at);
+alter table workout_records enable row level security;
+create policy workout_records_own on workout_records for all to public using ((user_id = user_id())) with check ((user_id = user_id()));
+
+create table if not exists xp_transactions (
+  id uuid default gen_random_uuid() not null,
+  user_id text not null,
+  product_id text not null,
+  xp_amount integer not null,
+  store_transaction_id text,
+  created_at timestamp with time zone default now() not null
+);
+alter table xp_transactions add constraint xp_transactions_pkey PRIMARY KEY (id);
+alter table xp_transactions enable row level security;
+create policy xp_transactions_own on xp_transactions for all to public using ((user_id = user_id())) with check ((user_id = user_id()));
+
+-- ============ FUNCTIONS ============
+
+CREATE OR REPLACE FUNCTION public.can_read_player(target_player_id text)
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  select
+    public.user_id() = target_player_id
+    or public.is_head_coach()
+    or (
+      public.is_active_coach()
+      and exists (
+        select 1 from public.coach_players cp
+        where cp.player_id = target_player_id
+          and lower(cp.coach_email) = lower(
+            coalesce(nullif(current_setting('request.jwt.claims', true)::json ->> 'email',''), '')
+          )
+      )
+    );
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.claim_member_number()
+ RETURNS integer
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  next_value integer;
+BEGIN
+  UPDATE member_counter
+    SET value = value + 1
+    WHERE id = true
+    RETURNING value INTO next_value;
+  RETURN next_value;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.claim_roster_invite(invite_code text, p_username text)
+ RETURNS player_profiles
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
 DECLARE
   uid     text := user_id();
   inv     roster_invites;
@@ -591,23 +856,108 @@ BEGIN
 
   RETURN result;
 END;
-$;
+$function$
+;
 
+CREATE OR REPLACE FUNCTION public.delete_account()
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+declare uid text := auth.uid()::text;
+begin
+  if uid is null then raise exception 'not authenticated'; end if;
 
--- -----------------------------------------------------------------------------
--- redeem_roster_invite(invite_code) — optional, post-onboarding redemption.
--- Unlike claim_roster_invite (used at first sign-up to pick a username), this
--- merges the coach's pre-filled fields into the caller's EXISTING profile and
--- preserves the player's own username. Safe to call any time after onboarding,
--- mirroring a typical "Redeem code" option. SECURITY DEFINER so the player
--- never reads the coach's invite table.
--- -----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION redeem_roster_invite(invite_code text)
-RETURNS player_profiles
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $
+  -- user-data tables (keyed by user_id)
+  delete from session_logs        where user_id = uid;
+  delete from combine_results     where user_id = uid;
+  delete from drill_notes         where user_id = uid;
+  delete from custom_workouts     where user_id = uid;
+  delete from gameiq_completions  where user_id = uid;
+
+  -- progression tables (keyed by player_id -> profiles.id)
+  delete from player_progress     where player_id = uid;
+  delete from player_state        where player_id = uid;
+  delete from certifications      where player_id = uid;
+
+  -- coach / roster references
+  delete from roster_invites      where claimed_by = uid or coach_id = uid;
+  delete from coaches             where user_id = uid;
+
+  -- profiles + families (detach family members first so the delete can't be blocked)
+  update player_profiles set family_id = null
+    where family_id in (select id from families where owner_id = uid);
+  delete from player_profiles     where id = uid or account_id = uid;
+  delete from families            where owner_id = uid;
+
+  -- the account profile, then the auth login record
+  delete from profiles            where id = uid;
+  delete from auth.users          where id = auth.uid();
+end;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.is_active_coach()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  select public.my_coach_role() is not null;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.is_head_coach()
+ RETURNS boolean
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  select public.my_coach_role() = 'head_coach';
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.my_coach_role()
+ RETURNS text
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  select c.role
+  from public.coaches c
+  where c.is_active = true
+    and (
+      lower(c.email) = lower(
+        coalesce(nullif(current_setting('request.jwt.claims', true)::json ->> 'email',''), '')
+      )
+      or (c.user_id is not null and c.user_id = public.user_id())
+    )
+  order by case c.role when 'head_coach' then 0 else 1 end
+  limit 1;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.protect_player_username()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  IF NEW.username IS DISTINCT FROM OLD.username AND user_id() <> OLD.account_id THEN
+    NEW.username := OLD.username;
+  END IF;
+  RETURN NEW;
+END;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.redeem_roster_invite(invite_code text)
+ RETURNS player_profiles
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
 DECLARE
   uid     text := user_id();
   inv     roster_invites;
@@ -624,9 +974,6 @@ BEGIN
     RAISE EXCEPTION 'invalid_or_used_code';
   END IF;
 
-  -- Merge the coach's shareable fields into the caller's existing profile,
-  -- keeping their chosen username. If they somehow have no profile yet, create
-  -- one with a temporary handle derived from their uid.
   INSERT INTO player_profiles (id, account_id, username, display_name, kit_number, position)
     VALUES (uid, uid, 'player_' || substr(uid, 1, 8), inv.display_name, inv.kit_number, inv.position)
   ON CONFLICT (id) DO UPDATE
@@ -641,90 +988,68 @@ BEGIN
 
   RETURN result;
 END;
-$;
+$function$
+;
 
-
--- -----------------------------------------------------------------------------
--- Protect the username: a coach may edit roster fields (name/kit/position) and
--- reset, but must NOT change a player's chosen username. Owners may change
--- their own.
--- -----------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION protect_player_username()
-RETURNS trigger
-LANGUAGE plpgsql
-AS $
-BEGIN
-  IF NEW.username IS DISTINCT FROM OLD.username AND user_id() <> OLD.account_id THEN
-    NEW.username := OLD.username;  -- silently keep the owner's handle
-  END IF;
-  RETURN NEW;
-END;
-$;
-
-DROP TRIGGER IF EXISTS trg_protect_player_username ON player_profiles;
-CREATE TRIGGER trg_protect_player_username
-  BEFORE UPDATE ON player_profiles
-  FOR EACH ROW EXECUTE FUNCTION protect_player_username();
-
-
--- -----------------------------------------------------------------------------
--- member_counter + claim_member_number() — issues a REAL, sequential member
--- number for the passport (#1, #2, #3 …). Players are NOT authenticated while
--- building a profile, so this runs as SECURITY DEFINER and is granted to anon.
--- Each call atomically increments and returns the next id, so every profile
--- gets a unique, accurate number tied to how many have been built — never a
--- made-up value. The client only displays the number once this succeeds; if
--- offline it holds and retries, never showing a fake number.
--- -----------------------------------------------------------------------------
-CREATE TABLE IF NOT EXISTS member_counter (
-  id     boolean PRIMARY KEY DEFAULT true,        -- single-row table
-  value  integer NOT NULL DEFAULT 0,
-  CONSTRAINT member_counter_singleton CHECK (id)
-);
-
-INSERT INTO member_counter (id, value)
-  VALUES (true, 0)
-  ON CONFLICT (id) DO NOTHING;
-
-ALTER TABLE member_counter ENABLE ROW LEVEL SECURITY;
--- No direct policies: the counter is only ever touched through the SECURITY
--- DEFINER function below, never read or written directly by clients.
-
-CREATE OR REPLACE FUNCTION claim_member_number()
-RETURNS integer
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $
+CREATE OR REPLACE FUNCTION public.rls_auto_enable()
+ RETURNS event_trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'pg_catalog'
+AS $function$
 DECLARE
-  next_value integer;
+  cmd record;
 BEGIN
-  UPDATE member_counter
-    SET value = value + 1
-    WHERE id = true
-    RETURNING value INTO next_value;
-  RETURN next_value;
+  FOR cmd IN
+    SELECT *
+    FROM pg_event_trigger_ddl_commands()
+    WHERE command_tag IN ('CREATE TABLE', 'CREATE TABLE AS', 'SELECT INTO')
+      AND object_type IN ('table','partitioned table')
+  LOOP
+     IF cmd.schema_name IS NOT NULL AND cmd.schema_name IN ('public') AND cmd.schema_name NOT IN ('pg_catalog','information_schema') AND cmd.schema_name NOT LIKE 'pg_toast%' AND cmd.schema_name NOT LIKE 'pg_temp%' THEN
+      BEGIN
+        EXECUTE format('alter table if exists %s enable row level security', cmd.object_identity);
+        RAISE LOG 'rls_auto_enable: enabled RLS on %', cmd.object_identity;
+      EXCEPTION
+        WHEN OTHERS THEN
+          RAISE LOG 'rls_auto_enable: failed to enable RLS on %', cmd.object_identity;
+      END;
+     ELSE
+        RAISE LOG 'rls_auto_enable: skip % (either system schema or not in enforced list: %.)', cmd.object_identity, cmd.schema_name;
+     END IF;
+  END LOOP;
 END;
-$;
+$function$
+;
 
-GRANT EXECUTE ON FUNCTION claim_member_number() TO anon, authenticated;
+CREATE OR REPLACE FUNCTION public.user_id()
+ RETURNS text
+ LANGUAGE sql
+ STABLE
+ SET search_path TO 'public'
+AS $function$
+  SELECT COALESCE(
+    nullif(current_setting('request.jwt.claims', true)::json ->> 'sub', ''),
+    nullif(current_setting('request.jwt.claim.sub', true), '')
+  );
+$function$
+;
+
+CREATE OR REPLACE FUNCTION public.username_available(candidate text)
+ RETURNS boolean
+ LANGUAGE sql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+  SELECT NOT EXISTS (
+    SELECT 1 FROM player_profiles
+    WHERE is_example = false
+      AND lower(username) = lower(trim(candidate))
+  );
+$function$
+;
 
 
--- =============================================================================
--- JWT TRUST (self-owned Supabase only) — REQUIRED for user_id() to work
--- =============================================================================
--- This app authenticates with **Rork Auth** (Sign in with Apple), not Supabase
--- Auth. For RLS to resolve the signed-in user, your Supabase project must
--- verify Rork's JWTs so `request.jwt.claims` (and therefore `user_id()`) is
--- populated. This is a DASHBOARD setting, not SQL — do it once:
---
---   Supabase Dashboard → Authentication → Sign In / Providers →
---   Third-Party Auth → Add provider → Custom
---     • JWKS URL : https://api.rork.com/.well-known/jwks.json
---     • Issuer   : https://api.rork.com
---
--- After saving, Rork's bearer tokens are accepted by PostgREST, `auth.jwt()`
--- returns the Rork claims (sub, email, role=authenticated), and every policy
--- above resolves correctly. Until this is configured, all authenticated
--- queries will be rejected even though the schema itself is correct.
--- =============================================================================
+-- ============ TRIGGERS ============
+
+CREATE TRIGGER trg_protect_player_username BEFORE UPDATE ON public.player_profiles FOR EACH ROW EXECUTE FUNCTION protect_player_username();
