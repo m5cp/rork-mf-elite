@@ -1,107 +1,85 @@
-# backend/schema.sql is not the source of truth
+# backend/schema.sql — closed, 2026-08-08
 
-**Audited 2026-08-05 against the app at commit `9a0a932`.**
+**Superseded.** This file used to document a 13-table gap between `schema.sql`
+and the live database. `schema.sql` is now generated directly from production
+and matches it. This page is kept for the reasoning and for the two things the
+audit turned up that are *not* schema problems and are still open.
 
-`schema.sql` opens by presenting itself as the schema for this project. It
-declares **17 tables**. The iOS app reads or writes **30**. Anyone who
-provisions a new Supabase project from this file gets an app that appears to
-work and then fails, silently, on most of what a player does.
+## What was wrong, and how it was closed
 
-It is also the reason a whole class of bug is invisible: the sync engine
-classifies a 4xx as a permanent failure and quarantines the operation, so a
-write to a column that doesn't exist doesn't crash or retry — it just never
-arrives, and the player's data stops syncing with no error anywhere.
+`schema.sql` declared **17 tables**. The app reads or writes **41**. Missing
+were the ones carrying nearly everything a player does — `session_logs`,
+`combine_results`, `drill_results`, `xp_transactions`, `game_entries`,
+`user_badges`, `team_events`, `workout_records`, and more — plus several
+columns and two functions.
 
-## Tables the app uses that this file does not declare
+It mattered more than a documentation gap. The sync engine classifies a 4xx as
+a **permanent** failure and quarantines the operation, so a write to a column
+that does not exist doesn't crash and doesn't retry. It silently never arrives,
+and that player's data stops syncing with no error anywhere.
 
-```
-admin_audit           drill_results        session_logs
-app_config            game_entries         share_xp_events
-coach_workouts        gameiq_completions   support_adjustments
-combine_results       progress_reports     team_events
-content_overrides     team_members         teams
-curriculum_edits      user_badges          user_favorites
-custom_workouts       workout_records      xp_transactions
-drill_notes
-```
+`schema.sql` is now a dump of the live schema: 41 tables, 101 RLS policies, 12
+functions, every index and trigger. Regenerate it rather than editing it.
 
-That is 22 tables, including the ones carrying every session a player has ever
-logged (`session_logs`), every combine score (`combine_results`), and every
-purchase (`xp_transactions`).
+Every column the audit listed as suspect is present in production and always
+was:
 
-## Columns missing from tables that ARE declared
-
-Confirmed by reading the write sites in `Services/Sync/`:
-
-| Table | Column the app writes | Written at |
+| Table | Column | Status |
 |---|---|---|
-| `player_state` | `purchased_xp` | `SyncEngine.enqueuePlayerState` |
-| `player_profiles` | `ballon_dor_requested_at` | `SyncEngine` (Ballon d'Or request) |
-| `player_profiles` | `position_code`, `birth_year` | `RemoteProfileSync` |
-| `player_profiles` | `avatar_kind`, `avatar_builtin`, `avatar_url` | `RemoteProfileSync` |
-| `player_profiles` | `coach_focus` | `CoachViewModel.saveCoachFocus` |
-| `announcements` | `audience`, `target_team_ids`, `target_player_ids` | `MyTeamsStore` |
+| `player_state` | `purchased_xp` | present (bigint, default 0) |
+| `player_profiles` | `ballon_dor_requested_at` | present |
+| `player_profiles` | `position_code`, `birth_year` | present |
+| `player_profiles` | `avatar_kind`, `avatar_builtin`, `avatar_url` | present |
+| `player_profiles` | `coach_focus` | present |
+| `announcements` | `audience`, `target_team_ids`, `target_player_ids` | present |
 
-`player_state.purchased_xp` is the one to check first. If it is genuinely
-absent in production, **every** `player_state` upsert returns 400 and gets
-quarantined — meaning XP, streak and freeze counts never reach the server for
-anyone, and the coach dashboard slowly drifts out of date with no visible
-error.
+Both functions the app calls — `delete_account()` and `my_coach_role()` — are
+defined and now in the file, alongside `can_read_player()`,
+`claim_roster_invite()`, `redeem_roster_invite()`, `username_available()`,
+`claim_member_number()`, `is_head_coach()`, `is_active_coach()`, `user_id()`,
+`protect_player_username()` and `rls_auto_enable()`.
 
-## Functions the app calls that this file does not define
+**So the `purchased_xp` theory was wrong.** The column exists. Whatever is
+stopping `player_state` from syncing is something else — see below.
 
-- `delete_account()` — called by `SupabaseAuth.deleteAccount`
-- `my_coach_role()` — called by `SupabaseAuth.refreshCoachStatus`
+---
 
-(`username_available`, `claim_roster_invite` and `redeem_roster_invite` are
-defined here and are fine.)
+## Still open
 
-## Storage
+### 1. `player_state` has exactly one row for the entire app
 
-The app uploads to a `player-media` bucket that isn't described anywhere in
-this file, and coach drill-video uploads have no server-side restriction — the
-coach-only rule is enforced in the UI only. Anyone with an authenticated
-session can write to that bucket.
+Counted 2026-08-08: `player_profiles` has 4 rows, `player_progress` has 6,
+`player_state` has **1** — Joe's. Every other player has a profile and logged
+progress but no state row, which is where XP, streak, freezes and
+`purchased_xp` live. That is the shape you would expect if `player_state`
+upserts are failing and being quarantined for everyone else.
 
-## Declared here but unused by the app
+It is not a missing column, so the next place to look is the RLS insert policy
+and the upsert's conflict target. Worth reproducing with a real upsert as
+`authenticated` for a non-Joe account, in a transaction, rolled back — the same
+method that found the storage bug.
 
-`categories`, `certifications`, `daily_quotes`, `disciplines`, `drills`,
-`families`, `levels`, `member_counter`, `progression_rules`.
+### 2. Coach drill-video uploads have no server-side restriction
 
-Some of these are deliberate (the curriculum ships bundled in the app rather
-than being served). But `player_progress.drill_id` is a foreign key to
-`drills.id`, and if `drills` is empty in production then every mastery upload
-fails that constraint — this was diagnosed and worked around in July, and it is
-worth confirming it stayed fixed.
+Audit item #38. Coach-only is enforced in the UI only; the storage policy does
+not check the caller's role. Unchanged.
 
-## How to make this file authoritative again
+---
 
-Do not hand-edit it. Dump the live schema and replace the file:
+## Fixed since the original audit
 
-```bash
-# Structure only, public schema, no ownership noise
-pg_dump "$SUPABASE_DB_URL" \
-  --schema=public \
-  --schema-only \
-  --no-owner \
-  --no-privileges \
-  > backend/schema.sql
-```
-
-Or, if you'd rather keep the current file's hand-written comments (they're
-genuinely useful — the RLS reasoning in particular), dump to a second file and
-reconcile:
-
-```bash
-pg_dump "$SUPABASE_DB_URL" --schema=public --schema-only --no-owner > /tmp/live.sql
-diff <(grep -oP '(?<=CREATE TABLE )[a-z_.]+' /tmp/live.sql | sort) \
-     <(grep -oiP '(?<=CREATE TABLE IF NOT EXISTS )[a-z_]+' backend/schema.sql | sort)
-```
-
-The connection string is in the Supabase dashboard under Project Settings →
-Database → Connection string (use the session pooler URI).
-
-Once it's regenerated, the migration in `backend/migrations/` can be validated
-against it properly — right now its section 5 is commented out precisely
-because the real column names for `session_logs` and friends aren't knowable
-from this repo.
+- **Uploads never worked, ever** — 0 objects in every bucket since June. Three
+  stacked causes: no SELECT policy on `storage.objects` (which blocks upsert,
+  since `x-upsert` needs SELECT + UPDATE + INSERT), `drill-images` missing its
+  email-based policy, and two contradictory coach-identity systems.
+  `2026-08-05-storage-and-coach-access.sql`, applied.
+- **Coach identity split** — `my_coach_role()` resolved by JWT email while
+  `is_head_coach()` and every write policy resolved by `coaches.user_id`, which
+  is null for 8 of 11 coaches. Aligned; `_v2` email-based policies added
+  alongside the originals.
+- **Every coach could read every child** — audit item #36.
+  `2026-08-08-coach-roster-scoping-APPLIED.sql`, applied and verified by
+  impersonation. Note that the earlier staged version of this
+  (`2026-08-05-coach-roster-scoping.sql`) is **superseded and must not be run**:
+  it backfilled from `roster_invites`, which is empty, so it would have linked
+  nobody and cut every non-head coach off from every player.
