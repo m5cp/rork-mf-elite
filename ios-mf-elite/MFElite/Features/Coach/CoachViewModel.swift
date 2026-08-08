@@ -357,14 +357,15 @@ final class CoachViewModel {
         }
 
         // Emails: join client-side against profiles for each account_id.
+        // Chunked, because a single `in.(...)` of a few hundred uuids builds a
+        // URL long enough to be rejected.
         let accountIDs = Array(Set(profileRows.compactMap { $0["account_id"] as? String }))
         var emailByAccount: [String: String] = [:]
-        if !accountIDs.isEmpty {
-            let inList = "(\(accountIDs.joined(separator: ",")))"
+        for chunk in Self.chunked(accountIDs) {
             let emailRows = await SupabaseClient.shared.get(
                 table: "profiles",
                 query: [
-                    URLQueryItem(name: "id", value: "in.\(inList)"),
+                    URLQueryItem(name: "id", value: "in.(\(chunk.joined(separator: ",")))"),
                     URLQueryItem(name: "select", value: "id,email")
                 ]
             ) ?? []
@@ -375,17 +376,37 @@ final class CoachViewModel {
             }
         }
 
-        // Recent session logs power both "last active" and the weekly overview.
-        let logRows = await SupabaseClient.shared.get(
-            table: "session_logs",
-            query: [
-                URLQueryItem(name: "select", value: "user_id,completed_at,duration_sec"),
-                URLQueryItem(name: "order", value: "completed_at.desc"),
-                URLQueryItem(name: "limit", value: "1000")
-            ]
-        ) ?? []
-
         let weekAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date()) ?? Date()
+
+        // Session logs, scoped to this roster.
+        //
+        // This was "the 1,000 most recent session logs, table-wide". Once the
+        // app passed ~1,000 sessions in the window, other players' logs filled
+        // the slice and a coach's own active players started reporting as
+        // "Never trained" in Needs Attention. Two scoped reads instead:
+        //
+        //   1. Everything in the last 7 days. Bounded by the window, so no
+        //      limit is needed and the weekly totals are exact.
+        //   2. For players with nothing in that window, their newest rows —
+        //      only to fill in "last active".
+        //
+        // Step 2 still takes an ordered slice, so someone who last trained
+        // further back than `lastActiveScan` rows shows no date rather than a
+        // wrong one. A `last_active_per_player` RPC would close that gap.
+        let sinceISO = ISO8601DateFormatter().string(from: weekAgo)
+        var logRows: [[String: Any]] = []
+        for chunk in Self.chunked(accountIDs) {
+            logRows += await SupabaseClient.shared.get(
+                table: "session_logs",
+                query: [
+                    URLQueryItem(name: "select", value: "user_id,completed_at,duration_sec"),
+                    URLQueryItem(name: "user_id", value: "in.(\(chunk.joined(separator: ",")))"),
+                    URLQueryItem(name: "completed_at", value: "gte.\(sinceISO)"),
+                    URLQueryItem(name: "order", value: "completed_at.desc")
+                ]
+            ) ?? []
+        }
+
         var lastActive: [String: Date] = [:]
         var activeUsers: Set<String> = []
         var minutesThisWeek = 0
@@ -395,7 +416,10 @@ final class CoachViewModel {
         for row in logRows {
             guard let uid = row["user_id"] as? String,
                   let date = Self.parseDate(row["completed_at"]) else { continue }
-            if lastActive[uid] == nil { lastActive[uid] = date }   // desc order → first is newest
+            // Compared rather than assumed-first: rows now arrive as several
+            // per-chunk responses, so "the first row wins" no longer holds
+            // across the whole set.
+            lastActive[uid] = max(lastActive[uid] ?? date, date)
             if date >= weekAgo {
                 activeUsers.insert(uid)
                 sessionsThisWeek += 1
@@ -403,6 +427,26 @@ final class CoachViewModel {
                 minutesThisWeek += secs
                 sessionsByUser[uid, default: 0] += 1
                 secondsByUser[uid, default: 0] += secs
+            }
+        }
+
+        // Second pass: anyone with nothing in the last 7 days still needs a
+        // "last active" date, so ask only for those players.
+        let dormant = accountIDs.filter { lastActive[$0] == nil }
+        for chunk in Self.chunked(dormant) {
+            let rows = await SupabaseClient.shared.get(
+                table: "session_logs",
+                query: [
+                    URLQueryItem(name: "select", value: "user_id,completed_at"),
+                    URLQueryItem(name: "user_id", value: "in.(\(chunk.joined(separator: ",")))"),
+                    URLQueryItem(name: "order", value: "completed_at.desc"),
+                    URLQueryItem(name: "limit", value: "\(chunk.count * Self.lastActiveScan)")
+                ]
+            ) ?? []
+            for row in rows {
+                guard let uid = row["user_id"] as? String,
+                      let date = Self.parseDate(row["completed_at"]) else { continue }
+                lastActive[uid] = max(lastActive[uid] ?? date, date)
             }
         }
 
@@ -1107,6 +1151,20 @@ final class CoachViewModel {
             map[test.id] = (test.name, test.unit, test.lowerIsBetter)
         }
         return map
+    }
+
+    /// How many rows per dormant player to scan when back-filling "last
+    /// active". They have nothing in the last 7 days by definition, so their
+    /// newest rows are all older and a handful each is plenty.
+    private static let lastActiveScan = 5
+
+    /// Split ids into batches small enough that `in.(...)` stays inside a
+    /// sane URL length. 100 uuids is roughly 3.7 KB of query string.
+    private static func chunked(_ ids: [String], size: Int = 100) -> [[String]] {
+        guard !ids.isEmpty else { return [] }
+        return stride(from: 0, to: ids.count, by: size).map {
+            Array(ids[$0 ..< min($0 + size, ids.count)])
+        }
     }
 
     /// Parse a Postgres date / timestamptz value into a Date.

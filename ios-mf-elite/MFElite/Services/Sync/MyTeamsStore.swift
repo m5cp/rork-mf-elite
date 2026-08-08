@@ -41,6 +41,18 @@ final class MyTeamsStore {
         return cachedTeamIDs
     }
 
+    /// Forget this account's memberships. Must be called on sign-out.
+    ///
+    /// Without this the set survives in UserDefaults and `lastFetched` keeps
+    /// suppressing the refetch, so a second account signing in within ten
+    /// minutes inherits the first account's team ids — and with them, the
+    /// coach announcements, workouts and events targeted at those teams.
+    func reset() {
+        cachedTeamIDs = []
+        lastFetched = nil
+        UserDefaults.standard.removeObject(forKey: Self.cacheKey)
+    }
+
     /// Whether a broadcast row (with audience/target_team_ids/target_player_ids
     /// columns) is visible to the signed-in user. Coaches see everything.
     static func isVisibleToMe(row: [String: Any], myTeamIDs: Set<String>) -> Bool {

@@ -30,6 +30,15 @@ final class AnnouncementStore {
         poppedID = defaults.string(forKey: poppedKey) ?? ""
     }
 
+    /// Forget which announcements this account had seen. Account teardown only —
+    /// both ids are cached in memory, so clearing the keys alone wouldn't take.
+    func reset() {
+        dismissedID = ""
+        poppedID = ""
+        defaults.removeObject(forKey: key)
+        defaults.removeObject(forKey: poppedKey)
+    }
+
     func isDismissed(_ id: UUID) -> Bool { dismissedID == id.uuidString }
 
     func dismiss(_ id: UUID) {

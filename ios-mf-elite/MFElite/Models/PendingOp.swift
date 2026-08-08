@@ -30,6 +30,19 @@ final class PendingOp {
     var isQuarantined: Bool = false
     /// The HTTP status that caused quarantine, for diagnostics. 0 = none.
     var lastErrorStatus: Int = 0
+    /// The account this op belongs to.
+    ///
+    /// Sign-out used to delete the whole queue, so anything not yet uploaded —
+    /// drill scores, watch workouts, purchases, favorites, every delete — was
+    /// lost, and the backfill doesn't regenerate those. Keeping the queue
+    /// instead means it has to be attributable, or the next account signed in
+    /// would flush someone else's writes under its own credentials.
+    ///
+    /// Empty on rows written before this existed; those are treated as
+    /// belonging to whoever is signed in when they are next flushed, which is
+    /// correct for the single-account case they were all created in.
+    /// Defaulted so existing stores migrate in place (lightweight migration).
+    var ownerID: String = ""
 
     init(
         id: UUID = UUID(),
@@ -37,7 +50,8 @@ final class PendingOp {
         table: String,
         opType: String,
         payloadJSON: Data,
-        attempts: Int = 0
+        attempts: Int = 0,
+        ownerID: String = ""
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -47,5 +61,6 @@ final class PendingOp {
         self.attempts = attempts
         self.isQuarantined = false
         self.lastErrorStatus = 0
+        self.ownerID = ownerID
     }
 }

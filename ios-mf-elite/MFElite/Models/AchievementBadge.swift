@@ -201,6 +201,13 @@ enum AchievementStore {
         UserDefaults.standard.set(Array(merged), forKey: key)
     }
 
+    /// Forget every earned badge. Account deletion only — badges are the
+    /// previous account's, and without this they were inherited by whoever
+    /// signed in next on this device.
+    static func reset() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
+
     static var earnedCount: Int {
         earnedIDs.count
     }

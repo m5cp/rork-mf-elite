@@ -178,12 +178,32 @@ final class TeamsStore {
         )
     }
 
-    /// Delete a team. Memberships cascade server-side. Optimistic local removal.
+    /// Delete a team, then its memberships.
+    ///
+    /// The membership wipe used to run first, and the local list was cleared
+    /// before either call even went out. So if RLS rejected the team delete,
+    /// the team survived server-side with an emptied roster and simply
+    /// vanished from this coach's UI — unrecoverable from the app.
+    ///
+    /// `team_members` carries no foreign key to `teams` in the live schema
+    /// (verified 2026-08-08 against information_schema — contrary to what this
+    /// comment used to claim), so nothing cascades and nothing blocks deleting
+    /// the parent first. The rows are removed explicitly, after the fact.
+    ///
+    /// The count matters: an RLS policy that filters the DELETE down to zero
+    /// rows still answers 204, so "not allowed" would otherwise look identical
+    /// to a successful delete.
     @discardableResult
     func deleteTeam(_ team: CoachTeam) async -> Bool {
+        guard let deleted = await SupabaseClient.shared.deleteCounting(
+            table: "teams", match: ["id": team.id]
+        ), deleted > 0 else {
+            return false   // team intact, roster intact, local list unchanged
+        }
         teams.removeAll { $0.id == team.id }
+        // Best effort — anything left behind points at a team that no longer exists.
         await SupabaseClient.shared.delete(table: "team_members", match: ["team_id": team.id])
-        return await SupabaseClient.shared.delete(table: "teams", match: ["id": team.id])
+        return true
     }
 
     /// Add an athlete to a team (idempotent). Optimistic local update.

@@ -93,6 +93,10 @@ final class SyncEngine {
     /// network. Safe to call once at launch.
     func configure(context: ModelContext) {
         self.context = context
+        // Before anything is pulled, pushed or counted. A session restored from
+        // the Keychain never goes through `handleSignIn()`, so this is the only
+        // place that check runs at launch.
+        wipeIfDifferentAccount()
         refreshPendingCount()
 
         monitor.pathUpdateHandler = { [weak self] path in
@@ -131,6 +135,38 @@ final class SyncEngine {
         maybeBackfill()
     }
 
+    /// Identity of the last account that signed in here. Deliberately NOT
+    /// cleared on sign-out — that is the whole point: it is what lets the next
+    /// sign-in tell "same player coming back" from "somebody else".
+    private static let lastUserKey = "MF_LAST_SYNCED_USER_ID"
+
+    /// Clear the device when a *different* account signs in.
+    ///
+    /// Sign-out keeps everything local so the same player can sign back in and
+    /// lose nothing, including work that never made it to the server. That is
+    /// right for them and wrong for anyone else: without this check the next
+    /// account inherited the previous player's history, badges, card and
+    /// favourites — and `maybeBackfill()` then uploaded all of it to their
+    /// server rows.
+    /// Call sites are deliberate: `SupabaseAuth.applySession` (the moment a new
+    /// identity exists, before anything is pushed under it) and
+    /// `configure(context:)` (launch, which also seeds the key for installs
+    /// that were already signed in when this shipped — without that, the first
+    /// account switch on every existing device would slip through).
+    func wipeIfDifferentAccount() {
+        guard let context, let uid = SupabaseAuth.shared.userID else { return }
+        let defaults = UserDefaults.standard
+        let previous = defaults.string(forKey: Self.lastUserKey)
+        guard let previous, previous != uid else {
+            defaults.set(uid, forKey: Self.lastUserKey)
+            return
+        }
+        AccountReset.everythingLocal(context: context)
+        // Recorded only once the teardown has actually run, so a wipe
+        // interrupted by a crash is retried on the next launch.
+        defaults.set(uid, forKey: Self.lastUserKey)
+    }
+
     /// On the first sign-in for this device-account, enqueue all existing local
     /// history so an offline-trained player uploads everything. Runs once (a flag
     /// is reset on sign-out) and only when there is real local data to upload.
@@ -146,12 +182,25 @@ final class SyncEngine {
         backfillAllLocalData()
     }
 
-    /// Called on sign-out: drop the outbox so a different account never inherits
-    /// this session's queued mutations. Local SwiftData is untouched.
+    /// Called on sign-out. Local SwiftData is untouched, and so is the outbox —
+    /// see the body. A different account inheriting anything is prevented at
+    /// sign-in instead, by `wipeIfDifferentAccount()`.
     func handleSignOut() {
         guard let context else { return }
-        let ops = (try? context.fetch(FetchDescriptor<PendingOp>())) ?? []
-        for op in ops { context.delete(op) }
+        // The queue is NOT dropped here any more. It used to be, and everything
+        // still waiting — drill scores, watch workouts, purchases, favorites,
+        // every queued delete — went with it, none of which the backfill
+        // regenerates. Ops are stamped with their account (`ownerID`) and the
+        // flush loop only sends the signed-in account's, so keeping them is
+        // safe: sign back in and they go up.
+        //
+        // Anything older than the retention window is genuinely abandoned, so
+        // it is pruned rather than kept forever.
+        let cutoff = Date().addingTimeInterval(-Self.abandonedOpAge)
+        let stale = (try? context.fetch(FetchDescriptor<PendingOp>(
+            predicate: #Predicate { $0.createdAt < cutoff }
+        ))) ?? []
+        for op in stale { context.delete(op) }
         try? context.save()
         backoffUntil = nil
         isBackfilling = false
@@ -171,6 +220,16 @@ final class SyncEngine {
         deleteAll(ProgramEnrollment.self, context: context)
         deleteAll(DrillProgress.self, context: context)
         deleteAll(PendingOp.self, context: context)
+        // These were missed, so a deleted account left its drill scores, watch
+        // workouts and match log on the device for whoever signed in next.
+        deleteAll(DrillResult.self, context: context)
+        deleteAll(WorkoutRecord.self, context: context)
+        deleteAll(GameEntry.self, context: context)
+        deleteAll(ActivePlan.self, context: context)
+        // Server mirrors, but account-scoped ones: announcements and coach
+        // workouts are targeted at the previous player's teams.
+        deleteAll(Announcement.self, context: context)
+        deleteAll(CoachWorkout.self, context: context)
 
         // Reset the single PlayerState row rather than deleting it, so the rest
         // of the app always has a valid progression record to read.
@@ -479,7 +538,10 @@ final class SyncEngine {
 
         coalesce(table: table, key: coalesceKey, context: context)
 
-        context.insert(PendingOp(table: table, opType: "upsert", payloadJSON: data))
+        context.insert(PendingOp(
+            table: table, opType: "upsert", payloadJSON: data,
+            ownerID: SupabaseAuth.shared.userID ?? ""
+        ))
         try? context.save()
         refreshPendingCount()
         flush()
@@ -492,18 +554,39 @@ final class SyncEngine {
         guard let context else { return }
         guard let data = try? JSONSerialization.data(withJSONObject: row) else { return }
         coalesceMatching(table: table, match: coalesce, context: context)
-        context.insert(PendingOp(table: table, opType: opType, payloadJSON: data))
+        context.insert(PendingOp(
+            table: table, opType: opType, payloadJSON: data,
+            ownerID: SupabaseAuth.shared.userID ?? ""
+        ))
         try? context.save()
         refreshPendingCount()
         flush()
+    }
+
+    /// This account's queued ops for one table.
+    ///
+    /// Scoped two ways, both of which matter now that the queue survives
+    /// sign-out. By owner, because the coalescers delete by natural key
+    /// (`drill_id`, `badge_id`, `*`) and those collide across accounts — a
+    /// second player signing in would silently destroy the first player's
+    /// unsent writes. And by table in the predicate rather than in a Swift
+    /// filter, because this runs on every single enqueue and used to parse the
+    /// JSON of every op in the store to do it.
+    private func pendingOps(for table: String, context: ModelContext) -> [PendingOp] {
+        let owner = SupabaseAuth.shared.userID ?? ""
+        let descriptor = FetchDescriptor<PendingOp>(
+            predicate: #Predicate {
+                $0.table == table && ($0.ownerID == owner || $0.ownerID == "")
+            }
+        )
+        return (try? context.fetch(descriptor)) ?? []
     }
 
     /// Remove superseded pending ops for the same natural key so the queue stays
     /// small (every op is a full idempotent snapshot, so older ones are safe to
     /// drop). `key == "*"` coalesces all ops for the table (single-row tables).
     private func coalesce(table: String, key: String, context: ModelContext) {
-        let existing = (try? context.fetch(FetchDescriptor<PendingOp>())) ?? []
-        for op in existing where op.table == table && op.opType == "upsert" {
+        for op in pendingOps(for: table, context: context) where op.opType == "upsert" {
             if key == "*" {
                 context.delete(op)
             } else if let dict = try? JSONSerialization.jsonObject(with: op.payloadJSON) as? [String: Any],
@@ -517,8 +600,7 @@ final class SyncEngine {
     /// Delete pending ops for `table` whose payload matches all `match` columns.
     private func coalesceMatching(table: String, match: [String: String], context: ModelContext) {
         guard !match.isEmpty else { return }
-        let existing = (try? context.fetch(FetchDescriptor<PendingOp>())) ?? []
-        for op in existing where op.table == table {
+        for op in pendingOps(for: table, context: context) {
             guard let dict = try? JSONSerialization.jsonObject(with: op.payloadJSON) as? [String: Any] else { continue }
             let matches = match.allSatisfy { key, value in
                 guard let raw = dict[key] else { return false }
@@ -548,8 +630,14 @@ final class SyncEngine {
                 isFlushing = false
                 refreshPendingCount()
             }
+            // Scoped to this account in the predicate rather than filtered
+            // afterwards, so a signed-out account's dormant queue can't fill
+            // the 200-row page and starve the player who is actually here.
+            let owner = playerID
             var descriptor = FetchDescriptor<PendingOp>(
-                predicate: #Predicate { $0.isQuarantined == false },
+                predicate: #Predicate {
+                    $0.isQuarantined == false && ($0.ownerID == owner || $0.ownerID == "")
+                },
                 sortBy: [SortDescriptor(\.createdAt, order: .forward)]
             )
             descriptor.fetchLimit = 200
@@ -558,9 +646,15 @@ final class SyncEngine {
 
             opLoop: for op in ops {
                 guard SupabaseAuth.shared.isSignedIn, isOnline else { break opLoop }
+                // Adopt rows written before `ownerID` existed, or while signed
+                // out. Safe because a sign-in by a different account wipes the
+                // device first — see `wipeIfDifferentAccount()` — so anything
+                // unattributed still here belongs to whoever is flushing it.
+                if op.ownerID.isEmpty { op.ownerID = owner }
                 guard var payload = try? JSONSerialization.jsonObject(with: op.payloadJSON) as? [String: Any] else {
                     // Corrupt payload — drop it rather than blocking the queue.
                     context.delete(op)
+                    try? context.save()
                     continue
                 }
                 payload[Self.ownerColumn(for: op.table)] = playerID
@@ -627,9 +721,27 @@ final class SyncEngine {
         UserDefaults.standard.set(now.timeIntervalSince1970, forKey: DefaultsKeys.lastSynced)
     }
 
+    /// How old a queued op may get before sign-out treats it as abandoned.
+    /// Measured from when it was created, and only ever pruned at sign-out.
+    /// Long enough to cover "signed out by accident, back tomorrow"; short
+    /// enough that a device passed on to someone else doesn't hoard writes.
+    private static let abandonedOpAge: TimeInterval = 30 * 24 * 60 * 60
+
+    /// Ops waiting for the signed-in account. Another account's dormant queue
+    /// is not this player's problem and isn't counted in Settings.
+    ///
+    /// Signed out, everything is counted: the point of keeping the queue across
+    /// sign-out is that the player can still see the work is safe.
     private func refreshPendingCount() {
         guard let context else { pendingCount = 0; return }
-        pendingCount = (try? context.fetchCount(FetchDescriptor<PendingOp>())) ?? 0
+        guard let owner = SupabaseAuth.shared.userID else {
+            pendingCount = (try? context.fetchCount(FetchDescriptor<PendingOp>())) ?? 0
+            return
+        }
+        let descriptor = FetchDescriptor<PendingOp>(
+            predicate: #Predicate { $0.ownerID == owner || $0.ownerID == "" }
+        )
+        pendingCount = (try? context.fetchCount(descriptor)) ?? 0
     }
 
     /// Count of quarantined (permanently rejected) ops, surfaced in Settings.
