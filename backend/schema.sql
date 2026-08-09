@@ -17,6 +17,12 @@
 --  not a script that will run top-to-bottom on an empty database. To rebuild
 --  from scratch, create all the tables first, then apply the constraints.
 --
+--  Row counts are not a health signal. As of this dump every row of user data
+--  in the database belongs to one account — the other three player profiles
+--  have never trained. `player_state` having a single row is that, not failed
+--  writes; the upsert was verified working for a non-owner account. See
+--  SCHEMA-GAP.md before drawing a conclusion from a sparse table.
+--
 --  Auth: `profiles.id` mirrors `auth.users.id`. `user_id()` reads the JWT
 --  `sub` claim; `my_coach_role()` resolves a coach by JWT email OR user_id,
 --  which is why several policies exist in both a legacy and a `_v2` form —
