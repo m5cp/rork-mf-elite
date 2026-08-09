@@ -374,12 +374,24 @@ final class SupabaseAuth {
     // MARK: - Coach access
 
     /// Re-check whether this account is an active coach.
-    /// Server truth: the `my_coach_role()` RPC (SECURITY DEFINER) matches the
-    /// JWT email against the active `coaches` table and returns "head_coach",
-    /// "coach", or null. The built-in `CoachAllowlist` remains as an offline /
-    /// App-Review fallback. A failed RPC (offline, 401) never revokes a
-    /// previously granted session — only an explicit null result does, and only
-    /// for non-allowlist accounts.
+    ///
+    /// Server truth is the `my_coach_role()` RPC (SECURITY DEFINER), which
+    /// matches the JWT email against the active `coaches` table and returns
+    /// "head_coach", "coach", or null. `CoachAllowlist` is an offline and
+    /// App-Review fallback layered under it.
+    ///
+    /// The three outcomes are deliberately different:
+    ///
+    ///   * RPC fails (offline, 401, timeout) — nothing is revoked. The last
+    ///     known state stands, and the built-in list still grants access, so a
+    ///     coach on a plane keeps working.
+    ///   * RPC returns a role — that role wins outright, including a demotion
+    ///     from head coach to coach.
+    ///   * RPC returns an explicit null — the account has been removed from the
+    ///     `coaches` table, and access is revoked. This used to be overridden
+    ///     by the built-in list, which meant removing someone from the database
+    ///     did nothing and revoking anyone needed an App Store release. A
+    ///     safety net you cannot cut is a lock.
     func refreshCoachStatus() async {
         guard isSignedIn, let mail = email?.lowercased(), !mail.isEmpty else {
             setCoach(false)
@@ -397,29 +409,29 @@ final class SupabaseAuth {
             setCoachRole("head_coach")
         }
 
+        // Never ask this without a live bearer token. PostgREST will happily
+        // run `my_coach_role()` as `anon`, which has no email claim, and answer
+        // HTTP 200 `null` — indistinguishable from "removed from the coaches
+        // table", which the branch below now acts on by revoking.
+        guard await validAccessToken() != nil else { return }
+
         // Server truth. nil = transport/HTTP failure → keep the last known state.
         guard let result = await SupabaseClient.shared.rpcData("my_coach_role") else {
             return
         }
 
         if let role = Self.decodeCoachRole(from: result) {
+            // The server's answer wins outright, demotions included. Preferring
+            // the built-in "head_coach" here would have made a deliberate
+            // downgrade in the coaches table invisible.
             setCoach(true)
-            // A live head-coach role always wins; otherwise keep the built-in
-            // head-coach role for allowlisted accounts.
-            setCoachRole(role == "head_coach" || !CoachAllowlist.isHeadCoach(mail) ? role : "head_coach")
+            setCoachRole(role)
             await linkCoachUserID()
         } else {
-            // Successful call, explicit null — this account holds no coach role
-            // unless it's a built-in head coach kept as a safety net.
-            if CoachAllowlist.isHeadCoach(mail) {
-                setCoach(true)
-                setCoachRole("head_coach")
-            } else {
-                setCoachRole(nil)
-                if !CoachAllowlist.contains(mail) {
-                    setCoach(false)
-                }
-            }
+            // Explicit null: the server was reached and says this account holds
+            // no coach role. Revoke, whatever the built-in list says.
+            setCoach(false)
+            setCoachRole(nil)
         }
     }
 
@@ -447,14 +459,22 @@ final class SupabaseAuth {
         )
     }
 
-    /// Parse the `my_coach_role()` RPC payload. Accepts "head_coach" / "coach"
-    /// as a raw or quoted JSON string; returns nil for null/empty/anything else.
+    /// Parse the `my_coach_role()` RPC payload — a raw or quoted JSON string.
+    ///
+    /// nil means ONLY "this account holds no coach role", because that is now
+    /// what the caller acts on: an explicit null revokes access. `coaches.role`
+    /// is plain `text` with no CHECK constraint, so a row hand-edited in the
+    /// Supabase dashboard to "Coach" or "head coach" is a real possibility —
+    /// and folding that into nil would revoke someone the server still treats
+    /// as a coach. Anything non-null grants at least the regular role, which
+    /// matches what the database actually enforces.
     static func decodeCoachRole(from data: Data) -> String? {
         guard let body = String(data: data, encoding: .utf8) else { return nil }
         let cleaned = body
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .trimmingCharacters(in: CharacterSet(charactersIn: "\""))
-        return (cleaned == "head_coach" || cleaned == "coach") ? cleaned : nil
+        guard !cleaned.isEmpty, cleaned.lowercased() != "null" else { return nil }
+        return cleaned == "head_coach" ? "head_coach" : "coach"
     }
 
     /// Update both the local flag and the app-wide entitlement mirror.
