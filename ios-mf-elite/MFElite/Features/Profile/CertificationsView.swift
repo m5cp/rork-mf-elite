@@ -48,6 +48,9 @@ struct CertificationsView: View {
 
     private func header(_ vm: CertificationsViewModel) -> some View {
         VStack(alignment: .leading, spacing: 0) {
+            ArtworkBanner(name: MFArtwork.certifications)
+                .padding(.bottom, DS.Spacing.s12)
+
             Eyebrow(text: "Skill Certifications")
             Text("Certifications")
                 .style(.hero)

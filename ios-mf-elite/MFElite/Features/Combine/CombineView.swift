@@ -98,6 +98,9 @@ struct CombineView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            ArtworkBanner(name: MFArtwork.combine)
+                .padding(.bottom, DS.Spacing.s12)
+
             Eyebrow(text: "MF Combine")
             Text("Baseline test")
                 .style(.title1)

@@ -146,6 +146,9 @@ struct MyWorkoutsView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            ArtworkBanner(name: MFArtwork.workouts)
+                .padding(.bottom, DS.Spacing.s12)
+
             Eyebrow(text: "My Workouts")
             Text("Your Sessions")
                 .style(.title1)

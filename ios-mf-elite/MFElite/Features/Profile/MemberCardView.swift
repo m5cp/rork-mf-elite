@@ -27,6 +27,20 @@ struct MemberCardView: View {
     private var pad: CGFloat { width * 0.06 }
     private var photoSide: CGFloat { width * 0.30 }
 
+    /// True when the accent is too pale to read on the card's white stock.
+    ///
+    /// Measured rather than compared: the accents come from hex strings, so
+    /// an equality test against `Color.white` misses them entirely — and
+    /// "nearly white" is just as unreadable as white. The cut is at 0.72
+    /// luma, which is where an accent drops below roughly 2:1 against white;
+    /// Gold, Ice, Sunset, Desert, Rooftop, Emblem and Monolith all sit above
+    /// it and have been drawing a kit number nobody could read.
+    private var accentIsTooPaleForWhite: Bool {
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        guard UIColor(accent).getRed(&r, green: &g, blue: &b, alpha: &a) else { return false }
+        return (0.299 * r + 0.587 * g + 0.114 * b) > 0.72
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: width * 0.045) {
             topRow
@@ -178,7 +192,13 @@ struct MemberCardView: View {
             Spacer()
             Text(player.kitNumber.isEmpty ? "MF" : "№ \(player.kitNumber)")
                 .font(.system(size: width * 0.05, weight: .heavy, design: .monospaced))
-                .foregroundStyle(accent == .white ? .black : accent)
+                // The member card itself is white, so a pale accent has to
+                // fall back to black. Comparing against `Color.white` does
+                // NOT catch it: `CardTheme.accent` is built from a hex string,
+                // and an sRGB-resolved white is not `==` the system white —
+                // which is why Noir, the default theme, has been drawing an
+                // invisible kit number.
+                .foregroundStyle(accentIsTooPaleForWhite ? .black : accent)
         }
     }
 

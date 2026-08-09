@@ -408,6 +408,19 @@ struct PlayerCardEditorView: View {
                 RoundedRectangle(cornerRadius: DS.Radius.sm)
                     .fill(LinearGradient(colors: theme.gradientColors, startPoint: .topLeading, endPoint: .bottomTrailing))
                     .frame(width: 48, height: 60)
+                    .overlay {
+                        // Photographic themes preview as the photo itself —
+                        // a swatch that showed only the base gradient would
+                        // make all seven of them look like the same grey tile.
+                        if let art = theme.thumbName {
+                            Image(art)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(width: 48, height: 60)
+                                .clipped()
+                                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm))
+                        }
+                    }
                     .overlay(alignment: .bottom) {
                         Circle().fill(theme.accent).frame(width: 10, height: 10).padding(.bottom, 6)
                     }

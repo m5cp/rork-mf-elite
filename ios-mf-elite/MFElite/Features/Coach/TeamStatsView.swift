@@ -152,6 +152,9 @@ struct TeamStatsView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            ArtworkBanner(name: MFArtwork.teams)
+                .padding(.bottom, DS.Spacing.s12)
+
             Eyebrow(text: "Cumulative season")
             Text(selectedTeam?.name ?? "Team stats")
                 .style(.title2)

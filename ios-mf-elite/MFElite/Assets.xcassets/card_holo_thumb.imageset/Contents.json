@@ -1,0 +1,12 @@
+{
+  "images": [
+    {
+      "filename": "card_holo_thumb.jpg",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}

@@ -56,11 +56,41 @@ struct PlayerCardCanvas: View {
     // MARK: - Background
 
     private var background: some View {
-        LinearGradient(
-            colors: design.theme.gradientColors,
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+        ZStack {
+            LinearGradient(
+                colors: design.theme.gradientColors,
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+
+            // Photographic themes lay their backdrop over the matching
+            // gradient rather than replacing it, so the card is never blank
+            // while the image decodes — and the export renderer, which draws
+            // synchronously, always has something underneath.
+            if let art = design.theme.imageName {
+                Image(art)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: width, height: height)
+                    .clipped()
+                    // The shared `scrim` below only darkens the lower half of
+                    // the card, which is enough for a gradient theme but not
+                    // for a photograph — Dawn's sky is nearly white at the
+                    // top, and a player can drag a white text sticker there.
+                    // This wash is weighted to the top for that reason.
+                    .overlay(
+                        LinearGradient(
+                            colors: [
+                                .black.opacity(0.52),
+                                .black.opacity(0.26),
+                                .black.opacity(0.18)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
+        }
     }
 
     private var slashTexture: some View {

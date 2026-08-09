@@ -77,6 +77,14 @@ struct DisciplineView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
+            if let art = MFArtwork.discipline(id: discipline.id, name: discipline.name) {
+                // Photograph only — the pathway name and tagline are set in
+                // type directly below, and repeating them in the image would
+                // be saying the same thing twice.
+                ArtworkBanner(name: art, height: MFArtwork.heroHeight)
+                    .padding(.bottom, DS.Spacing.s20)
+            }
+
             HStack(spacing: DS.Spacing.s12) {
                 DisciplineMark(kind: discipline.mark, size: 32)
                 Eyebrow(text: "Pathway \(discipline.number)")

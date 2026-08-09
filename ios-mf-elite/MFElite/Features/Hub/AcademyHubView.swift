@@ -298,6 +298,11 @@ private struct PathwayRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: DS.Spacing.s16) {
+                if let art = MFArtwork.disciplineThumb(id: discipline.id, name: discipline.name) {
+                    ArtworkThumb(name: art)
+                        .padding(.top, 2)
+                }
+
                 VStack(alignment: .leading, spacing: DS.Spacing.s8) {
                     HStack(spacing: DS.Spacing.s8) {
                         DisciplineMark(kind: discipline.mark, size: 22)

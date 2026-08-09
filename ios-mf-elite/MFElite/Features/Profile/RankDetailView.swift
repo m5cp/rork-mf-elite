@@ -55,6 +55,9 @@ struct RankDetailView: View {
     private func header(_ vm: RankDetailViewModel) -> some View {
         let rank = vm.currentRank
         return VStack(spacing: 0) {
+            ArtworkBanner(name: MFArtwork.rank)
+                .padding(.bottom, DS.Spacing.s20)
+
             Monogram(size: 80, initials: rank.numeral, kit: profile.kitNumber)
 
             Eyebrow(text: "Rank \(rank.numeral)")
