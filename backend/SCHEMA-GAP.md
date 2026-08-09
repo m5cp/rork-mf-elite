@@ -2,8 +2,9 @@
 
 **Superseded.** This file used to document a 13-table gap between `schema.sql`
 and the live database. `schema.sql` is now generated directly from production
-and matches it. This page is kept for the reasoning and for the two things the
-audit turned up that are *not* schema problems and are still open.
+and matches it, and every follow-on item is closed. This page is kept for the
+reasoning, for the evidence behind two findings that looked like bugs and
+weren't, and so nobody re-opens either.
 
 ## What was wrong, and how it was closed
 
@@ -83,21 +84,9 @@ actually detect quarantined writes you need the client side — `SyncEngine`'s
 `quarantinedCount` and the `PendingOp` rows with `isQuarantined = true` — not
 the server row counts.
 
-## Still open
+## Nothing open
 
-### 1. `player_state.drills_completed` is written by nothing and read by nothing
-
-The column exists in production (`integer default 0 not null`). The app never
-sends it — `enqueuePlayerState` writes `xp`, `streak`, `freezes_remaining`,
-`streak_pb`, `purchased_xp` and `last_trained_date` — and nothing anywhere
-reads it. So it is permanently 0 for every player. Harmless today, but it will
-read as real data to anyone who finds it. Either wire it up or drop it; don't
-leave it looking meaningful.
-
-### 2. Coach drill-video uploads have no server-side restriction
-
-Audit item #38. Coach-only is enforced in the UI only; the storage policy does
-not check the caller's role. Unchanged.
+Both remaining items are closed. Details under "Fixed" below.
 
 ---
 
@@ -112,6 +101,43 @@ not check the caller's role. Unchanged.
   `is_head_coach()` and every write policy resolved by `coaches.user_id`, which
   is null for 8 of 11 coaches. Aligned; `_v2` email-based policies added
   alongside the originals.
+- **`player_state.drills_completed` was dead** — the column existed from the
+  start, the app never wrote it and nothing read it, so it was permanently 0
+  while looking like real data on the coach's screen. Now written on every
+  state sync as the count of distinct drills with at least one logged pass
+  (derived from `DrillProgress` rather than stored locally, so there is no
+  second source of truth to keep in step), and read back into the coach's
+  player detail, AI briefing and exported report. "3 mastered" reads the same
+  for a player who has tried four drills and one who has tried ninety; it now
+  says "3 of 41 started" — drills *started*, not the size of the curriculum.
+
+  Two things the display sites have to allow for. A `player_state` row written
+  before this shipped reports 0, which is every player until their device next
+  syncs, so each site falls back to the old wording rather than printing "12 of
+  0". And the numerator and denominator come from different machines — mastery
+  from server `player_progress` rows that are never deleted, the denominator
+  recounted from local `DrillProgress` and overwritten wholesale — so a player
+  who reinstalls, declines the restore prompt and logs one drill would report
+  "40 of 1". `CoachPlayerDetail.drillsStarted` clamps it; display sites read
+  that, never the raw column.
+
+- **Coach drill-media uploads DO have a server-side role check** — audit item
+  #38 was already closed by `2026-08-05-storage-and-coach-access.sql` and this
+  page was stale. Verified 2026-08-08 by impersonation against
+  `storage.objects`, in a transaction, rolled back:
+
+  | Caller | INSERT into `drill-videos` |
+  |---|---|
+  | plain player (not a coach) | **blocked**, 42501 |
+  | active coach with a `user_id` | allowed |
+  | active coach with email only, no `user_id` | allowed |
+
+  Both coach identity forms work because the `_v2` policies test
+  `is_active_coach()`, which resolves by JWT email or `user_id`. The older
+  `drill media coach write/update/delete` policies test `user_id` only; they
+  are redundant rather than harmful, since policies are OR'd, and were left
+  alone rather than risk the upload path that took three fixes to get working.
+
 - **Every coach could read every child** — audit item #36.
   `2026-08-08-coach-roster-scoping-APPLIED.sql`, applied and verified by
   impersonation. Note that the earlier staged version of this

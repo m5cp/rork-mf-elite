@@ -41,7 +41,11 @@ enum CoachExport {
         lines.append("")
 
         // Mastery
-        lines.append("MASTERY — \(detail.totalMastered) drill\(detail.totalMastered == 1 ? "" : "s") mastered")
+        // Guarded: a player_state row written before drills_completed was wired
+        // reports 0, which is every player until their device next syncs.
+        lines.append(detail.drillsStarted > 0
+            ? "MASTERY — \(detail.totalMastered) of \(detail.drillsStarted) drill\(detail.drillsStarted == 1 ? "" : "s") started, mastered"
+            : "MASTERY — \(detail.totalMastered) drill\(detail.totalMastered == 1 ? "" : "s") mastered")
         if detail.masteryByDiscipline.isEmpty {
             lines.append("None yet")
         } else {

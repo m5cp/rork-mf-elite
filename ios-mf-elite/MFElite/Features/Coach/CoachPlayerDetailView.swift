@@ -584,12 +584,19 @@ struct CoachPlayerDetailView: View {
             HStack {
                 Eyebrow(text: "Mastery")
                 Spacer()
-                Text("\(detail.totalMastered) mastered")
+                // Mastered against attempted. On its own "3 mastered" reads the
+                // same for a player who has tried four drills and one who has
+                // tried ninety, and those are opposite conversations to have.
+                Text(detail.drillsStarted > 0
+                     ? "\(detail.totalMastered) of \(detail.drillsStarted) started"
+                     : "\(detail.totalMastered) mastered")
                     .style(.micro)
                     .foregroundStyle(DS.Colors.Ink.quaternary)
             }
             if detail.masteryByDiscipline.isEmpty {
-                emptyLine("No drills mastered yet.")
+                emptyLine(detail.drillsStarted > 0
+                          ? "\(detail.drillsStarted) drill\(detail.drillsStarted == 1 ? "" : "s") started, none mastered yet."
+                          : "No drills mastered yet.")
             } else {
                 Card(padding: DS.Spacing.s16) {
                     VStack(spacing: 0) {

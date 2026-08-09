@@ -290,12 +290,34 @@ final class SyncEngine {
             "streak": player.streak,
             "freezes_remaining": player.freezesRemaining,
             "streak_pb": player.streakPB,
-            "purchased_xp": player.purchasedXP
+            "purchased_xp": player.purchasedXP,
+            // The column existed in the database from the start and nothing
+            // ever wrote it, so it read as a real "0 drills" for every player
+            // on the coach's screen. Counted, not stored locally: it is derived
+            // from DrillProgress, so a second source of truth would only be
+            // something else to keep in step.
+            "drills_completed": drillsCompletedCount()
         ]
         if let date = player.lastTrainedDate {
             row["last_trained_date"] = Self.dateString(date)
         }
         enqueueUpsert(table: "player_state", row: row, coalesceKey: "*")
+    }
+
+    /// How many distinct drills this player has logged at least one pass on.
+    ///
+    /// "Completed" as in attempted and finished, not mastered — mastery needs
+    /// three passes and is counted separately from `player_progress`. Together
+    /// they answer the question a coach actually asks: how much of the
+    /// curriculum has this player touched, and how much has stuck.
+    ///
+    /// A count query rather than a fetch: this runs on every state sync.
+    private func drillsCompletedCount() -> Int {
+        guard let context else { return 0 }
+        let descriptor = FetchDescriptor<DrillProgress>(
+            predicate: #Predicate { $0.passesLogged > 0 }
+        )
+        return (try? context.fetchCount(descriptor)) ?? 0
     }
 
     /// Enqueue a single drill's progress for upsert, keyed by the deterministic
