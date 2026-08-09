@@ -9,10 +9,12 @@ struct ProgramsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+                ArtworkBanner(name: MFArtwork.programs)
+                    .padding(.top, DS.Spacing.s24)
+
                 Text("Programs")
                     .style(.display)
                     .foregroundStyle(DS.Colors.Ink.primary)
-                    .padding(.top, DS.Spacing.s24)
 
                 ForEach(ProgramCatalog.all) { program in
                     NavigationLink(value: program) {

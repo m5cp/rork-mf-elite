@@ -85,6 +85,16 @@ nonisolated enum CardTheme: String, Codable, CaseIterable, Identifiable {
     case royal
     case ice
     case sunset
+    // Photographic backdrops. New cases only ever get appended — the raw
+    // value is what's persisted in a player's saved card, so renaming or
+    // reordering would silently reset cards that are already out there.
+    case dawn
+    case rooftop
+    case desert
+    case holo
+    case emblem
+    case frosted
+    case monolith
 
     nonisolated var id: String { rawValue }
 
@@ -97,7 +107,43 @@ nonisolated enum CardTheme: String, Codable, CaseIterable, Identifiable {
         case .royal: return "Royal"
         case .ice: return "Ice"
         case .sunset: return "Sunset"
+        case .dawn: return "Dawn"
+        case .rooftop: return "Rooftop"
+        case .desert: return "Desert"
+        case .holo: return "Holo"
+        case .emblem: return "Emblem"
+        case .frosted: return "Frosted"
+        case .monolith: return "Monolith"
         }
+    }
+
+    /// Asset-catalog name of the backdrop photograph, for the photographic
+    /// themes. `nil` means the theme is a pure gradient.
+    var imageName: String? {
+        switch self {
+        case .dawn:     return "card_dawn"
+        case .rooftop:  return "card_rooftop"
+        case .desert:   return "card_desert"
+        case .holo:     return "card_holo"
+        case .emblem:   return "card_emblem"
+        case .frosted:  return "card_frosted"
+        case .monolith: return "card_monolith"
+        default:        return nil
+        }
+    }
+
+    /// Swatch-sized copy of the backdrop, for the theme picker. The picker
+    /// builds every swatch at once, and seven full-size card images would be
+    /// tens of megabytes of decoded bitmap to draw seven 48pt tiles.
+    var thumbName: String? { imageName.map { $0 + "_thumb" } }
+
+    /// A card saved by a newer build can carry a theme this build has never
+    /// heard of. Falling back to Noir keeps the rest of the design — every
+    /// text sticker and pen stroke — instead of letting the decode throw and
+    /// taking the whole card with it.
+    nonisolated init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        self = CardTheme(rawValue: raw) ?? .noir
     }
 
     /// Gradient stops, dark → darker for legibility.
@@ -110,6 +156,15 @@ nonisolated enum CardTheme: String, Codable, CaseIterable, Identifiable {
         case .royal:   return ["171347", "0A0824", "000000"]
         case .ice:     return ["10303A", "081A20", "000000"]
         case .sunset:  return ["3D1505", "1E0A03", "000000"]
+        // Sit under the photograph as a matching base, so the card still
+        // reads correctly for the instant before the image decodes.
+        case .dawn:     return ["2E2419", "12100C", "000000"]
+        case .rooftop:  return ["10132E", "080A18", "000000"]
+        case .desert:   return ["2A2013", "12100A", "000000"]
+        case .holo:     return ["0C2430", "06131A", "000000"]
+        case .emblem:   return ["16181A", "0A0B0C", "000000"]
+        case .frosted:  return ["101214", "07080A", "000000"]
+        case .monolith: return ["1A1C1E", "0B0C0D", "000000"]
         }
     }
 
@@ -123,6 +178,13 @@ nonisolated enum CardTheme: String, Codable, CaseIterable, Identifiable {
         case .royal:   return "5E5CE6"
         case .ice:     return "64D2FF"
         case .sunset:  return "FF9F0A"
+        case .dawn:     return "F0B15A"
+        case .rooftop:  return "7DE3FF"
+        case .desert:   return "F5C84B"
+        case .holo:     return "64D2FF"
+        case .emblem:   return "D8DDE3"
+        case .frosted:  return "FFFFFF"
+        case .monolith: return "C9CFD6"
         }
     }
 

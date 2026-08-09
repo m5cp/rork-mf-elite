@@ -90,6 +90,36 @@ struct MentalExercisePlayerView: View {
         ZStack {
             DS.Colors.Bg.base.ignoresSafeArea()
 
+            // A mental rep is the one place in the app with no diagram and no
+            // clock to look at. The backdrop gives the eye somewhere to rest —
+            // held far enough down that the step copy keeps full contrast, and
+            // dropped entirely once the session is logged so the summary reads
+            // like every other drill's.
+            if stage != .logged {
+                GeometryReader { geo in
+                    Image(MFArtwork.mentalBackdrop)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geo.size.width, height: geo.size.height)
+                        .clipped()
+                        .overlay(
+                            LinearGradient(
+                                colors: [.black.opacity(0.55), .black.opacity(0.86)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        // Opacity goes on the composed image + wash, not on
+                        // the image alone: applied underneath, the wash runs
+                        // at full strength over an already-faded photo and
+                        // the result is a black rectangle.
+                        .opacity(0.7)
+                }
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+
             switch stage {
             case .intro:
                 introStage

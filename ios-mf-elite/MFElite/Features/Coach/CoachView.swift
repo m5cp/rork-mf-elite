@@ -868,6 +868,15 @@ struct CoachView: View {
     // MARK: - Header
 
     private var header: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            ArtworkBanner(name: MFArtwork.coach)
+                .padding(.bottom, DS.Spacing.s12)
+
+            headerRow
+        }
+    }
+
+    private var headerRow: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: DS.Spacing.s8) {
                 Eyebrow(text: coachRoleLabel)

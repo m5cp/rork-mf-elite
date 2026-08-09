@@ -36,6 +36,24 @@ struct BallonDorAwardView: View {
         ZStack {
             DS.Colors.Bg.base.ignoresSafeArea()
 
+            // Kept far under a black wash: the photo is here for depth behind the
+            // glow, and the gold trophy and award type must lose nothing to it.
+            GeometryReader { geo in
+                Image(MFArtwork.ballonDor)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
+                    // The wash is inside the fade, not under it — dimming the
+                    // photo first and then laying an undimmed black over it
+                    // leaves nothing visible at all.
+                    .overlay(Color.black.opacity(0.45))
+                    .opacity(0.7)
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+
             Circle()
                 .fill(Self.gold.opacity(0.22))
                 .frame(width: 340, height: 340)

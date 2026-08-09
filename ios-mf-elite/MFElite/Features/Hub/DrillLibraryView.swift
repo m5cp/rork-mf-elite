@@ -73,6 +73,9 @@ struct DrillLibraryView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            ArtworkBanner(name: MFArtwork.drills)
+                .padding(.bottom, DS.Spacing.s12)
+
             Eyebrow(text: "Drill Library")
             Text("All Drills")
                 .style(.title1)
