@@ -252,6 +252,9 @@ struct CoachPlayerDetail: Equatable {
     var lastTrained: Date?
     var masteryByDiscipline: [DisciplineMastery]
     var totalMastered: Int
+    /// Distinct drills with at least one logged pass — the denominator that
+    /// makes `totalMastered` mean something. Read `drillsStarted` to display it.
+    var drillsCompleted: Int
     var minutesAllTime: Int
     var minutes30d: Int
     var minutes7d: Int
@@ -265,6 +268,17 @@ struct CoachPlayerDetail: Equatable {
     var combineProgress: [CombineProgress]
     /// The coach-authored focus for this player (player_profiles.coach_focus).
     var coachFocus: String
+
+    /// Drills started, never fewer than the drills mastered.
+    ///
+    /// The two numbers come from different machines and only this one can
+    /// regress. `totalMastered` is counted from server `player_progress` rows,
+    /// which are upserted and never deleted. `drillsCompleted` is recounted
+    /// from local `DrillProgress` and overwritten wholesale on every state
+    /// sync — so a player who reinstalls, declines the restore prompt and logs
+    /// one drill pushes `drills_completed: 1` over a server row backed by
+    /// forty mastered drills. Displaying that verbatim reads "40 of 1".
+    var drillsStarted: Int { max(drillsCompleted, totalMastered) }
 }
 
 @Observable
@@ -918,6 +932,7 @@ final class CoachViewModel {
         let streak = (state?["streak"] as? Int) ?? 0
         let streakPB = (state?["streak_pb"] as? Int) ?? 0
         let lastTrained = Self.parseDate(state?["last_trained_date"])
+        let drillsCompleted = (state?["drills_completed"] as? Int) ?? 0
 
         // Mastery grouped by discipline (map remote drill uuid → local discipline).
         let uuidToDiscipline = Self.drillUUIDToDiscipline(context: context)
@@ -1035,6 +1050,7 @@ final class CoachViewModel {
             lastTrained: lastTrained,
             masteryByDiscipline: masteryByDiscipline,
             totalMastered: totalMastered,
+            drillsCompleted: drillsCompleted,
             minutesAllTime: minutesAll / 60,
             minutes30d: minutes30 / 60,
             minutes7d: minutes7 / 60,

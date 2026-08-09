@@ -106,12 +106,20 @@ enum CoachAIBriefing {
             "\($0.label): baseline \(CoachFormat.combineValue($0.baseline, unit: $0.unit)) → latest \(CoachFormat.combineValue($0.latest, unit: $0.unit)), best \(CoachFormat.combineValue($0.best, unit: $0.unit))"
         }.joined(separator: "; ")
         let mastery = detail.masteryByDiscipline.map { "\($0.name) \($0.count)" }.joined(separator: ", ")
+        // Built outside the block, because this text becomes the prompt and the
+        // instructions below it tell the model not to invent numbers. A
+        // player_state row written before `drills_completed` was wired reports
+        // 0, and "12 of 0 started" is a number the model would faithfully carry
+        // into a summary that goes home to a parent.
+        let masteredText = detail.drillsStarted > 0
+            ? "\(detail.totalMastered) of \(detail.drillsStarted) started"
+            : "\(detail.totalMastered)"
         let data = """
         Training data for youth soccer player \(name):
         - Current streak: \(detail.streak) days (best \(detail.streakPB))
         - Sessions all-time: \(detail.sessionCount)
         - Minutes last 7 days: \(detail.minutes7d); last 30 days: \(detail.minutes30d)
-        - Drills mastered: \(detail.totalMastered)\(mastery.isEmpty ? "" : " (\(mastery))")
+        - Drills mastered: \(masteredText)\(mastery.isEmpty ? "" : " (\(mastery))")
         - Combine progress: \(combine.isEmpty ? "no combine tests yet" : combine)
         - Coach focus on record: \(detail.coachFocus.isEmpty ? "none set" : detail.coachFocus)
         """
