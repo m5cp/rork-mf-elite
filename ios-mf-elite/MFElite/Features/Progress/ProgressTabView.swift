@@ -769,9 +769,12 @@ private struct QuickLinkRow: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: DS.Spacing.s16) {
+                // Was hardcoded white, which left Share Your Grind, History,
+                // Academy Progression and Leaderboards as the only icons on
+                // this tab not following the accent.
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.primary)
+                    .metallicSymbol(.gold)
                     .frame(width: 40, height: 40)
                     .background(DS.Colors.Bg.raised)
                     .clipShape(Circle())

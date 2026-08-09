@@ -42,7 +42,7 @@ enum CurriculumOverlay {
             table: "curriculum_edits",
             query: [
                 URLQueryItem(name: "active", value: "eq.true"),
-                URLQueryItem(name: "select", value: "drill_id,kind,payload,updated_by,category_id,level_number")
+                URLQueryItem(name: "select", value: "drill_id,kind,payload,updated_by,updated_at,category_id,level_number")
             ]
         )
         // nil = request failed → keep the current cache + content, retry next day.
@@ -51,6 +51,13 @@ enum CurriculumOverlay {
         reconcileCache(with: rows, context: context)
         applyCache(context: context)
         UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: lastFetchKey)
+    }
+
+    /// Parse a Postgres timestamptz, with and without fractional seconds.
+    private static func parseTimestamp(_ value: Any?) -> Date? {
+        guard let string = value as? String else { return nil }
+        return ISO8601DateFormatter.withFractional.date(from: string)
+            ?? ISO8601DateFormatter().date(from: string)
     }
 
     // MARK: - Cache reconciliation
@@ -73,11 +80,13 @@ enum CurriculumOverlay {
             let updatedBy = (row["updated_by"] as? String) ?? "Coach"
             let categoryID = row["category_id"] as? String
             let levelNumber = (row["level_number"] as? Int) ?? 0
+            let updatedAt = Self.parseTimestamp(row["updated_at"])
 
             if let cached = byID[drillID] {
                 cached.kind = kind
                 cached.payloadJSON = payloadData
                 cached.updatedBy = updatedBy
+                cached.updatedAt = updatedAt
                 cached.categoryID = categoryID
                 cached.levelNumber = levelNumber
             } else {
@@ -89,6 +98,7 @@ enum CurriculumOverlay {
                     categoryID: categoryID,
                     levelNumber: levelNumber
                 )
+                cached.updatedAt = updatedAt
                 context.insert(cached)
                 byID[drillID] = cached
             }

@@ -23,9 +23,17 @@ struct DayRingsView: View {
     private var baseLine: CGFloat { max(2, size * 0.12) }
     private var gap: CGFloat { max(1.5, size * 0.05) }
 
-    private var trainTint: Color { Color.white }
-    private var drillTint: Color { Color.white.opacity(0.68) }
-    private var mindTint: Color { Color.white.opacity(0.42) }
+    /// Three weights of one hue rather than three different colors, so the
+    /// stack still reads as one object. Honors the player's ring preference —
+    /// `RingStyle.monochrome` restores the original white stack.
+    private var ringsUseAccent: Bool { RingStyle.current == .accent }
+    private var trainTint: Color { ringsUseAccent ? DS.Colors.Gold.base : Color.white }
+    private var drillTint: Color {
+        ringsUseAccent ? DS.Colors.Gold.base.opacity(0.68) : Color.white.opacity(0.68)
+    }
+    private var mindTint: Color {
+        ringsUseAccent ? DS.Colors.Gold.base.opacity(0.42) : Color.white.opacity(0.42)
+    }
 
     var body: some View {
         ZStack {

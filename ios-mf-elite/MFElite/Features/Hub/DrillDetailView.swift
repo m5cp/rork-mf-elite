@@ -29,6 +29,7 @@ struct DrillDetailView: View {
     @Environment(\.modelContext) private var context
     @Environment(SubscriptionService.self) private var subscription
     @Query private var progress: [DrillProgress]
+    @Query private var curriculumEdits: [CurriculumEditCache]
     @Query private var sessions: [SessionLogEntry]
     @Query private var notes: [DrillNote]
     @State private var activeSession: TrainingQueue?
@@ -43,6 +44,15 @@ struct DrillDetailView: View {
     /// bottom offset — mirrors CustomTabBar's metrics) so the pinned CTA
     /// clears it instead of hiding behind it.
     private let tabBarClearance: CGFloat = 94
+
+    /// When a coach last published a change to this drill, if ever.
+    ///
+    /// Players train off this content, so an edit landing silently — a changed
+    /// rep count, a rewritten coaching point — is worth surfacing. It also
+    /// tells the coach their publish actually took.
+    private var lastUpdated: Date? {
+        curriculumEdits.first { $0.drillID == drill.id }?.updatedAt
+    }
 
     /// True when this drill sits in a level the current plan doesn't include.
     ///
@@ -120,6 +130,7 @@ struct DrillDetailView: View {
                 }
                 notesSection
                 accountabilitySection(vm)
+                updatedFooter
             }
             .padding(.bottom, DS.Spacing.s24)
         }
@@ -646,6 +657,25 @@ struct DrillDetailView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s24 + 4)
+    }
+
+    /// Quiet footer, not a badge — it matters when it matters and should not
+    /// compete with the drill itself.
+    @ViewBuilder
+    private var updatedFooter: some View {
+        if let lastUpdated {
+            HStack(spacing: DS.Spacing.s8) {
+                Image(systemName: "pencil.circle")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                Text("Updated by your coach \(lastUpdated.formatted(date: .abbreviated, time: .omitted))")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s24)
+        }
     }
 
     // MARK: - Instructions

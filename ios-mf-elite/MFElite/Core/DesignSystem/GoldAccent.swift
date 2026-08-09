@@ -211,6 +211,40 @@ enum SymbolStyle: String, CaseIterable, Identifiable {
     }
 }
 
+/// Whether the daily training rings take the accent or stay monochrome.
+///
+/// Separate from `SymbolStyle` on purpose: the rings are the one place where
+/// three values have to stay distinguishable from each other at a glance, so a
+/// player may reasonably want gold icons with neutral rings, or the reverse.
+enum RingStyle: String, CaseIterable, Identifiable {
+    /// Three weights of the accent — outer solid, inner two stepped back. Default.
+    case accent
+    /// The original white weight stack.
+    case monochrome
+
+    var id: String { rawValue }
+
+    static let storageKey = "MF_RING_STYLE"
+
+    static var current: RingStyle {
+        RingStyle(rawValue: UserDefaults.standard.string(forKey: storageKey) ?? "") ?? .accent
+    }
+
+    var displayName: String {
+        switch self {
+        case .accent:     return "Accent"
+        case .monochrome: return "Monochrome"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .accent:     return "Your daily rings use your accent color."
+        case .monochrome: return "Your daily rings stay white."
+        }
+    }
+}
+
 struct MetallicSymbol: ViewModifier {
     enum Finish { case gold, silver }
     var finish: Finish = .gold

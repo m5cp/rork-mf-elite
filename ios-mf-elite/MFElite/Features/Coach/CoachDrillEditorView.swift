@@ -668,6 +668,8 @@ struct CoachDrillMediaSection: View {
     @State private var pickedImage: PhotosPickerItem?
     @State private var videoState: MediaUploadState = .idle
     @State private var imageState: MediaUploadState = .idle
+    /// Set while a removal confirmation is on screen.
+    @State private var pendingRemoval: MediaKind?
 
     enum MediaUploadState: Equatable { case idle, uploading, done, failed }
 
@@ -679,72 +681,181 @@ struct CoachDrillMediaSection: View {
             SectionHead(title: "Media")
 
             mediaRow(
+                kind: .image,
                 label: hasImage ? "Replace photo" : "Add reference photo",
                 icon: "photo",
                 state: imageState,
-                hasMedia: hasImage,
-                picker: PhotosPicker(selection: $pickedImage, matching: .images) {
-                    EmptyView()
-                },
-                onRemove: { imageURL = nil; imageState = .idle },
-                onRetry: { Task { await uploadImage() } }
+                hasMedia: hasImage
             )
 
             mediaRow(
+                kind: .video,
                 label: hasVideo ? "Replace video" : "Add demo video",
                 icon: "video",
                 state: videoState,
-                hasMedia: hasVideo,
-                picker: PhotosPicker(selection: $pickedVideo, matching: .videos) {
-                    EmptyView()
-                },
-                onRemove: { videoURL = nil; videoState = .idle },
-                onRetry: { Task { await uploadVideo() } }
+                hasMedia: hasVideo
             )
         }
-        .onChange(of: pickedImage) { _, _ in Task { await uploadImage() } }
-        .onChange(of: pickedVideo) { _, _ in Task { await uploadVideo() } }
+        // Cleared back to nil after each upload, so choosing the SAME asset a
+        // second time still fires onChange and re-uploads.
+        .onChange(of: pickedImage) { _, item in
+            guard item != nil else { return }
+            Task { await uploadImage(); pickedImage = nil }
+        }
+        .onChange(of: pickedVideo) { _, item in
+            guard item != nil else { return }
+            Task { await uploadVideo(); pickedVideo = nil }
+        }
     }
 
+    private enum MediaKind { case image, video }
+
+    /// One media row: a picker, a preview of what is attached, and a Remove
+    /// that is a real sibling button.
+    ///
+    /// This used to build the SAME PhotosPicker twice — once in `.overlay` with
+    /// hit-testing off and once in `.background` at 1% opacity as a full-row
+    /// tap target. Two live pickers bound to one selection meant choosing a
+    /// photo dismissed the first and immediately re-presented the second, with
+    /// no way out; and the invisible one covered the row, so tapping Remove
+    /// opened Photos instead. One picker, wrapping the row as its own label.
     @ViewBuilder
-    private func mediaRow<P: View>(
-        label: String, icon: String, state: MediaUploadState, hasMedia: Bool,
-        picker: P, onRemove: @escaping () -> Void, onRetry: @escaping () -> Void
-    ) -> some View {
+    private func mediaRow(kind: MediaKind, label: String, icon: String,
+                          state: MediaUploadState, hasMedia: Bool) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: DS.Spacing.s12) {
+                Group {
+                    switch kind {
+                    case .image:
+                        PhotosPicker(selection: $pickedImage, matching: .images) {
+                            rowLabel(label: label, icon: icon, state: state, hasMedia: hasMedia)
+                        }
+                    case .video:
+                        PhotosPicker(selection: $pickedVideo, matching: .videos) {
+                            rowLabel(label: label, icon: icon, state: state, hasMedia: hasMedia)
+                        }
+                    }
+                }
+                .buttonStyle(.plain)
+                .disabled(state == .uploading)
+
+                if state == .failed {
+                    Button("Retry") {
+                        Task { kind == .image ? await uploadImage() : await uploadVideo() }
+                    }
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Gold.textLight)
+                    .frame(minWidth: 44, minHeight: 44)
+                }
+
+                // A sibling of the picker, not inside it, so it is genuinely
+                // tappable. Destructive and irreversible, hence the confirm.
+                if hasMedia, state != .uploading {
+                    Button("Remove") { pendingRemoval = kind }
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Status.bad)
+                        .frame(minHeight: 44)
+                }
+            }
+
+            // Proof it landed. Without this the only signal was a label change,
+            // which is why it was impossible to tell whether an upload worked.
+            if hasMedia, state != .uploading {
+                attachmentPreview(kind: kind)
+                    .padding(.top, DS.Spacing.s8)
+            }
+        }
+        .padding(DS.Spacing.s12)
+        .background(DS.Colors.Bg.raised, in: RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous))
+        .confirmationDialog(
+            kind == .image ? "Remove this photo?" : "Remove this video?",
+            isPresented: Binding(
+                get: { pendingRemoval == kind },
+                set: { if !$0 { pendingRemoval = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button("Remove", role: .destructive) {
+                Task { await remove(kind) }
+            }
+            Button("Cancel", role: .cancel) { pendingRemoval = nil }
+        } message: {
+            Text("It will be deleted for every player straight away.")
+        }
+    }
+
+    private func rowLabel(label: String, icon: String, state: MediaUploadState, hasMedia: Bool) -> some View {
         HStack(spacing: DS.Spacing.s12) {
             Image(systemName: icon)
-                .foregroundStyle(DS.Colors.Gold.base)
+                .metallicSymbol(.gold)
             switch state {
             case .uploading:
                 ProgressView().tint(DS.Colors.Gold.base)
                 Text("Uploading\u{2026}").style(.foot).foregroundStyle(DS.Colors.Ink.secondary)
             case .failed:
                 Text("Upload failed").style(.foot).foregroundStyle(DS.Colors.Status.bad)
-                Button("Retry", action: onRetry)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Gold.textLight)
-                    .frame(minWidth: 44, minHeight: 44)
-                    .contentShape(Rectangle())
             default:
                 Text(label).style(.foot).foregroundStyle(DS.Colors.Ink.primary)
             }
-            Spacer()
-            // Standard confirmation affordance: a checkmark that says "yes,
-            // that one is attached", rather than the label quietly changing.
+            Spacer(minLength: DS.Spacing.s8)
             if state != .uploading, state != .failed {
-                ConfirmBadge(isConfirmed: hasMedia || state == .done, label: "Attached", unconfirmedLabel: "Nothing attached")
-            }
-            if hasMedia {
-                Button("Remove", action: onRemove)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(DS.Colors.Ink.tertiary)
-                    .frame(minHeight: 44)
+                ConfirmBadge(
+                    isConfirmed: hasMedia,
+                    label: "Attached",
+                    unconfirmedLabel: "Nothing attached"
+                )
             }
         }
-        .padding(DS.Spacing.s12)
-        .background(DS.Colors.Bg.raised, in: RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous))
-        .overlay(picker.allowsHitTesting(false))
-        .background(picker.opacity(0.011)) // full-row PhotosPicker hit target
+        .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private func attachmentPreview(kind: MediaKind) -> some View {
+        switch kind {
+        case .image:
+            if let raw = imageURL, let url = URL(string: raw) {
+                AsyncImage(url: url) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    case .failure:
+                        Text("Photo attached, preview unavailable")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                    default:
+                        ProgressView().tint(DS.Colors.Gold.base)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .frame(height: 120)
+                .clipShape(RoundedRectangle(cornerRadius: DS.Radius.sm, style: .continuous))
+            }
+        case .video:
+            HStack(spacing: DS.Spacing.s8) {
+                Image(systemName: "play.rectangle.fill").metallicSymbol(.gold)
+                Text("Demo video attached")
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.secondary)
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    /// Clears the URL AND deletes the object. Clearing alone left the file in
+    /// the bucket at a path derived from the drill id, so the next upload for
+    /// that drill could still be served the old one from cache.
+    private func remove(_ kind: MediaKind) async {
+        pendingRemoval = nil
+        switch kind {
+        case .image:
+            imageURL = nil
+            imageState = .idle
+            await SupabaseClient.shared.deleteStorage(bucket: "drill-images", path: "\(drillID).jpg")
+        case .video:
+            videoURL = nil
+            videoState = .idle
+            await SupabaseClient.shared.deleteStorage(bucket: "drill-videos", path: "\(drillID).mp4")
+        }
     }
 
     private func uploadImage() async {

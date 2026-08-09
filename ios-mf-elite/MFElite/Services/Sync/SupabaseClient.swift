@@ -125,6 +125,20 @@ final class SupabaseClient {
         return (200...299).contains(response.statusCode)
     }
 
+    /// Delete an object from a storage bucket.
+    ///
+    /// Clearing the URL on the drill row is not enough on its own: the file
+    /// stays in the bucket, and because paths are derived from the drill id,
+    /// the next upload for that drill would be served from cache as the old
+    /// one. A coach who attached the wrong video needs it actually gone.
+    @discardableResult
+    func deleteStorage(bucket: String, path: String) async -> Bool {
+        guard let request = await makeStorageRequest(bucket: bucket, path: path, method: "DELETE") else { return false }
+        guard let (_, response) = await send(request) else { return false }
+        // 404 counts as success — the goal is "not there any more".
+        return (200...299).contains(response.statusCode) || response.statusCode == 404
+    }
+
     /// Public URL for an object in a PUBLIC bucket (no auth needed to read).
     func publicStorageURL(bucket: String, path: String) -> String {
         "\(SupabaseConfig.url)/storage/v1/object/public/\(bucket)/\(path)"
