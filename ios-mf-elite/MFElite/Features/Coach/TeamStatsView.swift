@@ -206,7 +206,7 @@ struct TeamStatsView: View {
             Text("No teams yet")
                 .style(.title3)
                 .foregroundStyle(DS.Colors.Ink.primary)
-            Text("Stats are filed against a team you created. Build one in Teams & rosters first, then come back — a head coach can file for any team.")
+            Text("Stats are filed against a team you coach — one you created, or one with your players on it. Build a team in Teams & rosters, or ask the head coach to add your players to theirs.")
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -559,6 +559,11 @@ struct TeamStatsView: View {
 
     private func initialLoad() async {
         if teams.teams.isEmpty { await teams.loadTeams() }
+        // Before `manageableTeams` is read for the first time. It depends on
+        // this set, and `load(teamID:)` — the only other caller — is gated on
+        // having already picked a team, so without this a coach who created
+        // no teams of their own could never get past the empty state.
+        await store.loadCoachedPlayers()
         if teamID.isEmpty, let first = store.manageableTeams.first { teamID = first.id }
         guard !teamID.isEmpty else { return }
         await store.load(teamID: teamID)

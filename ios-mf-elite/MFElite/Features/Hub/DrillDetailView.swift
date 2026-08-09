@@ -961,13 +961,39 @@ struct DrillDetailView: View {
 /// and paused when the view scrolls away. Streams the public `drill-videos` URL.
 private struct DrillDemoVideoView: View {
     @State private var player: AVPlayer
+    @State private var isMuted: Bool
 
     init(url: URL) {
-        _player = State(initialValue: AVPlayer(url: url))
+        let player = AVPlayer(url: url)
+        // Starts muted when the player already has something playing. A demo
+        // video is watched for the movement, not the audio, and silently
+        // stopping someone's podcast to show them a fifteen-second clip is the
+        // rudest thing this screen could do. Unmuting is one tap.
+        let shouldMute = AppAudioSession.isOtherAudioPlaying
+        player.isMuted = shouldMute
+        _player = State(initialValue: player)
+        _isMuted = State(initialValue: shouldMute)
     }
 
     var body: some View {
         VideoPlayer(player: player)
+            .overlay(alignment: .bottomTrailing) {
+                if isMuted {
+                    Button {
+                        isMuted = false
+                        player.isMuted = false
+                    } label: {
+                        Image(systemName: "speaker.slash.fill")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                            .frame(width: 36, height: 36)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .padding(DS.Spacing.s8)
+                    .accessibilityLabel("Unmute demo video")
+                }
+            }
             .onDisappear { player.pause() }
     }
 }

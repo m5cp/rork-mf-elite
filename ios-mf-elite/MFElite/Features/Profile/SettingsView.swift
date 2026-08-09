@@ -29,6 +29,9 @@ struct SettingsView: View {
     @AppStorage("MF_NOTIF_STREAK") private var streakAlerts = true
     @AppStorage("MF_AUTO_ADVANCE") private var autoAdvance = true
     @AppStorage("MF_SOUND_CUES") private var soundCues = true
+    @AppStorage("MF_COUNTER_TICK") private var counterTick = false
+    @AppStorage("MF_CADENCE_ON") private var cadenceOn = false
+    @AppStorage("MF_CADENCE_BPM") private var cadenceBPM = 170
     @AppStorage("MF_KEEP_AWAKE") private var keepAwake = true
     @AppStorage("MF_AUTO_DIM") private var autoDim = true
     @AppStorage("MF_MOTION_REPS") private var motionReps = true
@@ -586,6 +589,55 @@ struct SettingsView: View {
             Hairline()
             toggleRow(label: "Sound & vibration cues", isOn: $soundCues)
             Text("Countdown beeps, a chime at the end of each set, and a buzz when rest starts. Spoken VoiceOver call-outs stay on regardless.")
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Spacing.s8)
+            Hairline()
+            toggleRow(label: "Counter tick", isOn: $counterTick)
+            Text("A quiet tick on every second of a timed set. Off by default — some players find the pulse useful, others find it maddening.")
+                .style(.foot)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, DS.Spacing.s8)
+            Hairline()
+            toggleRow(label: "Cadence metronome", isOn: $cadenceOn)
+            if cadenceOn {
+                HStack {
+                    Text("Tempo")
+                        .style(.body)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Spacer(minLength: DS.Spacing.s12)
+                    Text("\(cadenceBPM) spm")
+                        .font(DS.Typography.num(size: 16))
+                        .foregroundStyle(DS.Colors.Gold.textLight)
+                }
+                .padding(.vertical, DS.Spacing.s8)
+                // 30 covers a slow technical rhythm; 240 covers a sprint drill.
+                // Step of 5 so the slider is usable with a thumb.
+                Slider(value: Binding(
+                    get: { Double(cadenceBPM) },
+                    set: { cadenceBPM = Int($0) }
+                ), in: 30...240, step: 5)
+                .tint(DS.Colors.Gold.base)
+                HStack {
+                    Button("Preview") {
+                        // The player only makes sound while its engine is
+                        // running, and no drill is live in Settings — so a bare
+                        // click here synthesises a buffer and throws it away.
+                        CueAudioPlayer.shared.beginSession()
+                        CueAudioPlayer.shared.startCadence(bpm: cadenceBPM)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                            CueAudioPlayer.shared.endSession()
+                        }
+                    }
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(DS.Colors.Gold.textLight)
+                    .frame(minHeight: 44)
+                    Spacer(minLength: 0)
+                }
+            }
+            Text("A metronome during timed sets, for running cadence or a drill's rhythm. Most runners sit around 170–180 steps per minute. Like every sound here, it mixes with your music rather than interrupting it.")
                 .style(.foot)
                 .foregroundStyle(DS.Colors.Ink.quaternary)
                 .fixedSize(horizontal: false, vertical: true)

@@ -33,17 +33,46 @@ final class TeamStatsStore {
 
     // MARK: - Scope
 
+    /// Player ids this coach is linked to, i.e. the players they actually coach.
+    ///
+    /// Loaded from `player_profiles`, which RLS already scopes to exactly that
+    /// set — so this is the client asking the server the same question the
+    /// write policy asks, rather than guessing at it.
+    private(set) var coachedPlayerIDs: Set<String> = []
+
     /// The teams this coach may actually file stats for.
     ///
-    /// Head coaches file for anyone; every other coach only for the teams they
-    /// created, which is exactly what the server's write policy allows. Listing
-    /// a team here that the database will refuse would give the coach a Save
-    /// button that appears to work and reaches nobody.
+    /// Mirrors `can_manage_team_stats` server-side: head coaches file for
+    /// anyone; any other coach files for a team they created, or a team with a
+    /// player they coach on it. Listing a team the database will refuse would
+    /// give the coach a Save button that looks like it worked and reached
+    /// nobody, so these two rules have to stay in step.
+    ///
+    /// `teams` and `team_members` are readable by ANY active coach, so "I can
+    /// see this team" is not a substitute for "I coach this team" — hence the
+    /// roster link rather than a cheaper local check.
     var manageableTeams: [CoachTeam] {
         let all = TeamsStore.shared.teams
         if SubscriptionService.shared.coachRole == "head_coach" { return all }
         guard let uid = SupabaseAuth.shared.userID else { return [] }
-        return all.filter { $0.createdBy == uid }
+        return all.filter { team in
+            team.createdBy == uid
+                || !coachedPlayerIDs.isDisjoint(with: team.memberIDs)
+        }
+    }
+
+    /// Refresh the coached-player set. Cheap, and only meaningful for a
+    /// non-head coach — head coaches bypass the check entirely.
+    func loadCoachedPlayers() async {
+        guard SubscriptionService.shared.coachRole != "head_coach" else { return }
+        guard let rows = await SupabaseClient.shared.get(
+            table: "player_profiles",
+            query: [
+                URLQueryItem(name: "is_example", value: "eq.false"),
+                URLQueryItem(name: "select", value: "id")
+            ]
+        ) else { return }
+        coachedPlayerIDs = Set(rows.compactMap { $0["id"] as? String })
     }
 
     /// Seasons worth offering in the picker: everything filed or scheduled,
@@ -74,6 +103,7 @@ final class TeamStatsStore {
         }
         loadedTeamID = teamID
         if reports.isEmpty { state = .loading }
+        await loadCoachedPlayers()
 
         await loadRoster(teamID: teamID)
         await loadScheduledGames(teamID: teamID)

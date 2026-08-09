@@ -1,7 +1,10 @@
 -- =============================================================================
 --  2026-08-09  Per-game team stat reports (the coach's season stat sheet)
 --
---  STATUS: NOT APPLIED. Written to be applied and verified centrally.
+--  STATUS: APPLIED to production on 2026-08-09.
+--  The write rule here was superseded the same day by
+--  2026-08-09-team-stats-coach-of-team.sql — see that file for the current
+--  definition of can_manage_team_stats. Written to be applied and verified centrally.
 --
 --  WHY
 --  ---

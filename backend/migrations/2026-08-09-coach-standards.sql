@@ -1,7 +1,7 @@
 -- =============================================================================
 --  2026-08-09  Head-coach combine baseline + targets by age group
 --
---  STATUS: NOT APPLIED. Written for central review and application.
+--  STATUS: APPLIED to production on 2026-08-09. Written for central review and application.
 --
 --  WHY
 --  ---
