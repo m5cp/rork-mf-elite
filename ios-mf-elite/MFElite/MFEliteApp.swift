@@ -136,6 +136,10 @@ struct MFEliteApp: App {
                         backfillMasteryDates()
                         profileStore.incrementSession()
                         KeyboardWarmup.run()
+                        // Before anything can activate a session of its own.
+                        // iOS defaults to `.soloAmbient`, which stops the
+                        // player's music the moment the app makes any sound.
+                        AppAudioSession.configureForMixing()
                         submitTotalXPToGameCenter()
                         WidgetBridge.refresh(context: container.mainContext)
                         WatchSyncBridge.shared.refreshAndPush()

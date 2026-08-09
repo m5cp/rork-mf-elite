@@ -27,6 +27,7 @@ private enum CoachAnchor {
     static let drillEditor = "coach.drillEditor"
     static let teams = "coach.teams"
     static let teamStats = "coach.teamStats"
+    static let standards = "coach.standards"
     static let schedule = "coach.schedule"
     static let roster = "coach.roster"
     static let coachGuide = "coach.coachGuide"
@@ -100,6 +101,7 @@ struct CoachView: View {
                             workoutOfTheDaySection.id(CoachAnchor.workoutOfTheDay)
                             workoutsSection.id(CoachAnchor.workouts)
                             drillEditorSection.id(CoachAnchor.drillEditor)
+                            standardsSection.id(CoachAnchor.standards)
                             teamsSection.id(CoachAnchor.teams)
                             TeamStatsEntrySection().id(CoachAnchor.teamStats)
                             scheduleSection.id(CoachAnchor.schedule)
@@ -143,6 +145,9 @@ struct CoachView: View {
                 }
                 .navigationDestination(for: ControlCenterRoute.self) { _ in
                     ControlCenterView()
+                }
+                .navigationDestination(for: CoachStandardsRoute.self) { _ in
+                    CoachStandardsEditorView()
                 }
             }
         }
@@ -273,12 +278,17 @@ struct CoachView: View {
                 CoachJumpTarget(anchor: CoachAnchor.drillEditor, title: "Improve Drills",
                                 icon: "slider.horizontal.3")
             )
+            targets.append(
+                CoachJumpTarget(anchor: CoachAnchor.standards, title: "Standards",
+                                icon: "target")
+            )
         }
 
         targets.append(contentsOf: [
             CoachJumpTarget(anchor: CoachAnchor.teams, title: "Teams",
-            CoachJumpTarget(anchor: CoachAnchor.teamStats, title: "Team Stats", icon: "list.number"),
                             icon: "person.3.fill"),
+            CoachJumpTarget(anchor: CoachAnchor.teamStats, title: "Team Stats",
+                            icon: "list.number"),
             CoachJumpTarget(anchor: CoachAnchor.schedule, title: "Team Schedule",
                             icon: "calendar.badge.clock"),
             CoachJumpTarget(anchor: CoachAnchor.roster, title: "Roster",
@@ -679,6 +689,45 @@ struct CoachView: View {
     }
 
     // MARK: - Drill editor
+
+    /// Head coaches only, for the same reason as the drill editor: writes to
+    /// `coach_standards` and `coach_baseline_tests` are gated on
+    /// `is_head_coach()` server-side. It is also reachable from the MF Combine
+    /// hub — this is the dashboard shortcut, since a coach setting standards is
+    /// doing coach work, not player work.
+    @ViewBuilder
+    private var standardsSection: some View {
+        if SubscriptionService.shared.coachRole == "head_coach" {
+            VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+                Eyebrow(text: "Standards")
+                NavigationLink(value: CoachStandardsRoute()) {
+                    HStack(spacing: DS.Spacing.s12) {
+                        SectionIcon(systemName: "target")
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Baseline & standards")
+                                .style(.title3)
+                                .foregroundStyle(DS.Colors.Ink.primary)
+                            Text("Choose the baseline tests and set your own targets by age group")
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Ink.tertiary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                    }
+                    .padding(DS.Spacing.s16)
+                    .frame(maxWidth: .infinity)
+                    .background(DS.Colors.Bg.card)
+                    .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+                    .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+        }
+    }
 
     /// Head coaches only.
     ///

@@ -40,7 +40,15 @@ final class CueAudioPlayer {
         guard !isSessionActive else { return }
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers, .duckOthers])
+            // `.playback` so the countdown is audible with the ringer off and
+            // the timer keeps running with the screen asleep. `.mixWithOthers`
+            // so the player's own music keeps going underneath.
+            //
+            // Deliberately NOT `.duckOthers`: ducking pulls their music down
+            // for the WHOLE session, not just for the beep, which is most of
+            // what "the app messes with my music" feels like. The cues are
+            // short and bright enough to hear over a track at full volume.
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try session.setActive(true)
             configureIfNeeded()
             if !engine.isRunning { try engine.start() }
@@ -56,11 +64,16 @@ final class CueAudioPlayer {
     /// End the audio session when the drill is logged or the player exits.
     func endSession() {
         guard isSessionActive else { return }
+        stopCadence()
         cueNode.stop()
         keepAliveNode.stop()
         engine.stop()
         isSessionActive = false
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+        // Hand the session back to the app-wide ambient default, so nothing
+        // after this drill is running under a `.playback` category it no
+        // longer needs.
+        AppAudioSession.restoreMixingDefault()
     }
 
     private func configureIfNeeded() {
@@ -92,6 +105,65 @@ final class CueAudioPlayer {
     /// A soft low cue marking the start of a rest period.
     func playRestStart() {
         play(tone(frequency: 523, duration: 0.18, amplitude: 0.45))
+    }
+
+    /// A dry, quiet tick for the per-second counter. Deliberately duller and
+    /// softer than the 3-2-1 countdown beep — it fires up to once a second for
+    /// the length of a set, so it has to sit under the player's music rather
+    /// than compete with it.
+    func playCounterTick() {
+        play(tone(frequency: 660, duration: 0.035, amplitude: 0.22))
+    }
+
+    /// The cadence click. Two pitches so a runner can hear the downbeat: every
+    /// `accentEvery` clicks is higher and slightly louder.
+    func playCadenceClick(accented: Bool) {
+        play(tone(frequency: accented ? 1_318 : 880,
+                  duration: 0.03,
+                  amplitude: accented ? 0.38 : 0.26))
+    }
+
+    // MARK: - Cadence
+
+    private var cadenceTimer: Timer?
+    private var cadenceBeat = 0
+
+    /// Whether a cadence is currently running, so the UI can show the right control.
+    private(set) var isCadenceRunning = false
+
+    /// Start a metronome at `bpm`, accenting every `accentEvery` beats.
+    ///
+    /// Scheduled on the run loop in `.common` mode so it keeps time while the
+    /// player is scrolling, and driven off the same mixing session as the cues —
+    /// a cadence that stopped someone's music would be worse than no cadence.
+    func startCadence(bpm: Int, accentEvery: Int = 4) {
+        stopCadence()
+        guard isSessionActive else { return }
+        let clamped = min(240, max(30, bpm))
+        let interval = 60.0 / Double(clamped)
+        cadenceBeat = 0
+        let t = Timer(timeInterval: interval, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                guard let self, self.isCadenceRunning else { return }
+                let accented = accentEvery > 1 && self.cadenceBeat % accentEvery == 0
+                self.playCadenceClick(accented: accented)
+                self.cadenceBeat &+= 1
+            }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        cadenceTimer = t
+        isCadenceRunning = true
+        // Fire the downbeat immediately; a metronome that waits a full beat
+        // before its first click feels broken.
+        playCadenceClick(accented: accentEvery > 1)
+        cadenceBeat = 1
+    }
+
+    func stopCadence() {
+        cadenceTimer?.invalidate()
+        cadenceTimer = nil
+        cadenceBeat = 0
+        isCadenceRunning = false
     }
 
     // MARK: - Synthesis

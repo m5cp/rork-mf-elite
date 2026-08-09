@@ -92,6 +92,25 @@ final class DrillPlayerViewModel {
     /// "Sound & vibration cues" setting toggle.
     private var cuesEnabled: Bool { setting("MF_SOUND_CUES", default: true) }
 
+    /// A quiet tick on every second of a timed set. Off by default — it is a
+    /// focus aid for some players and an irritant to others, and defaulting a
+    /// once-a-second sound to on would be a choice made for everybody.
+    private var counterTickEnabled: Bool { setting("MF_COUNTER_TICK", default: false) }
+
+    /// A metronome at a set tempo, for running cadence or a drill's rhythm.
+    private var cadenceEnabled: Bool { setting("MF_CADENCE_ON", default: false) }
+
+    /// Cadence tempo. 170-180 spm is the usual running range; the default sits
+    /// mid-range and the setting spans a slow drill rhythm to a fast sprint.
+    private var cadenceBPM: Int {
+        let saved = UserDefaults.standard.integer(forKey: "MF_CADENCE_BPM")
+        return saved > 0 ? saved : 170
+    }
+
+    /// The whole second last announced by the counter tick, so a 0.1s timer
+    /// fires it once per second rather than ten times.
+    private var lastTickedSecond: Int = -1
+
     init(
         drill: Drill,
         level: MasteryLevel,
@@ -182,6 +201,9 @@ final class DrillPlayerViewModel {
     }
 
     private func invalidateTimer() {
+        // The cadence belongs to a running set, not to the session. Leaving it
+        // clicking through a rest period would be its own kind of wrong.
+        CueAudioPlayer.shared.stopCadence()
         timer?.invalidate()
         timer = nil
         // Retire the current tick generation. Invalidating the Timer stops
@@ -199,6 +221,12 @@ final class DrillPlayerViewModel {
         invalidateTimer()
         timeRemaining = duration
         isPaused = false
+        lastTickedSecond = -1
+        // Working sets only. `startTicking` is the REST timer too, so without
+        // the phase check the metronome clicks straight through every rest.
+        if cadenceEnabled, case .active = phase, CueAudioPlayer.shared.isSessionActive {
+            CueAudioPlayer.shared.startCadence(bpm: cadenceBPM)
+        }
         setStartDate = Date()
         pauseAccumulated = 0
         pauseStartDate = nil
@@ -215,6 +243,17 @@ final class DrillPlayerViewModel {
 
                 // Countdown beeps at 3, 2, 1 seconds
                 let secondsLeft = Int(ceil(self.timeRemaining))
+
+                // The per-second counter. Driven off the same 0.1s tick rather
+                // than a second timer, and guarded on the whole-second boundary
+                // so it fires once per second instead of ten times. Skipped in
+                // the last three seconds, where the countdown beep takes over.
+                if self.counterTickEnabled, secondsLeft != self.lastTickedSecond {
+                    self.lastTickedSecond = secondsLeft
+                    if secondsLeft > 3, CueAudioPlayer.shared.isSessionActive {
+                        CueAudioPlayer.shared.playCounterTick()
+                    }
+                }
                 if secondsLeft <= 3 && secondsLeft >= 1 {
                     let fraction = self.timeRemaining - Double(secondsLeft - 1)
                     if fraction >= 0.9 && fraction < 1.0 {
@@ -237,10 +276,14 @@ final class DrillPlayerViewModel {
     func startSet() {
         currentSetIndex = 1
         phase = .active(setIndex: 1)
+        // Before `startTicking`, not after: the cadence start inside it is
+        // guarded on the audio session already being live, so starting the
+        // session second meant the metronome never fired on set one — and
+        // never at all on a single-set drill.
+        startLiveSession()
         startTicking(from: setDuration) { [weak self] in
             self?.completeSet()
         }
-        startLiveSession()
     }
 
     func pauseResume() {
@@ -255,6 +298,14 @@ final class DrillPlayerViewModel {
             pauseStartDate = Date()
         }
         isPaused.toggle()
+        // The 0.1s tick self-guards on `isPaused`, but the cadence is its own
+        // Timer inside CueAudioPlayer and would keep clicking through a paused
+        // set forever.
+        if isPaused {
+            CueAudioPlayer.shared.stopCadence()
+        } else if cadenceEnabled, case .active = phase, CueAudioPlayer.shared.isSessionActive {
+            CueAudioPlayer.shared.startCadence(bpm: cadenceBPM)
+        }
         pushLiveActivity()
     }
 
@@ -590,7 +641,12 @@ final class DrillPlayerViewModel {
     /// Begin background audio, motion tracking, the lock-screen Live Activity,
     /// and listen for its pause/skip commands. Called when a guided timer starts.
     private func startLiveSession() {
-        if cuesEnabled { CueAudioPlayer.shared.beginSession() }
+        // Any of the three needs the engine. The counter tick and the cadence
+        // are independent settings, so gating the session on `cuesEnabled`
+        // alone made both silently dead for anyone who had turned the beeps off.
+        if cuesEnabled || counterTickEnabled || cadenceEnabled {
+            CueAudioPlayer.shared.beginSession()
+        }
 
         DrillCommandListener.shared.startObserving()
         DrillCommandListener.shared.onCommand = { [weak self] command in
