@@ -44,20 +44,55 @@ stopping `player_state` from syncing is something else — see below.
 
 ---
 
+## The "one `player_state` row" scare — chased down, nothing wrong
+
+Recorded here because it looked exactly like a bug twice, and the next person
+to glance at the row counts will think the same thing.
+
+**The observation.** `player_profiles` has 4 rows, `player_progress` has 6,
+`player_state` has **1**. Three players with a profile and no XP/streak/freeze
+row is the classic shape of upserts failing and being quarantined — a 4xx is a
+permanent failure here, so a rejected write vanishes without an error anywhere.
+
+**It isn't that.** Two checks, both run 2026-08-08:
+
+1. *Does the write work for a non-Joe account?* Ran the app's exact upsert —
+   `insert … on conflict (player_id) do update` — as role `authenticated` with
+   Carson's JWT, in a transaction, rolled back. It succeeded and returned the
+   row. The INSERT policy (`with check (user_id() = player_id)`), the UNIQUE on
+   `player_id` backing the conflict target, and every column the client sends
+   are all correct.
+
+2. *Who owns the data that does exist?* Counted every user-scoped table by
+   owner. `player_progress` 6, `session_logs` 6, `user_badges` 1,
+   `player_state` 1 — and **all of it is Joe's**. `combine_results`,
+   `drill_results`, `xp_transactions`, `workout_records` and
+   `gameiq_completions` are empty for everyone.
+
+So there is no missing `player_state` row. Joe is the only person who has ever
+trained while signed in; the other three profiles are accounts that were
+created and never used. Every logging path (`QuickLog`, `DrillPlayerViewModel`,
+`WorkoutStore`, `GameIQStore`, `XPStoreService`, `ShareXPService`,
+`SupportAdjustments`, the backfill and the restore) calls
+`enqueuePlayerState`, so the first real session from any of them will create
+one.
+
+**What this means for reading these counts in future:** a player with no
+`player_state` row has not trained. It is not evidence of a sync failure. To
+actually detect quarantined writes you need the client side — `SyncEngine`'s
+`quarantinedCount` and the `PendingOp` rows with `isQuarantined = true` — not
+the server row counts.
+
 ## Still open
 
-### 1. `player_state` has exactly one row for the entire app
+### 1. `player_state.drills_completed` is written by nothing and read by nothing
 
-Counted 2026-08-08: `player_profiles` has 4 rows, `player_progress` has 6,
-`player_state` has **1** — Joe's. Every other player has a profile and logged
-progress but no state row, which is where XP, streak, freezes and
-`purchased_xp` live. That is the shape you would expect if `player_state`
-upserts are failing and being quarantined for everyone else.
-
-It is not a missing column, so the next place to look is the RLS insert policy
-and the upsert's conflict target. Worth reproducing with a real upsert as
-`authenticated` for a non-Joe account, in a transaction, rolled back — the same
-method that found the storage bug.
+The column exists in production (`integer default 0 not null`). The app never
+sends it — `enqueuePlayerState` writes `xp`, `streak`, `freezes_remaining`,
+`streak_pb`, `purchased_xp` and `last_trained_date` — and nothing anywhere
+reads it. So it is permanently 0 for every player. Harmless today, but it will
+read as real data to anyone who finds it. Either wire it up or drop it; don't
+leave it looking meaningful.
 
 ### 2. Coach drill-video uploads have no server-side restriction
 
