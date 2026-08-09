@@ -21,6 +21,10 @@ final class CurriculumEditCache {
     /// JSON object of the changed content fields (camelCase keys matching Drill).
     var payloadJSON: Data
     var updatedBy: String
+    /// When the coach last published this edit, straight from the server row.
+    /// Optional so existing on-device stores migrate in place, and nil for a
+    /// cache written before this was tracked.
+    var updatedAt: Date?
     /// For "new": the category the drill belongs to. `nil` for "edit"/"hide".
     var categoryID: String?
     /// For "new": which level inside the category. 0 when unspecified.

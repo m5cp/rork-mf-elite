@@ -44,10 +44,17 @@ final class WatchWorkoutManager: NSObject {
         super.init()
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
-        locationManager.distanceFilter = 4
+        locationManager.distanceFilter = kCLDistanceFilterNone
     }
 
     var avgHeartRate: Int { hrCount > 0 ? hrSum / hrCount : 0 }
+
+    /// The route so far in the wire shape the summary, the phone and the stored
+    /// record all use. One conversion in one place, so the trace the athlete
+    /// watches during the workout is literally the trace that gets saved.
+    var routePoints: [WatchRoutePoint] {
+        route.map { WatchRoutePoint(lat: $0.latitude, lng: $0.longitude) }
+    }
 
     /// Current pace in seconds per km (0 until enough distance).
     var paceSecondsPerKm: Double {
@@ -105,10 +112,20 @@ final class WatchWorkoutManager: NSObject {
                 if locationManager.authorizationStatus == .notDetermined {
                     locationManager.requestWhenInUseAuthorization()
                 }
-                // Accuracy is re-armed here, not just in `init`, because teardown
-                // deliberately drops it. A second workout in the same launch has to
-                // put the receiver back into navigation mode itself.
+                // Accuracy and the distance filter are re-armed here, not just in
+                // `init`, because teardown deliberately drops both. A second workout
+                // in the same launch has to put the receiver back into navigation
+                // mode itself.
                 locationManager.desiredAccuracy = kCLLocationAccuracyBestForNavigation
+                // No distance filter at all. A filter suppresses an update until the
+                // athlete has moved that far from the last reported fix, which is
+                // fine for a run down a road and wrong for the thing this app is
+                // actually for: a session on a soccer field is metres of shuttle
+                // runs, cuts and turns, and a filter of even a few metres reports
+                // one point per direction change and draws the field as a handful
+                // of straight lines. Unfiltered, Core Location delivers roughly a
+                // fix a second and the trace fills the pitch the way the work did.
+                locationManager.distanceFilter = kCLDistanceFilterNone
                 locationManager.startUpdatingLocation()
             }
 
@@ -216,6 +233,10 @@ final class WatchWorkoutManager: NSObject {
         // an authorization callback, a future caller — it starts coarse instead of
         // silently resuming a navigation-grade fix. `start` puts it back.
         locationManager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+        // Same argument for the filter: leaving it at "report everything" is the
+        // expensive setting to be caught in if something re-arms location behind
+        // our back.
+        locationManager.distanceFilter = 100
         // The watch target ships `workout-processing`, not the location background
         // mode, so this should never have been on; assert that rather than trust it.
         locationManager.allowsBackgroundLocationUpdates = false
@@ -272,7 +293,7 @@ final class WatchWorkoutManager: NSObject {
             activeCalories: activeCalories,
             avgHeartRate: avgHeartRate,
             maxHeartRate: maxHeartRate,
-            route: route.map { WatchRoutePoint(lat: $0.latitude, lng: $0.longitude) }
+            route: routePoints
         )
         result = built
         status = .ended
@@ -390,7 +411,16 @@ extension WatchWorkoutManager: HKLiveWorkoutBuilderDelegate {
 
 extension WatchWorkoutManager: CLLocationManagerDelegate {
     nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        let fresh = locations.filter { $0.horizontalAccuracy >= 0 && $0.horizontalAccuracy < 50 }
+        let now = Date()
+        let fresh = locations.filter {
+            guard $0.horizontalAccuracy >= 0, $0.horizontalAccuracy < 50 else { return false }
+            // Core Location opens with whatever fix it had cached, which can be
+            // minutes old and from wherever the athlete last used GPS. On a route
+            // that spans a whole city that stray point is a rounding error; on one
+            // that spans a soccer field it *is* the picture — a single line from
+            // the car park that squashes the actual session into a dot.
+            return now.timeIntervalSince($0.timestamp) < 10
+        }
         guard !fresh.isEmpty else { return }
         let coords = fresh.map(\.coordinate)
         Task { @MainActor in

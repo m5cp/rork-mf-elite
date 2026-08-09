@@ -82,4 +82,40 @@ enum WorkoutStore {
 
         return record
     }
+
+    /// Re-attempt the route map for stored workouts that have GPS points but no
+    /// rendered image.
+    ///
+    /// `MKMapSnapshotter` needs map data it may have to fetch, and the place a
+    /// session most often ends — a pitch on the edge of town with one bar — is
+    /// exactly where that fails. Without a retry, the one render attempt at save
+    /// time is the only one there will ever be, and the athlete's route is
+    /// stored but permanently invisible. Cheap to call repeatedly: it returns
+    /// immediately when nothing is missing.
+    static func renderMissingRouteImages(context: ModelContext) async {
+        var descriptor = FetchDescriptor<WorkoutRecord>(
+            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
+        )
+        // Newest first and only a handful per pass. Each render suspends on the
+        // snapshotter for the best part of a second, and it's the top of the
+        // Progress list the athlete is actually looking at.
+        descriptor.fetchLimit = 20
+        // The nil-image test is done in Swift rather than a `#Predicate`: the
+        // other half of the condition is "has route points", which lives inside
+        // an encoded `Data` blob that no predicate can see into.
+        guard let recent = try? context.fetch(descriptor) else { return }
+
+        var rendered = false
+        for record in recent where record.routeImageName == nil {
+            let points = record.routePoints
+            guard points.count > 1 else { continue }
+            if let name = await WorkoutRouteRenderer.renderAndSave(
+                points: points, accentHex: record.mode.accentHex, id: record.id
+            ) {
+                record.routeImageName = name
+                rendered = true
+            }
+        }
+        if rendered { try? context.save() }
+    }
 }

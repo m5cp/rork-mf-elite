@@ -31,7 +31,62 @@ struct AccentColorSection: View {
                 .padding(.vertical, DS.Spacing.s8)
 
             symbolStylePicker
+
+            Hairline()
+                .padding(.vertical, DS.Spacing.s8)
+
+            ringStylePicker
         }
+    }
+
+    /// Third axis: the daily rings. Separate from icons because the rings are
+    /// the one place three values have to stay distinguishable at a glance,
+    /// so "gold icons, neutral rings" is a reasonable thing to want.
+    private var ringStylePicker: some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            SectionHead(title: "Training rings")
+
+            HStack(spacing: DS.Spacing.s8) {
+                ForEach(RingStyle.allCases) { style in
+                    ringOption(style)
+                }
+            }
+
+            Text(currentRingStyle.detail)
+                .style(.micro)
+                .foregroundStyle(DS.Colors.Ink.quaternary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var currentRingStyle: RingStyle {
+        RingStyle(rawValue: profile.ringStyleID) ?? .accent
+    }
+
+    private func ringOption(_ style: RingStyle) -> some View {
+        let isSelected = currentRingStyle == style
+        return Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            profile.ringStyleID = style.rawValue
+        } label: {
+            HStack(spacing: DS.Spacing.s8) {
+                Image(systemName: style == .accent ? "circle.circle.fill" : "circle.circle")
+                    .font(.system(size: 13, weight: .bold))
+                Text(style.displayName)
+                    .font(.system(size: 13, weight: .semibold))
+            }
+            .foregroundStyle(isSelected ? DS.Colors.Ground.primary : DS.Colors.Ink.secondary)
+            .padding(.vertical, DS.Spacing.s8 + 2)
+            .padding(.horizontal, DS.Spacing.s16)
+            .frame(maxWidth: .infinity)
+            .background(isSelected ? Color.white : DS.Colors.Bg.raised)
+            .clipShape(Capsule())
+            .overlay(Capsule().stroke(DS.Colors.Line.hairline, lineWidth: 1))
+            .contentShape(Capsule())
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("\(style.displayName) rings")
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     /// Second axis: whether symbols and avatars pick the accent up at all.

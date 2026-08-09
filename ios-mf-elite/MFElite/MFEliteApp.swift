@@ -118,7 +118,7 @@ struct MFEliteApp: App {
                 MainTabView()
                     // Rebuild the tree when the accent OR the symbol style
                     // changes, so every token consumer repaints immediately.
-                    .id("\(profileStore.accentID)-\(profileStore.symbolStyleID)")
+                    .id("\(profileStore.accentID)-\(profileStore.symbolStyleID)-\(profileStore.ringStyleID)")
                     .preferredColorScheme(.dark)
                     .fullScreenCover(isPresented: .constant(showOnboarding && openingDone)) {
                         OnboardingView {

@@ -60,11 +60,14 @@ struct WorkoutCardView: View {
                         .foregroundStyle(DS.Colors.Ink.quaternary)
                 }
                 HStack(spacing: DS.Spacing.s16) {
-                    if record.mode.isOutdoor && record.distanceMeters > 0 {
+                    // Distance is shown on the strength of there being distance,
+                    // not on the mode recording a route: a treadmill or elliptical
+                    // workout measures distance and used to have it hidden.
+                    if record.distanceMeters > 0 {
                         stat(WorkoutFormat.distance(record.distanceMeters, useMiles: useMiles), "Distance")
                     }
                     stat(WorkoutFormat.duration(record.durationSec), "Time")
-                    if record.mode.isOutdoor && record.distanceMeters > 0 {
+                    if record.distanceMeters > 0 {
                         stat(WorkoutFormat.pace(meters: record.distanceMeters, sec: record.durationSec, useMiles: useMiles), "Pace")
                     }
                     stat("\(Int(record.activeCalories))", "Cal")
@@ -147,16 +150,20 @@ struct WorkoutDetailView: View {
             minLat = min(minLat, c.latitude); maxLat = max(maxLat, c.latitude)
             minLng = min(minLng, c.longitude); maxLng = max(maxLng, c.longitude)
         }
+        // Matches `WorkoutRouteRenderer.minimumSpan`: the old 0.003° floor was
+        // about 330 m, so a session worked entirely inside a soccer pitch opened
+        // zoomed out far enough that the ground covered read as a smudge. The
+        // athlete can still pinch out; they could not pinch in past the floor.
         return MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLng + maxLng) / 2),
-            span: MKCoordinateSpan(latitudeDelta: max((maxLat - minLat) * 1.4, 0.003),
-                                   longitudeDelta: max((maxLng - minLng) * 1.4, 0.003))
+            span: MKCoordinateSpan(latitudeDelta: max((maxLat - minLat) * 1.4, 0.0006),
+                                   longitudeDelta: max((maxLng - minLng) * 1.4, 0.0006))
         )
     }
 
     private var statsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: DS.Spacing.s12) {
-            if record.mode.isOutdoor && record.distanceMeters > 0 {
+            if record.distanceMeters > 0 {
                 statCard(WorkoutFormat.distance(record.distanceMeters, useMiles: useMiles), "Distance")
                 statCard(WorkoutFormat.pace(meters: record.distanceMeters, sec: record.durationSec, useMiles: useMiles), "Avg pace")
             }

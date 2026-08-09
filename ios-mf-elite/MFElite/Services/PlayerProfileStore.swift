@@ -62,6 +62,7 @@ final class PlayerProfileStore {
         static let avatarBuiltin = "MF_AVATAR_BUILTIN"
         static let accent = AppAccent.storageKey
         static let symbolStyle = SymbolStyle.storageKey
+        static let ringStyle = RingStyle.storageKey
     }
 
     private static let photoFileName = "player_avatar.jpg"
@@ -137,6 +138,12 @@ final class PlayerProfileStore {
         didSet { defaults.set(symbolStyleID, forKey: Keys.symbolStyle) }
     }
 
+    /// Whether the daily training rings take the accent or stay white.
+    /// Observed by the root view like `accentID`, so a change re-renders live.
+    var ringStyleID: String {
+        didSet { defaults.set(ringStyleID, forKey: Keys.ringStyle) }
+    }
+
     /// The currently selected avatar. Persisted across launches.
     private(set) var avatar: AvatarSelection = .none
     /// Loaded custom photo, when `avatar == .photo`. Bumped on change so views refresh.
@@ -159,6 +166,7 @@ final class PlayerProfileStore {
         sessionCount = defaults.integer(forKey: Keys.sessionCount)
         accentID = defaults.string(forKey: Keys.accent) ?? AppAccent.gold.rawValue
         symbolStyleID = defaults.string(forKey: Keys.symbolStyle) ?? SymbolStyle.accent.rawValue
+        ringStyleID = defaults.string(forKey: Keys.ringStyle) ?? RingStyle.accent.rawValue
         loadAvatar()
     }
 

@@ -10,6 +10,37 @@
 import SwiftUI
 import SwiftData
 
+/// Scroll anchors for the Coach dashboard's sections.
+///
+/// The jump grid and the sections it points at are declared ~500 lines apart,
+/// so these are constants rather than inline string literals: a typo in one of
+/// the two places would compile happily and produce a card that scrolls
+/// nowhere, which is indistinguishable from a dead tap.
+private enum CoachAnchor {
+    static let snapshot = "coach.snapshot"
+    static let briefing = "coach.briefing"
+    static let needsAttention = "coach.needsAttention"
+    static let approvals = "coach.approvals"
+    static let announcements = "coach.announcements"
+    static let workoutOfTheDay = "coach.workoutOfTheDay"
+    static let workouts = "coach.workouts"
+    static let drillEditor = "coach.drillEditor"
+    static let teams = "coach.teams"
+    static let teamStats = "coach.teamStats"
+    static let schedule = "coach.schedule"
+    static let roster = "coach.roster"
+    static let coachGuide = "coach.coachGuide"
+}
+
+/// One tile in the jump grid: its label, its icon, and the section it scrolls
+/// to. `anchor` must match the `.id(...)` applied to that section.
+private struct CoachJumpTarget: Identifiable {
+    let anchor: String
+    let title: String
+    let icon: String
+    var id: String { anchor }
+}
+
 struct CoachView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
@@ -41,72 +72,78 @@ struct CoachView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: DS.Spacing.s24) {
-                    header
+            // The jump grid scrolls to sections that live inside this
+            // ScrollView, so the proxy has to be handed down from above it.
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(alignment: .leading, spacing: DS.Spacing.s24) {
+                        header
 
-                    if !sync.isOnline {
-                        offlineBanner
-                    }
+                        if !sync.isOnline {
+                            offlineBanner
+                        }
 
-                    switch model.overviewState {
-                    case .idle, .loading where model.overview == nil:
-                        loadingState
-                    case .failed where model.overview == nil:
-                        retryState
-                    default:
-                        overviewSection
-                        ControlCenterEntrySection()
-                        teamSnapshotSection
-                        aiBriefingSection
-                        needsAttentionSection
-                        approvalsSection
-                        announcementsSection
-                        workoutOfTheDaySection
-                        workoutsSection
-                        drillEditorSection
-                        teamsSection
-                        scheduleSection
-                        rosterSection
-                        coachGuideSection
+                        switch model.overviewState {
+                        case .idle, .loading where model.overview == nil:
+                            loadingState
+                        case .failed where model.overview == nil:
+                            retryState
+                        default:
+                            overviewSection
+                            ControlCenterEntrySection()
+                            jumpGrid(proxy: proxy)
+                            teamSnapshotSection.id(CoachAnchor.snapshot)
+                            aiBriefingSection.id(CoachAnchor.briefing)
+                            needsAttentionSection.id(CoachAnchor.needsAttention)
+                            approvalsSection.id(CoachAnchor.approvals)
+                            announcementsSection.id(CoachAnchor.announcements)
+                            workoutOfTheDaySection.id(CoachAnchor.workoutOfTheDay)
+                            workoutsSection.id(CoachAnchor.workouts)
+                            drillEditorSection.id(CoachAnchor.drillEditor)
+                            teamsSection.id(CoachAnchor.teams)
+                            TeamStatsEntrySection().id(CoachAnchor.teamStats)
+                            scheduleSection.id(CoachAnchor.schedule)
+                            rosterSection.id(CoachAnchor.roster)
+                            coachGuideSection.id(CoachAnchor.coachGuide)
+                        }
                     }
+                    .padding(.horizontal, DS.Spacing.s20)
+                    .padding(.top, DS.Spacing.s24)
+                    .padding(.bottom, 120)
                 }
-                .padding(.horizontal, DS.Spacing.s20)
-                .padding(.top, DS.Spacing.s24)
-                .padding(.bottom, 120)
-            }
-            .background(DS.Colors.Bg.base)
-            .scrollIndicators(.hidden)
-            .refreshable {
-                await model.loadOverviewAndRoster(context: modelContext)
-                await model.loadApprovals(context: modelContext)
-            }
-            .navigationDestination(for: RosterPlayer.self) { player in
-                CoachPlayerDetailView(player: player, model: model)
-            }
-            .navigationDestination(for: CoachDrillEditorRoute.self) { _ in
-                CoachDrillEditorView(model: model)
-            }
-            .navigationDestination(for: CoachScheduleRoute.self) { _ in
-                CoachScheduleView()
-            }
-            .navigationDestination(for: CoachTeamsRoute.self) { _ in
-                CoachTeamsView()
-            }
-            .navigationDestination(for: CoachTeamSnapshotRoute.self) { _ in
-                CoachTeamSnapshotView(model: model)
-            }
-            .navigationDestination(for: CoachAIBriefingRoute.self) { _ in
-                CoachAIBriefingView(model: model)
-            }
-            .navigationDestination(for: CoachTeamDetailRoute.self) { route in
-                CoachTeamDetailView(teamID: route.teamID)
-            }
-            .navigationDestination(for: CoachGuideRoute.self) { _ in
-                CoachGuideView()
-            }
-            .navigationDestination(for: ControlCenterRoute.self) { _ in
-                ControlCenterView()
+                .background(DS.Colors.Bg.base)
+                .scrollIndicators(.hidden)
+                .refreshable {
+                    await model.loadOverviewAndRoster(context: modelContext)
+                    await model.loadApprovals(context: modelContext)
+                }
+                .navigationDestination(for: RosterPlayer.self) { player in
+                    CoachPlayerDetailView(player: player, model: model)
+                }
+                .navigationDestination(for: CoachDrillEditorRoute.self) { _ in
+                    CoachDrillEditorView(model: model)
+                }
+                .navigationDestination(for: CoachScheduleRoute.self) { _ in
+                    CoachScheduleView()
+                }
+                .navigationDestination(for: CoachTeamsRoute.self) { _ in
+                    CoachTeamsView()
+                }
+                .navigationDestination(for: CoachTeamSnapshotRoute.self) { _ in
+                    CoachTeamSnapshotView(model: model)
+                }
+                .navigationDestination(for: CoachAIBriefingRoute.self) { _ in
+                    CoachAIBriefingView(model: model)
+                }
+                .navigationDestination(for: CoachTeamDetailRoute.self) { route in
+                    CoachTeamDetailView(teamID: route.teamID)
+                }
+                .navigationDestination(for: CoachGuideRoute.self) { _ in
+                    CoachGuideView()
+                }
+                .navigationDestination(for: ControlCenterRoute.self) { _ in
+                    ControlCenterView()
+                }
             }
         }
         .preferredColorScheme(.dark)
@@ -194,6 +231,115 @@ struct CoachView: View {
         } message: {
             Text(coachActionError ?? "")
         }
+    }
+
+    // MARK: - Jump grid
+
+    /// The tiles shown in the jump grid, in the order their sections appear.
+    ///
+    /// A tile is only listed when the section it targets is actually rendered.
+    /// `scrollTo` on an id that isn't in the hierarchy does nothing at all, so
+    /// an unconditional tile for a conditional section reads as a dead card.
+    private var jumpTargets: [CoachJumpTarget] {
+        var targets: [CoachJumpTarget] = [
+            CoachJumpTarget(anchor: CoachAnchor.snapshot, title: "Team Snapshot",
+                            icon: "chart.bar.doc.horizontal.fill"),
+            CoachJumpTarget(anchor: CoachAnchor.briefing, title: "AI Briefing",
+                            icon: "sparkles"),
+            CoachJumpTarget(anchor: CoachAnchor.needsAttention, title: "Needs Attention",
+                            icon: "exclamationmark.triangle.fill")
+        ]
+
+        // `approvalsSection` renders nothing when there is nothing pending.
+        if !model.pendingApprovals.isEmpty {
+            targets.append(
+                CoachJumpTarget(anchor: CoachAnchor.approvals, title: "Approvals",
+                                icon: "trophy.fill")
+            )
+        }
+
+        targets.append(contentsOf: [
+            CoachJumpTarget(anchor: CoachAnchor.announcements, title: "Announcements",
+                            icon: "megaphone.fill"),
+            CoachJumpTarget(anchor: CoachAnchor.workoutOfTheDay, title: "Workout of the Day",
+                            icon: "star.fill"),
+            CoachJumpTarget(anchor: CoachAnchor.workouts, title: "Workouts",
+                            icon: "square.stack.3d.up.fill")
+        ])
+
+        // Same gate as `drillEditorSection` itself — see the note there.
+        if SubscriptionService.shared.coachRole == "head_coach" {
+            targets.append(
+                CoachJumpTarget(anchor: CoachAnchor.drillEditor, title: "Improve Drills",
+                                icon: "slider.horizontal.3")
+            )
+        }
+
+        targets.append(contentsOf: [
+            CoachJumpTarget(anchor: CoachAnchor.teams, title: "Teams",
+            CoachJumpTarget(anchor: CoachAnchor.teamStats, title: "Team Stats", icon: "list.number"),
+                            icon: "person.3.fill"),
+            CoachJumpTarget(anchor: CoachAnchor.schedule, title: "Team Schedule",
+                            icon: "calendar.badge.clock"),
+            CoachJumpTarget(anchor: CoachAnchor.roster, title: "Roster",
+                            icon: "person.crop.circle"),
+            CoachJumpTarget(anchor: CoachAnchor.coachGuide, title: "Coach Guide",
+                            icon: "questionmark.circle")
+        ])
+
+        return targets
+    }
+
+    /// Prominent cards that take the coach straight to a section.
+    ///
+    /// Every tile scrolls; none of them push, even though five of the sections
+    /// are themselves a single navigation card. A grid where some tiles open a
+    /// screen and others move the scroll would make the coach guess which is
+    /// which, and the sections still have to be reachable by scrolling anyway.
+    private func jumpGrid(proxy: ScrollViewProxy) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Jump To")
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: DS.Spacing.s12),
+                    GridItem(.flexible(), spacing: DS.Spacing.s12)
+                ],
+                spacing: DS.Spacing.s12
+            ) {
+                ForEach(jumpTargets) { target in
+                    Button {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        withAnimation(DS.Motion.standardSpring) {
+                            proxy.scrollTo(target.anchor, anchor: .top)
+                        }
+                    } label: {
+                        jumpTile(target)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .accessibilityLabel("Jump to \(target.title)")
+                }
+            }
+        }
+    }
+
+    private func jumpTile(_ target: CoachJumpTarget) -> some View {
+        HStack(spacing: DS.Spacing.s12) {
+            SectionIcon(systemName: target.icon, size: 36)
+            Text(target.title)
+                .style(.foot)
+                .fontWeight(.semibold)
+                .foregroundStyle(DS.Colors.Ink.primary)
+                .multilineTextAlignment(.leading)
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+            Spacer(minLength: 0)
+        }
+        .padding(DS.Spacing.s12)
+        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+        .background(DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+        .contentShape(Rectangle())
     }
 
     // MARK: - AI briefing

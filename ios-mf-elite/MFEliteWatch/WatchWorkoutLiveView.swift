@@ -3,8 +3,9 @@
 //  MFEliteWatch
 //
 //  Live workout metrics on the wrist: elapsed time, distance, pace, heart rate
-//  and active calories, with pause/resume and end. Two swipe pages — metrics and
-//  controls — matching the native workout app feel.
+//  and active calories, with pause/resume and end. Swipe pages — metrics, the
+//  live GPS trace for outdoor modes, and controls — matching the native workout
+//  app feel.
 //
 
 import SwiftUI
@@ -16,6 +17,9 @@ struct WatchWorkoutLiveView: View {
     var body: some View {
         TabView {
             metricsPage
+            if manager.mode.isOutdoor {
+                routePage
+            }
             controlsPage
         }
         .tabViewStyle(.verticalPage)
@@ -31,7 +35,11 @@ struct WatchWorkoutLiveView: View {
                 .foregroundStyle(Color(hex: manager.mode.accentHex))
                 .contentTransition(.numericText())
 
-            if manager.mode.isOutdoor {
+            // Shown whenever there is distance to show, not only for the modes
+            // that record a route: the treadmill and the elliptical both report
+            // distance through HealthKit, and gating on `isOutdoor` left those
+            // athletes with a timer and nothing to pace against.
+            if manager.mode.isOutdoor || manager.distanceMeters > 0 {
                 metricLine(value: distanceText, unit: useMiles ? "MI" : "KM")
                 metricLine(value: paceText, unit: useMiles ? "/MI" : "/KM")
             }
@@ -40,6 +48,31 @@ struct WatchWorkoutLiveView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 6)
+    }
+
+    /// The trace filling in as the athlete works. On a field session this is the
+    /// page that answers the question they actually have mid-session — how much
+    /// of the pitch have I covered — which no number on the metrics page can.
+    private var routePage: some View {
+        let points = manager.routePoints
+        return VStack(alignment: .leading, spacing: 4) {
+            Text("ROUTE")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(.secondary)
+            if points.count > 1 {
+                WatchRouteTrace(points: points, color: Color(hex: manager.mode.accentHex))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                // A blank box would read as a broken screen. Say what's missing:
+                // outdoors this clears in a few seconds, indoors it never will.
+                Text("Waiting for GPS…")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            }
+        }
+        .padding(.horizontal, 6)
+        .padding(.bottom, 6)
     }
 
     private func metricLine(value: String, unit: String) -> some View {
