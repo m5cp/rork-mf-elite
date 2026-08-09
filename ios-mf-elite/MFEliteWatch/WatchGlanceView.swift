@@ -122,12 +122,24 @@ struct WatchGlanceView: View {
     }
 
     private var stepsRow: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "figure.walk")
-                .font(.system(size: 12, weight: .semibold))
-            Text("\(glance.steps.formatted()) / \(glance.stepGoal.formatted()) steps")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 6) {
+                Image(systemName: "figure.walk")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("\(glance.steps.formatted()) / \(glance.stepGoal.formatted()) steps")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 6) {
+                Image(systemName: "location.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                // Shown even at zero, exactly like the step count above it. A row
+                // that vanishes when Health has nothing reads as a broken app; a
+                // row that says 0.00 reads as a day that hasn't started yet.
+                Text(String(format: "%.2f mi today", glance.miles ?? 0))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.top, 2)
     }

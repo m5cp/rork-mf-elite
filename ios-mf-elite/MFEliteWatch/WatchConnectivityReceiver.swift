@@ -62,8 +62,27 @@ final class WatchConnectivityReceiver: NSObject {
 
     /// Send a finished watch workout (stats + GPS route) to the phone, where it's
     /// stored, rendered into a route map, and added to Progress + the calendar.
+    /// Cap on route points sent to the phone.
+    ///
+    /// `transferUserInfo` rejects payloads over roughly 65 KB, and a JSON
+    /// route point is about 44 bytes. Since the workout now records an
+    /// unfiltered GPS fix roughly every second — deliberately, so a session on
+    /// a pitch draws the ground actually covered — a long session would sail
+    /// past that and the transfer would fail. There is no completion handler
+    /// on `transferUserInfo`, so the failure is silent and takes the WHOLE
+    /// workout with it, not just the route.
+    private static let maxRoutePoints = 1200
+
     func sendWorkout(_ result: WatchWorkoutResult) {
-        guard let encoded = try? JSONEncoder().encode(result) else { return }
+        var payload = result
+        if payload.route.count > Self.maxRoutePoints {
+            // Even stride rather than truncation: the shape of the session is
+            // the point, and dropping the tail would lop off the end of it.
+            let step = Int(ceil(Double(payload.route.count) / Double(Self.maxRoutePoints)))
+            payload.route = payload.route.enumerated()
+                .compactMap { $0.offset % step == 0 ? $0.element : nil }
+        }
+        guard let encoded = try? JSONEncoder().encode(payload) else { return }
         session?.transferUserInfo(["workout": encoded])
     }
 

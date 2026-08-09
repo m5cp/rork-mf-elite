@@ -8,6 +8,12 @@
 //  When the player's birth year is unset it prompts for it once so the scales
 //  can be age-accurate. Results storage is never touched here.
 //
+//  Above the scales sits the single number the player is actually chasing: the
+//  head coach's target for their age group when he set one, otherwise the
+//  published standard. Both are named out loud — a coach's number must never be
+//  mistaken for a national one, and the published figure stays on screen so the
+//  player can see the difference.
+//
 
 import SwiftUI
 
@@ -19,6 +25,7 @@ struct CombineStandingCard: View {
     let value: Double?
 
     @State private var profile = PlayerProfileStore.shared
+    @State private var standards = CoachStandardsStore.shared
     @State private var pickerYear: Int = Calendar.current.component(.year, from: Date()) - 12
 
     /// User's comparison override, persisted per device. Empty = use own age.
@@ -47,6 +54,13 @@ struct CombineStandingCard: View {
             VStack(alignment: .leading, spacing: DS.Spacing.s16) {
                 Eyebrow(text: "Where You Stand")
 
+                // The target block is resolved from the band alone, so it still
+                // appears for a test that has no published scale but does have a
+                // coach target — the coach's number is the point of the feature.
+                if let band = effectiveBand {
+                    targetBlock(band: band)
+                }
+
                 if !benchmarks.hasBenchmark(for: test.id) {
                     Text("No benchmark scale for this test yet.")
                         .style(.foot)
@@ -57,6 +71,67 @@ struct CombineStandingCard: View {
                     birthYearPrompt
                 }
             }
+        }
+        // Targets are academy-wide and change rarely, so this only hits the
+        // network when the cached copy has gone stale.
+        .task { await standards.refreshIfStale() }
+    }
+
+    // MARK: - Target
+
+    /// The one number to beat for this age group, plus where it came from.
+    @ViewBuilder
+    private func targetBlock(band: CombineBenchmarks.AgeBand) -> some View {
+        if let target = standards.resolvedTarget(testID: test.id, band: band, female: profile.gradesFemale) {
+            VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+                HStack(alignment: .firstTextBaseline, spacing: DS.Spacing.s8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Eyebrow(text: target.source == .coachTarget ? "Coach Target" : "Target")
+                        Text(CombineFormat.valueWithUnit(target.value, unit: test.unit))
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                    }
+
+                    Spacer(minLength: DS.Spacing.s8)
+
+                    if let value {
+                        let met = CoachStandardsStore.meets(
+                            value: value, target: target.value, lowerIsBetter: test.lowerIsBetter
+                        )
+                        Text(met ? "Met" : "Chasing")
+                            .style(.microSm)
+                            .foregroundStyle(met ? DS.Colors.Status.good : DS.Colors.Ink.quaternary)
+                    }
+                }
+
+                Text(targetCaption(target: target, band: band))
+                    .style(.micro)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Hairline()
+            }
+        }
+    }
+
+    /// Names the source of the target and, when the coach has overridden it,
+    /// keeps the published figure visible next to his.
+    private func targetCaption(target: CoachStandardTarget, band: CombineBenchmarks.AgeBand) -> String {
+        let scale = profile.gradesFemale ? "girls" : "boys"
+        switch target.source {
+        case .coachTarget:
+            let base = "Set by your coach for \(band.label)."
+            guard let standard = standards.defaultTarget(
+                testID: test.id, bandID: band.id, female: profile.gradesFemale
+            ) else { return base }
+            return base + " Published \(scale) standard: \(CombineFormat.valueWithUnit(standard, unit: test.unit))."
+        case .defaultStandard:
+            let base = "Published \(scale) standard for \(band.label)."
+            // Only raise the coach at all once he has started setting targets —
+            // otherwise every player reads a note about a feature nobody uses.
+            return standards.hasAnyTarget
+                ? base + " Your coach hasn't set his own for this test."
+                : base
         }
     }
 

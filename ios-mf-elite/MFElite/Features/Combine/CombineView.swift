@@ -4,12 +4,22 @@
 //
 //  The MF Combine hub: a baseline skills test split into TECHNICAL and PHYSICAL
 //  events. Each row shows the player's personal best and latest attempt; tapping
-//  starts that test's flow. When all 8 tests are recorded on the same day a
-//  "Combine complete" scorecard is offered.
+//  starts that test's flow. When every test in the head coach's baseline is
+//  recorded on the same day a "Combine complete" scorecard is offered.
+//
+//  The head coach chooses which tests form that baseline. Tests he leaves out
+//  are still listed and still runnable — they just don't gate completion — so
+//  narrowing the baseline never takes a test away from a player.
 //
 
 import SwiftUI
 import SwiftData
+
+/// True only for the head coach — the baseline editor entry is gated on this,
+/// the same way every Control Center surface is.
+private var isHeadCoach: Bool {
+    SubscriptionService.shared.coachRole == "head_coach"
+}
 
 /// Navigation route into the MF Combine hub.
 struct CombineRoute: Hashable {}
@@ -24,12 +34,17 @@ struct CombineView: View {
     @Query private var results: [CombineResult]
 
     @State private var showScorecard = false
+    @State private var standards = CoachStandardsStore.shared
 
     private var technical: [CombineTest] { tests.filter { $0.category == "technical" } }
     private var physical: [CombineTest] { tests.filter { $0.category == "physical" } }
 
+    /// The tests the head coach counts as the baseline. With nothing configured
+    /// this is every test, which is exactly how the combine behaved before.
+    private var baselineTests: [CombineTest] { standards.baseline(from: tests) }
+
     private var isComplete: Bool {
-        CombineStats.combineComplete(tests: tests, results: results)
+        CombineStats.combineComplete(tests: baselineTests, results: results)
     }
 
     var body: some View {
@@ -37,12 +52,16 @@ struct CombineView: View {
             VStack(alignment: .leading, spacing: 0) {
                 header
 
+                if isHeadCoach {
+                    editorLink
+                }
+
                 if isComplete {
                     completeBanner
                 }
 
-                section(title: "Technical", eyebrow: "5 Tests", tests: technical)
-                section(title: "Physical", eyebrow: "3 Tests", tests: physical)
+                section(title: "Technical", eyebrow: testCount(technical), tests: technical)
+                section(title: "Physical", eyebrow: testCount(physical), tests: physical)
             }
             .padding(.bottom, 120)
         }
@@ -56,9 +75,23 @@ struct CombineView: View {
         .navigationDestination(for: CombineHistoryRoute.self) { route in
             CombineTestHistoryView(test: route.test)
         }
-        .sheet(isPresented: $showScorecard) {
-            CombineScorecardView(tests: tests, results: results)
+        .navigationDestination(for: CoachStandardsRoute.self) { _ in
+            CoachStandardsEditorView()
         }
+        .sheet(isPresented: $showScorecard) {
+            // The scorecard grades the baseline, not every test on the list.
+            CombineScorecardView(tests: baselineTests, results: results)
+        }
+        .task { await standards.refreshIfStale() }
+    }
+
+    /// "5 Tests", or "3 of 5 Tests" once the coach has taken some out.
+    private func testCount(_ sectionTests: [CombineTest]) -> String {
+        let included = sectionTests.filter { standards.isInBaseline($0.id) }.count
+        if included == sectionTests.count {
+            return "\(sectionTests.count) Tests"
+        }
+        return "\(included) of \(sectionTests.count) Tests"
     }
 
     // MARK: - Header
@@ -73,8 +106,45 @@ struct CombineView: View {
                 .style(.callout)
                 .foregroundStyle(DS.Colors.Ink.tertiary)
                 .fixedSize(horizontal: false, vertical: true)
+
+            if baselineTests.count < tests.count {
+                Text("Your coach's baseline is \(baselineTests.count) of these \(tests.count) tests. The rest are still yours to run anytime.")
+                    .style(.foot)
+                    .foregroundStyle(DS.Colors.Ink.quaternary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s20)
+    }
+
+    // MARK: - Head coach entry
+
+    private var editorLink: some View {
+        NavigationLink(value: CoachStandardsRoute()) {
+            Card {
+                HStack(spacing: DS.Spacing.s16) {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 22, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                        Eyebrow(text: "Head Coach")
+                        Text("Baseline & targets")
+                            .style(.title3)
+                            .foregroundStyle(DS.Colors.Ink.primary)
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
+            }
+        }
+        .buttonStyle(PressableButtonStyle())
+        .simultaneousGesture(TapGesture().onEnded {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        })
         .padding(.horizontal, DS.Spacing.s20)
         .padding(.top, DS.Spacing.s20)
     }
@@ -140,9 +210,18 @@ struct CombineView: View {
         let latest = CombineStats.latest(test.id, results: results)
         return HStack(spacing: DS.Spacing.s16) {
             VStack(alignment: .leading, spacing: DS.Spacing.s4) {
-                Text(test.name)
-                    .style(.title3)
-                    .foregroundStyle(DS.Colors.Ink.primary)
+                HStack(spacing: DS.Spacing.s8) {
+                    Text(test.name)
+                        .style(.title3)
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    // Only ever shown once the coach has narrowed the baseline,
+                    // so the default list is untouched.
+                    if !standards.isInBaseline(test.id) {
+                        Text("Optional")
+                            .style(.microSm)
+                            .foregroundStyle(DS.Colors.Ink.quaternary)
+                    }
+                }
                 if let latest {
                     Text("Last \(CombineFormat.value(latest.value, unit: test.unit)) \(test.unit) · \(CombineFormat.relative(latest.recordedAt))")
                         .style(.foot)

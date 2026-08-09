@@ -42,16 +42,23 @@ final class WatchSyncBridge: NSObject {
     /// delivered even if the watch app isn't foregrounded) and to the shared
     /// App Group so the complication can render without the watch app running.
     func refreshAndPush() {
-        // Refresh the step count in the background and push again if it moved,
-        // so the watch ring shows a real number rather than a stale one.
-        // Compare the AWAITED value, not the cache: the cache is written from a
-        // separate main-actor hop inside the HealthKit callback, so re-reading
-        // it here can race and miss the update.
+        // Refresh today's step count and distance in the background and push
+        // again if either moved, so the watch shows real numbers rather than
+        // stale ones. Compare the AWAITED values, not the caches: a cache is
+        // written from a separate main-actor hop inside the HealthKit callback,
+        // so re-reading it here can race and miss the update.
         if HealthKitService.shared.hasRequestedStepsAccess {
             Task { @MainActor in
-                let before = HealthKitService.shared.cachedTodaySteps
+                let beforeSteps = HealthKitService.shared.cachedTodaySteps
+                let beforeMiles = HealthKitService.shared.cachedTodayMiles
                 let steps = await HealthKitService.shared.fetchTodaySteps()
-                if steps != before { self.pushCurrentSnapshot() }
+                let miles = await HealthKitService.shared.fetchTodayMiles()
+                // Distance is a Double, so it is compared with a tolerance: the
+                // wrist shows two decimals, and re-pushing the whole snapshot
+                // over a change smaller than that buys the athlete nothing.
+                if steps != beforeSteps || abs(miles - beforeMiles) >= 0.01 {
+                    self.pushCurrentSnapshot()
+                }
             }
         }
         pushCurrentSnapshot()
@@ -150,6 +157,7 @@ final class WatchSyncBridge: NSObject {
             xp: players.first?.xp ?? 0,
             steps: health.cachedTodaySteps,
             stepGoal: health.stepGoal,
+            miles: health.cachedTodayMiles,
             updatedAt: Date()
         )
     }

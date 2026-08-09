@@ -28,6 +28,14 @@ struct WatchGlanceData: Codable, Equatable {
     var xp: Int
     var steps: Int
     var stepGoal: Int
+    /// Walking + running miles today, read from HealthKit on the phone.
+    ///
+    /// Optional, unlike every other field, so that a snapshot written by a build
+    /// that predates it still decodes. The synthesized decoder throws on a
+    /// missing key even when the property carries a default, and both readers
+    /// treat a throw as "no glance at all" — the wrist would fall back to the
+    /// empty placeholder until the next push rather than just missing a number.
+    var miles: Double?
     var updatedAt: Date
 
     static let empty = WatchGlanceData(
@@ -40,6 +48,7 @@ struct WatchGlanceData: Codable, Equatable {
         mindCount: 0, mindGoal: 1,
         streak: 0, xp: 0,
         steps: 0, stepGoal: 8000,
+        miles: 0,
         updatedAt: .distantPast
     )
 

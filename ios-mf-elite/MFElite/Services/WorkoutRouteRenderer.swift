@@ -12,6 +12,10 @@ import MapKit
 import UIKit
 
 enum WorkoutRouteRenderer {
+    /// Smallest span a route map will ever be drawn at, in degrees — roughly
+    /// 65 m of latitude, a touch narrower than a soccer pitch.
+    private static let minimumSpan: CLLocationDegrees = 0.0006
+
     /// Render the route points into a map image and save it to Documents.
     /// Returns the saved filename, or nil when there aren't enough points.
     static func renderAndSave(points: [WatchRoutePoint], accentHex: String, id: String) async -> String? {
@@ -38,9 +42,15 @@ enum WorkoutRouteRenderer {
             minLng = min(minLng, c.longitude); maxLng = max(maxLng, c.longitude)
         }
         let center = CLLocationCoordinate2D(latitude: (minLat + maxLat) / 2, longitude: (minLng + maxLng) / 2)
+        // The floor stops a route that barely moved from zooming in to the point
+        // where GPS jitter looks like a marathon. It used to be 0.002° — about
+        // 220 m — which is larger than a full-size soccer pitch, so a session
+        // spent covering every yard of a field was rendered as a small scribble
+        // in the middle of a mostly empty map. `minimumSpan` is deliberately just
+        // under a pitch's width so a field session fills the frame.
         let span = MKCoordinateSpan(
-            latitudeDelta: max((maxLat - minLat) * 1.4, 0.002),
-            longitudeDelta: max((maxLng - minLng) * 1.4, 0.002)
+            latitudeDelta: max((maxLat - minLat) * 1.4, Self.minimumSpan),
+            longitudeDelta: max((maxLng - minLng) * 1.4, Self.minimumSpan)
         )
         return MKCoordinateRegion(center: center, span: span)
     }

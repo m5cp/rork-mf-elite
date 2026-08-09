@@ -18,6 +18,7 @@ struct IdentifiableDate: Identifiable {
 }
 
 struct ProgressTabView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Query private var progress: [DrillProgress]
     @Query private var sessions: [SessionLogEntry]
@@ -33,6 +34,7 @@ struct ProgressTabView: View {
     @State private var profile = PlayerProfileStore.shared
     @State private var health = HealthKitService.shared
     @State private var todaySteps: Int = 0
+    @State private var todayMiles: Double = 0
     @State private var appeared = false
 
     private var viewModel: ProgressDashboardViewModel {
@@ -74,10 +76,16 @@ struct ProgressTabView: View {
             .scrollIndicators(.hidden)
             .navigationBarHidden(true)
             .onAppear { appeared = true }
-            .task { await refreshSteps() }
+            .task {
+                await refreshHealth()
+                // A workout saved with no signal has route points but no map
+                // image. This is where the athlete comes looking for it, so it's
+                // where the render gets its second chance.
+                await WorkoutStore.renderMissingRouteImages(context: modelContext)
+            }
             .refreshable {
                 await LeaderboardTeaserModel.shared.refresh()
-                await refreshSteps()
+                await refreshHealth()
             }
             .navigationDestination(for: WeeklyRoute.self) { _ in HistoryCalendarView() }
             .navigationDestination(for: DrillRoute.self) { route in
@@ -133,51 +141,88 @@ struct ProgressTabView: View {
         }
     }
 
-    // MARK: - Today's steps
+    /// How many combine tests the academy's baseline currently includes.
+    private var baselineTestCount: Int {
+        CoachStandardsStore.shared.baseline(from: combineTests).count
+    }
+
+    // MARK: - Today's steps and miles
 
     /// Requests Health read access the first time this card appears, then
-    /// fetches today's cumulative step count. Read-only — never writes steps.
-    private func refreshSteps() async {
+    /// fetches today's cumulative step count and walking/running distance.
+    /// Read-only — never writes either.
+    private func refreshHealth() async {
         if !health.hasRequestedStepsAccess {
             _ = await health.requestStepsAccess()
         }
+        // Existing players answered the steps prompt before distance was a
+        // separate read type, and `requestStepsAccess` is one-shot — so without
+        // this they would never be asked for distance and Miles Today would sit
+        // at 0 forever. Foreground only, from the screen that shows the number.
+        await health.requestDistanceAccessIfNeeded()
         todaySteps = await health.fetchTodaySteps()
+        todayMiles = await health.fetchTodayMiles()
     }
 
     private var stepsCard: some View {
         let goal = health.stepGoal
         let progress = min(1, Double(todaySteps) / Double(max(1, goal)))
         return Card {
-            HStack(spacing: DS.Spacing.s20) {
-                ZStack {
-                    Circle()
-                        .stroke(DS.Colors.Bg.raised, lineWidth: 7)
-                    Circle()
-                        .trim(from: 0, to: progress)
-                        .stroke(Color.white, style: StrokeStyle(lineWidth: 7, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                        .animation(DS.Motion.standardSpring, value: progress)
-                    Image(systemName: "figure.walk")
-                        .font(.system(size: 20, weight: .semibold))
-                        .metallicSymbol(.gold)
-                }
-                .frame(width: 56, height: 56)
-
-                VStack(alignment: .leading, spacing: DS.Spacing.s4) {
-                    Eyebrow(text: "Today's Steps")
-                    HStack(alignment: .firstTextBaseline, spacing: DS.Spacing.s4) {
-                        CountUp(value: todaySteps)
-                            .font(DS.Typography.num(size: 26))
-                            .foregroundStyle(DS.Colors.Ink.primary)
-                        Text("/ \(goal.formatted()) goal")
-                            .style(.micro)
-                            .foregroundStyle(DS.Colors.Ink.quaternary)
+            VStack(alignment: .leading, spacing: DS.Spacing.s16) {
+                HStack(spacing: DS.Spacing.s20) {
+                    ZStack {
+                        Circle()
+                            .stroke(DS.Colors.Bg.raised, lineWidth: 7)
+                        Circle()
+                            .trim(from: 0, to: progress)
+                            .stroke(Color.white, style: StrokeStyle(lineWidth: 7, lineCap: .round))
+                            .rotationEffect(.degrees(-90))
+                            .animation(DS.Motion.standardSpring, value: progress)
+                        Image(systemName: "figure.walk")
+                            .font(.system(size: 20, weight: .semibold))
+                            .metallicSymbol(.gold)
                     }
-                    Text("From iPhone & Apple Watch")
-                        .style(.micro)
-                        .foregroundStyle(DS.Colors.Ink.tertiary)
+                    .frame(width: 56, height: 56)
+
+                    VStack(alignment: .leading, spacing: DS.Spacing.s4) {
+                        Eyebrow(text: "Today's Steps")
+                        HStack(alignment: .firstTextBaseline, spacing: DS.Spacing.s4) {
+                            CountUp(value: todaySteps)
+                                .font(DS.Typography.num(size: 26))
+                                .foregroundStyle(DS.Colors.Ink.primary)
+                            Text("/ \(goal.formatted()) goal")
+                                .style(.micro)
+                                .foregroundStyle(DS.Colors.Ink.quaternary)
+                        }
+                        Text("From iPhone & Apple Watch")
+                            .style(.micro)
+                            .foregroundStyle(DS.Colors.Ink.tertiary)
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
+
+                Hairline()
+
+                // Distance sits under the steps rather than beside them: both
+                // come from the same Health permission and the same day, and a
+                // second ring would imply a second goal the player never set.
+                // Kept visible at 0.00 for the same reason the step count is —
+                // a row that disappears when Health has nothing looks broken.
+                HStack(spacing: DS.Spacing.s12) {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 13, weight: .semibold))
+                        .metallicSymbol(.gold)
+                    Text("Miles Today")
+                        .style(.foot)
+                        .foregroundStyle(DS.Colors.Ink.secondary)
+                    Spacer(minLength: DS.Spacing.s8)
+                    Text(String(format: "%.2f", todayMiles))
+                        .font(DS.Typography.num(size: 18))
+                        .foregroundStyle(DS.Colors.Ink.primary)
+                    Text("mi")
+                        .style(.micro)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                }
             }
         }
         .padding(.horizontal, DS.Spacing.s20)
@@ -581,8 +626,11 @@ struct ProgressTabView: View {
                         Text("Test your baseline")
                             .style(.title3)
                             .foregroundStyle(DS.Colors.Ink.primary)
+                        // Counted, not hardcoded — a head coach can narrow the
+                        // baseline, and "8 tests" would then contradict the
+                        // Combine screen's own "3 of 5 Tests".
                         Text(lastDate == nil
-                             ? "8 tests · about 30 minutes"
+                             ? "\(baselineTestCount) test\(baselineTestCount == 1 ? "" : "s") · about 30 minutes"
                              : "Last combine \(CombineFormat.relative(lastDate!))")
                             .style(.foot)
                             .foregroundStyle(DS.Colors.Ink.quaternary)

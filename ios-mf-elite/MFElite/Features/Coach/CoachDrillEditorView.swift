@@ -16,6 +16,13 @@ import AVFoundation
 /// Pushes the coach drill-editor list inside the Coach tab.
 struct CoachDrillEditorRoute: Hashable {}
 
+/// Pushes one discipline's drills, opened from the editor's group cards.
+/// Carries the id rather than the `Discipline` itself so the pushed screen
+/// re-reads it from the store after a curriculum overlay refresh.
+private struct CoachDrillGroupRoute: Hashable {
+    let disciplineID: String
+}
+
 struct CoachDrillEditorView: View {
     @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
     @Environment(\.modelContext) private var modelContext
@@ -105,6 +112,24 @@ struct CoachDrillEditorView: View {
         filterDisciplineID != nil || filterLevel != nil || editedOnly
     }
 
+    private var isSearching: Bool {
+        !searchText.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    /// Drill count per discipline id for the group cards, from a single walk of
+    /// the curriculum. `CurriculumSearchViewModel.drillCount(for:)` would do the
+    /// same job, but the view model is rebuilt (and re-sorts every discipline)
+    /// on each access, so asking it once per card walks the tree four times.
+    private var drillCountsByDiscipline: [String: Int] {
+        var counts: [String: Int] = [:]
+        for discipline in disciplines {
+            counts[discipline.id] = discipline.categories.reduce(0) { sum, category in
+                sum + category.levels.reduce(0) { $0 + $1.drills.count }
+            }
+        }
+        return counts
+    }
+
     var body: some View {
         let results = filteredResults
 
@@ -114,6 +139,13 @@ struct CoachDrillEditorView: View {
                     .padding(.horizontal, DS.Spacing.s20)
                     .padding(.top, DS.Spacing.s16)
                     .padding(.bottom, DS.Spacing.s8)
+
+                // Hidden once a query is typed: the coach is already narrowing
+                // the flat list, and four cards between the search field and
+                // the results would just push the matches off screen.
+                if !isSearching {
+                    groupCards
+                }
 
                 filterBar
 
@@ -156,12 +188,69 @@ struct CoachDrillEditorView: View {
         .navigationTitle("Drill Editor")
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search 270 drills by name, focus or category")
+        .navigationDestination(for: CoachDrillGroupRoute.self) { route in
+            CoachDrillGroupView(disciplineID: route.disciplineID, model: model)
+        }
         .sheet(item: $editing) { drill in
             CoachDrillEditSheet(drill: drill, model: model)
         }
         .sheet(isPresented: $showNew) {
             CoachNewDrillSheet(disciplines: disciplines, model: model)
         }
+    }
+
+    // MARK: - Group cards
+
+    /// Prominent discipline cards that open straight into that group's drills.
+    ///
+    /// The flat list below is untouched and still the whole curriculum — the
+    /// owner asked for both. The cards are how a coach who already knows they
+    /// want a Technical drill skips a 270-row scroll; the list is how someone
+    /// browsing everything, or hunting a drill whose discipline they can't
+    /// remember, still gets there.
+    private var groupCards: some View {
+        let counts = drillCountsByDiscipline
+        return VStack(alignment: .leading, spacing: DS.Spacing.s12) {
+            Eyebrow(text: "Browse By Discipline")
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), spacing: DS.Spacing.s12),
+                    GridItem(.flexible(), spacing: DS.Spacing.s12)
+                ],
+                spacing: DS.Spacing.s12
+            ) {
+                ForEach(disciplines) { discipline in
+                    NavigationLink(value: CoachDrillGroupRoute(disciplineID: discipline.id)) {
+                        groupCard(discipline: discipline, count: counts[discipline.id] ?? 0)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                }
+            }
+        }
+        .padding(.horizontal, DS.Spacing.s20)
+        .padding(.top, DS.Spacing.s8)
+        .padding(.bottom, DS.Spacing.s16)
+    }
+
+    private func groupCard(discipline: Discipline, count: Int) -> some View {
+        VStack(alignment: .leading, spacing: DS.Spacing.s8) {
+            DisciplineMark(kind: discipline.mark, size: 32)
+            Text(discipline.name)
+                .style(.callout)
+                .fontWeight(.semibold)
+                .foregroundStyle(DS.Colors.Ink.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text("\(count) drill\(count == 1 ? "" : "s")")
+                .style(.micro)
+                .foregroundStyle(DS.Colors.Ink.tertiary)
+        }
+        .padding(DS.Spacing.s16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(DS.Colors.Bg.card)
+        .clipShape(RoundedRectangle(cornerRadius: DS.Radius.md))
+        .overlay(RoundedRectangle(cornerRadius: DS.Radius.md).stroke(DS.Colors.Line.hairline, lineWidth: 1))
+        .contentShape(Rectangle())
     }
 
     /// Sort picker. Kept as a Menu so it costs one row of chrome rather than a
@@ -324,6 +413,98 @@ private struct EditorDrillRow: View {
             .padding(.vertical, 2)
             .background(DS.Colors.Bg.raised)
             .clipShape(Capsule())
+    }
+}
+
+// MARK: - One discipline's drills
+
+/// A drill paired with the level it sits in, so the group list can render a
+/// breadcrumb without walking back up the curriculum for every row.
+private struct CoachGroupDrill: Identifiable {
+    let drill: Drill
+    let levelNumber: Int
+    var id: String { drill.id }
+}
+
+/// Every drill in one discipline, grouped by category, opened from a group
+/// card. Editing here goes through the same sheet as the flat list, so a drill
+/// behaves identically whichever way the coach reached it.
+private struct CoachDrillGroupView: View {
+    let disciplineID: String
+    let model: CoachViewModel
+
+    @Query(sort: \Discipline.sortIndex) private var disciplines: [Discipline]
+    @State private var editing: Drill?
+
+    /// Re-read from the store rather than captured in the route, so a coach who
+    /// edits a drill and comes back sees the refreshed overlay.
+    private var discipline: Discipline? {
+        disciplines.first { $0.id == disciplineID }
+    }
+
+    private var sortedCategories: [Category] {
+        (discipline?.categories ?? []).sorted { $0.sortIndex < $1.sortIndex }
+    }
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(sortedCategories, id: \.id) { category in
+                    categoryBlock(category)
+                }
+
+                if sortedCategories.isEmpty {
+                    Text("No drills in this discipline yet.")
+                        .style(.body)
+                        .foregroundStyle(DS.Colors.Ink.quaternary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, DS.Spacing.s20)
+                        .padding(.top, DS.Spacing.s48)
+                }
+            }
+            .padding(.bottom, 120)
+        }
+        .background(DS.Colors.Bg.base)
+        .scrollIndicators(.hidden)
+        .navigationTitle(discipline?.name ?? "Drills")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(item: $editing) { drill in
+            CoachDrillEditSheet(drill: drill, model: model)
+        }
+    }
+
+    @ViewBuilder
+    private func categoryBlock(_ category: Category) -> some View {
+        let rows = drills(in: category)
+
+        Eyebrow(text: "\(category.name) · \(rows.count)")
+            .padding(.horizontal, DS.Spacing.s20)
+            .padding(.top, DS.Spacing.s20)
+            .padding(.bottom, DS.Spacing.s8)
+
+        ForEach(rows) { row in
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                editing = row.drill
+            } label: {
+                EditorDrillRow(
+                    drill: row.drill,
+                    breadcrumb: "\(category.name) · LV\(row.levelNumber)",
+                    isLast: row.id == rows.last?.id
+                )
+            }
+            .buttonStyle(PressableButtonStyle())
+        }
+    }
+
+    private func drills(in category: Category) -> [CoachGroupDrill] {
+        category.levels
+            .sorted { $0.sortIndex < $1.sortIndex }
+            .flatMap { level in
+                level.drills
+                    .sorted { $0.sortIndex < $1.sortIndex }
+                    .map { CoachGroupDrill(drill: $0, levelNumber: level.number) }
+            }
     }
 }
 
