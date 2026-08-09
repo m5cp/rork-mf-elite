@@ -1,5 +1,5 @@
 -- =============================================================================
---  MF Elite — public schema, dumped from production 2026-08-08
+--  MF Elite — public schema, dumped from production 2026-08-08 (re-dumped after the head-coach permission change)
 --
 --  This file is generated from the live database (project twzukrzcfquxfmrnffze),
 --  not hand-maintained. Regenerate it rather than editing it by hand.
@@ -94,11 +94,7 @@ create table if not exists categories (
 alter table categories add constraint categories_discipline_id_fkey FOREIGN KEY (discipline_id) REFERENCES disciplines(id) ON DELETE CASCADE;
 alter table categories add constraint categories_pkey PRIMARY KEY (id);
 alter table categories enable row level security;
-create policy categories_coach_write on categories for all to public using ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true))));
+create policy categories_head_write on categories for all to authenticated using (is_head_coach()) with check (is_head_coach());
 create policy categories_select_auth on categories for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
 create table if not exists certifications (
@@ -268,12 +264,7 @@ create table if not exists curriculum_edits (
 );
 alter table curriculum_edits add constraint curriculum_edits_pkey PRIMARY KEY (drill_id);
 alter table curriculum_edits enable row level security;
-create policy curriculum_edits_coach_write on curriculum_edits for all to public using ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true))));
-create policy curriculum_edits_coach_write_v2 on curriculum_edits for all to authenticated using (is_active_coach()) with check (is_active_coach());
+create policy curriculum_edits_head_write on curriculum_edits for all to authenticated using (is_head_coach()) with check (is_head_coach());
 create policy curriculum_edits_select_auth on curriculum_edits for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
 create table if not exists custom_workouts (
@@ -297,11 +288,7 @@ create table if not exists daily_quotes (
 );
 alter table daily_quotes add constraint daily_quotes_pkey PRIMARY KEY (id);
 alter table daily_quotes enable row level security;
-create policy quotes_coach_write on daily_quotes for all to public using ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true))));
+create policy quotes_head_write on daily_quotes for all to authenticated using (is_head_coach()) with check (is_head_coach());
 create policy quotes_select_auth on daily_quotes for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
 create table if not exists disciplines (
@@ -317,11 +304,7 @@ create table if not exists disciplines (
 );
 alter table disciplines add constraint disciplines_pkey PRIMARY KEY (id);
 alter table disciplines enable row level security;
-create policy disciplines_coach_write on disciplines for all to public using ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true))));
+create policy disciplines_head_write on disciplines for all to authenticated using (is_head_coach()) with check (is_head_coach());
 create policy disciplines_select_auth on disciplines for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
 create table if not exists drill_notes (
@@ -362,11 +345,7 @@ create table if not exists drills (
 alter table drills add constraint drills_level_id_fkey FOREIGN KEY (level_id) REFERENCES levels(id) ON DELETE CASCADE;
 alter table drills add constraint drills_pkey PRIMARY KEY (id);
 alter table drills enable row level security;
-create policy drills_coach_write on drills for all to public using ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true))));
+create policy drills_head_write on drills for all to authenticated using (is_head_coach()) with check (is_head_coach());
 create policy drills_select_auth on drills for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
 create table if not exists families (
@@ -417,11 +396,7 @@ create table if not exists levels (
 alter table levels add constraint levels_category_id_fkey FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE;
 alter table levels add constraint levels_pkey PRIMARY KEY (id);
 alter table levels enable row level security;
-create policy levels_coach_write on levels for all to public using ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true))));
+create policy levels_head_write on levels for all to authenticated using (is_head_coach()) with check (is_head_coach());
 create policy levels_select_auth on levels for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
 create table if not exists member_counter (
@@ -561,11 +536,7 @@ create table if not exists progression_rules (
 );
 alter table progression_rules add constraint progression_rules_pkey PRIMARY KEY (id);
 alter table progression_rules enable row level security;
-create policy rules_coach_write on progression_rules for all to public using ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true)))) with check ((user_id() IN ( SELECT coaches.user_id
-   FROM coaches
-  WHERE (coaches.is_active = true))));
+create policy rules_head_write on progression_rules for all to authenticated using (is_head_coach()) with check (is_head_coach());
 create policy rules_select_auth on progression_rules for select to public using (((auth.jwt() ->> 'role'::text) = 'authenticated'::text));
 
 create table if not exists roster_invites (
@@ -1059,3 +1030,17 @@ $function$
 -- ============ TRIGGERS ============
 
 CREATE TRIGGER trg_protect_player_username BEFORE UPDATE ON public.player_profiles FOR EACH ROW EXECUTE FUNCTION protect_player_username();
+
+-- ============ storage.objects POLICIES (reference only) ============
+
+-- storage.objects: create policy avatars_authenticated_select for select to authenticated using ((bucket_id = 'avatars'::text));
+-- storage.objects: create policy avatars_owner_update for update to authenticated using (((bucket_id = 'avatars'::text) AND ((storage.foldername(name))[1] = user_id()))) with check (((bucket_id = 'avatars'::text) AND ((storage.foldername(name))[1] = user_id())));
+-- storage.objects: create policy avatars_owner_write for insert to authenticated with check (((bucket_id = 'avatars'::text) AND ((storage.foldername(name))[1] = user_id())));
+-- storage.objects: create policy drill_media_authenticated_select for select to authenticated using ((bucket_id = ANY (ARRAY['drill-videos'::text, 'drill-images'::text])));
+-- storage.objects: create policy drill_media_head_delete for delete to authenticated using (((bucket_id = ANY (ARRAY['drill-videos'::text, 'drill-images'::text])) AND is_head_coach()));
+-- storage.objects: create policy drill_media_head_insert for insert to authenticated with check (((bucket_id = ANY (ARRAY['drill-videos'::text, 'drill-images'::text])) AND is_head_coach()));
+-- storage.objects: create policy drill_media_head_update for update to authenticated using (((bucket_id = ANY (ARRAY['drill-videos'::text, 'drill-images'::text])) AND is_head_coach())) with check (((bucket_id = ANY (ARRAY['drill-videos'::text, 'drill-images'::text])) AND is_head_coach()));
+-- storage.objects: create policy "player media own delete" for delete to public using (((bucket_id = 'player-media'::text) AND ((storage.foldername(name))[1] = user_id())));
+-- storage.objects: create policy "player media own update" for update to public using (((bucket_id = 'player-media'::text) AND ((storage.foldername(name))[1] = user_id())));
+-- storage.objects: create policy "player media own write" for insert to public with check (((bucket_id = 'player-media'::text) AND ((storage.foldername(name))[1] = user_id())));
+-- storage.objects: create policy player_media_owner_select for select to authenticated using (((bucket_id = 'player-media'::text) AND ((storage.foldername(name))[1] = user_id())));

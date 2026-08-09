@@ -534,7 +534,16 @@ struct CoachView: View {
 
     // MARK: - Drill editor
 
+    /// Head coaches only.
+    ///
+    /// Editing the curriculum and uploading demo media are head-coach powers on
+    /// the server, so showing the entry point to a regular coach would offer
+    /// them a screen where every save and every upload comes back "not
+    /// allowed". Hidden rather than disabled: there is nothing they can do to
+    /// earn it, so an explanation would just be noise on the dashboard.
+    @ViewBuilder
     private var drillEditorSection: some View {
+        if SubscriptionService.shared.coachRole == "head_coach" {
         VStack(alignment: .leading, spacing: DS.Spacing.s12) {
             Eyebrow(text: "Drill Editor")
             NavigationLink(value: CoachDrillEditorRoute()) {
@@ -561,6 +570,7 @@ struct CoachView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(PressableButtonStyle())
+        }
         }
     }
 

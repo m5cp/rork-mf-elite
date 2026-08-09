@@ -141,6 +141,13 @@ struct MFEliteApp: App {
                         WatchSyncBridge.shared.refreshAndPush()
                         Task { await AppConfigStore.shared.refresh() }
                         Task { await SupportAdjustments.shared.applyPending() }
+                        // Coach status is in-memory only and was re-checked
+                        // nowhere but sign-in, so a coach who relaunched the app
+                        // lost the Coach tab until they signed out and back in.
+                        // It is also what makes removing someone from the
+                        // `coaches` table take effect without an App Store
+                        // release.
+                        Task { await SupabaseAuth.shared.refreshCoachStatus() }
                         // A Live Activity survives the process that started it, so
                         // a crash mid-drill leaves a timer on the lock screen that
                         // no longer belongs to anything. Settle up before the
@@ -168,6 +175,7 @@ struct MFEliteApp: App {
                 WatchSyncBridge.shared.refreshAndPush()
                 Task { await AppConfigStore.shared.refresh() }
                 Task { await SupportAdjustments.shared.applyPending() }
+                Task { await SupabaseAuth.shared.refreshCoachStatus() }
                 // Also on every return to the foreground: the app can be killed
                 // in the background without ever relaunching cold, and this is
                 // the first moment we can see what the lock screen still holds.

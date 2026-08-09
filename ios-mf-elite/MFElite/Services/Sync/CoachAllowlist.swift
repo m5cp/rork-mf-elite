@@ -2,11 +2,16 @@
 //  CoachAllowlist.swift
 //  MFElite
 //
-//  A built-in, ship-with-the-app list of emails that always unlock the Coach
-//  dashboard and full coach capabilities — even offline, during testing, or
-//  while Apple is reviewing the build. This is layered ON TOP of the live
-//  server-side `coaches` allow-list so newly added coaches still work without
-//  an app update.
+//  A built-in, ship-with-the-app list of emails that unlock the Coach dashboard
+//  offline, during testing, and while Apple is reviewing the build. Layered ON
+//  TOP of the live server-side `coaches` table so a newly added coach works
+//  without an app update.
+//
+//  It is a fallback, not an override. As of 2026-08-08 an explicit "no role"
+//  answer from `my_coach_role()` revokes access even for an address listed
+//  here — removing someone from the `coaches` table is enough, and no longer
+//  needs an App Store release. Only a FAILED call (offline, 401) falls back to
+//  this list.
 //
 
 import Foundation
@@ -36,9 +41,11 @@ nonisolated enum CoachAllowlist {
 
     /// Accounts that always hold the full Head Coach role, even offline or before
     /// the server check runs. Layered ON TOP of the live `coaches` table.
-    /// Every address the `coaches` table marks `role = 'head_coach'`. All of
-    /// these get full admin: media upload, publishing, announcements, XP grants
-    /// and the Control Center — offline and before the server check lands.
+    /// Every address the `coaches` table marks `role = 'head_coach'`. Head
+    /// coaches are the only accounts that can upload drill media or edit the
+    /// curriculum (server-enforced since 2026-08-08), on top of XP grants and
+    /// the Control Center. A regular coach on the list below gets the
+    /// dashboard, teams, rosters, announcements, notes and reports.
     private static let headCoachEmails: Set<String> = [
         "mf.elitetraining@gmail.com",       // Coach Matteo Finazzi
         "matteo.m.finazzi@gmail.com",       // Coach Matteo Finazzi (signed-in account)
